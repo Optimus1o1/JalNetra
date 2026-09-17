@@ -26,7 +26,7 @@ export const PillTabs: React.FC<PillTabsProps> = ({
   return (
     <div
       className={cn(
-        "flex items-center gap-1.5 p-1.5 rounded-xl bg-slate-950/80 border border-slate-800/80 backdrop-blur-xl overflow-x-auto no-scrollbar",
+        "flex items-center gap-1 p-1 rounded bg-[#090d16] border border-[#1c2638] overflow-x-auto no-scrollbar",
         className
       )}
     >
@@ -37,25 +37,25 @@ export const PillTabs: React.FC<PillTabsProps> = ({
             key={tab.id}
             onClick={() => onChange(tab.id)}
             className={cn(
-              "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 shrink-0 cursor-pointer",
+              "flex items-center gap-2 px-3 py-1.5 rounded-sm text-xs font-mono transition-all duration-150 shrink-0 cursor-pointer",
               isActive
-                ? "bg-gradient-to-r from-cyan-950/80 to-slate-900/90 text-cyan-300 border border-cyan-500/40 shadow-sm shadow-cyan-950/50 font-semibold"
-                : "text-slate-400 hover:text-slate-200 hover:bg-slate-900/60 border border-transparent"
+                ? "bg-[#142032] text-sky-300 border border-sky-500/40 font-semibold shadow-xs"
+                : "text-slate-400 hover:text-slate-200 hover:bg-[#0e1422] border border-transparent"
             )}
           >
             {tab.icon && (
-              <span className={cn("w-3.5 h-3.5", isActive ? "text-cyan-400" : "text-slate-400")}>
+              <span className={cn("w-3.5 h-3.5", isActive ? "text-sky-400" : "text-slate-500")}>
                 {tab.icon}
               </span>
             )}
-            <span>{tab.label}</span>
+            <span className="tracking-wide uppercase text-[11px]">{tab.label}</span>
             {tab.badge !== undefined && (
               <span
                 className={cn(
-                  "px-1.5 py-0.2 rounded-full text-[10px] font-mono",
+                  "px-1.5 py-0.2 rounded text-[10px] font-mono",
                   isActive
-                    ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"
-                    : "bg-slate-800 text-slate-400"
+                    ? "bg-rose-500/20 text-rose-300 border border-rose-500/40"
+                    : "bg-[#162030] text-slate-400"
                 )}
               >
                 {tab.badge}

@@ -176,49 +176,49 @@ export default function JalNetraApp() {
               </div>
 
               {/* Right Column: Triage & Priority Alerts Rail (4/12 width) */}
-              <div className="lg:col-span-4 space-y-5">
+              <div className="lg:col-span-4 space-y-4">
                 {/* Active Alerts Fast Triage */}
-                <GlassCard tone="standard" className="p-5 space-y-3">
-                  <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
-                    <h4 className="text-xs font-mono font-bold uppercase text-slate-200 flex items-center gap-1.5">
-                      <Bell className="w-4 h-4 text-rose-400" />
+                <GlassCard tone="standard" className="p-4 space-y-3">
+                  <div className="flex items-center justify-between border-b border-[#1c2638] pb-2">
+                    <h4 className="text-[11px] font-mono font-bold uppercase text-slate-200 flex items-center gap-1.5 tracking-wider">
+                      <Bell className="w-3.5 h-3.5 text-rose-400" />
                       Priority Incident Triage
                     </h4>
                     <button
                       onClick={() => setActiveScreen("alerts")}
-                      className="text-[11px] font-mono text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
+                      className="text-[10px] font-mono text-sky-400 hover:text-sky-300 flex items-center gap-1 cursor-pointer"
                     >
                       All ({INITIAL_ALERTS.length}) <ArrowRight className="w-3 h-3" />
                     </button>
                   </div>
 
-                  <div className="space-y-2.5">
+                  <div className="space-y-2">
                     {INITIAL_ALERTS.slice(0, 2).map((alert) => (
                       <div
                         key={alert.id}
-                        className="p-3 rounded-xl bg-slate-900/80 border border-rose-500/30 space-y-1.5"
+                        className="p-2.5 rounded-sm bg-[#0e1422] border border-rose-500/30 space-y-1"
                       >
                         <div className="flex items-center justify-between">
                           <span className="text-[10px] font-mono font-bold text-rose-400">
                             {alert.alertCode}
                           </span>
-                          <span className="text-[10px] font-mono text-slate-500">
+                          <span className="text-[9px] font-mono text-slate-500">
                             {alert.issuedAt.split("(")[0]}
                           </span>
                         </div>
                         <h5 className="text-xs font-bold text-slate-100">{alert.title}</h5>
-                        <p className="text-[11px] text-slate-300 font-mono leading-tight">
+                        <p className="text-[10px] text-slate-300 font-mono leading-tight">
                           {alert.affectedInfrastructure[0]}
                         </p>
-                        <div className="pt-1 flex items-center justify-between">
-                          <span className="text-[10px] font-mono text-cyan-400">
-                            Conf: {(alert.confidenceScore * 100).toFixed(0)}%
+                        <div className="pt-1 flex items-center justify-between border-t border-[#1a2334] mt-1">
+                          <span className="text-[10px] font-mono text-sky-400">
+                            CONFIDENCE: {(alert.confidenceScore * 100).toFixed(0)}%
                           </span>
                           <button
                             onClick={() => setActiveScreen("alerts")}
-                            className="text-[10px] font-mono text-cyan-300 hover:underline"
+                            className="text-[10px] font-mono text-sky-300 hover:underline cursor-pointer"
                           >
-                            Dispatch Action →
+                            DISPATCH ACTION →
                           </button>
                         </div>
                       </div>
@@ -227,29 +227,29 @@ export default function JalNetraApp() {
                 </GlassCard>
 
                 {/* Top Critical Wards Quick Access */}
-                <GlassCard tone="standard" className="p-5 space-y-3">
-                  <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
-                    <h4 className="text-xs font-mono font-bold uppercase text-slate-200 flex items-center gap-1.5">
-                      <ShieldAlert className="w-4 h-4 text-amber-400" />
+                <GlassCard tone="standard" className="p-4 space-y-3">
+                  <div className="flex items-center justify-between border-b border-[#1c2638] pb-2">
+                    <h4 className="text-[11px] font-mono font-bold uppercase text-slate-200 flex items-center gap-1.5 tracking-wider">
+                      <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
                       Highest Inundation Hotspots
                     </h4>
                     <button
                       onClick={() => setActiveScreen("vulnerability")}
-                      className="text-[11px] font-mono text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
+                      className="text-[10px] font-mono text-sky-400 hover:text-sky-300 flex items-center gap-1 cursor-pointer"
                     >
                       Matrix <ArrowRight className="w-3 h-3" />
                     </button>
                   </div>
 
-                  <div className="space-y-2 font-mono text-xs">
+                  <div className="space-y-1.5 font-mono text-xs">
                     {topCriticalWards.map((ward) => (
                       <div
                         key={ward.id}
-                        className="p-2.5 rounded-lg bg-slate-900/60 border border-slate-800/80 hover:border-cyan-500/40 transition-colors flex items-center justify-between cursor-pointer"
+                        className="p-2 rounded-sm bg-[#0e1422] border border-[#1c2638] hover:border-sky-500/40 transition-colors flex items-center justify-between cursor-pointer"
                         onClick={() => setSelectedWardForDrawer(ward.wardNumber)}
                       >
                         <div>
-                          <div className="font-bold text-slate-200">
+                          <div className="font-semibold text-slate-200 text-xs">
                             Ward {ward.wardNumber}: {ward.wardName.split("/")[0]}
                           </div>
                           <div className="text-[10px] text-slate-400">
@@ -258,10 +258,10 @@ export default function JalNetraApp() {
                         </div>
 
                         <span
-                          className={`px-2 py-0.5 rounded-full text-xs font-bold border ${
+                          className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border tabular-nums ${
                             ward.riskScore >= 0.75
-                              ? "bg-rose-500/20 text-rose-300 border-rose-500/40"
-                              : "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                              ? "bg-rose-500/10 text-rose-300 border-rose-500/30"
+                              : "bg-amber-500/10 text-amber-300 border-amber-500/30"
                           }`}
                         >
                           {ward.riskScore.toFixed(2)}
@@ -272,14 +272,14 @@ export default function JalNetraApp() {
                 </GlassCard>
 
                 {/* Quick Simulation Banner */}
-                <div className="p-5 rounded-2xl bg-gradient-to-br from-cyan-950/50 via-slate-900 to-blue-950/40 border border-cyan-500/30 p-5 space-y-2">
-                  <span className="text-[10px] font-mono font-bold text-cyan-400 uppercase tracking-wider block">
-                    SCENARIO ENGINE READY
+                <div className="p-4 rounded border border-[#1c2638] bg-[#0d131f] space-y-2 corner-bracket">
+                  <span className="text-[10px] font-mono font-bold text-sky-400 uppercase tracking-widest block">
+                    [DISPATCH // SIMULATION_ENGINE]
                   </span>
-                  <h4 className="text-sm font-bold text-slate-100">
-                    Test Extreme Rainfall & Sluice Lock Scenarios
+                  <h4 className="text-xs font-bold text-slate-100 uppercase tracking-wide">
+                    Precipitation & Tidal Surge Simulator
                   </h4>
-                  <p className="text-xs text-slate-300 leading-relaxed font-mono">
+                  <p className="text-[11px] text-slate-300 leading-relaxed font-mono">
                     Compute flood extent delta, avoided loss, and spared population under emergency pumping.
                   </p>
                   <Button
@@ -287,7 +287,7 @@ export default function JalNetraApp() {
                     size="sm"
                     className="w-full mt-2"
                     onClick={() => setActiveScreen("simulation")}
-                    icon={<PlaySquare className="w-3.5 h-3.5" />}
+                    icon={<PlaySquare className="w-3 h-3" />}
                   >
                     Open Simulator Cockpit
                   </Button>

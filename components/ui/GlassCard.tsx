@@ -16,26 +16,25 @@ export const GlassCard: React.FC<GlassCardProps> = ({
 }) => {
   const toneStyles = {
     standard:
-      "bg-[rgba(11,18,33,0.78)] border-slate-800/80 shadow-slate-950/50",
+      "bg-[#0d121e]/90 border-[#1c2638] shadow-sm",
     elevated:
-      "bg-[rgba(15,23,42,0.88)] border-cyan-500/25 shadow-cyan-950/30",
+      "bg-[#111726]/95 border-[#223048] shadow-sm",
     accent:
-      "bg-gradient-to-br from-cyan-950/40 to-slate-900/80 border-cyan-500/35 shadow-cyan-500/10",
+      "bg-[#0f192b]/95 border-sky-500/35 shadow-sm",
     danger:
-      "bg-gradient-to-br from-rose-950/40 to-slate-900/80 border-rose-500/35 shadow-rose-500/10",
+      "bg-[#1c1218]/95 border-rose-500/40 shadow-sm",
     dark:
-      "bg-[rgba(5,9,18,0.92)] border-slate-900 shadow-black",
+      "bg-[#080b12]/95 border-[#182030] shadow-sm",
   };
 
   return (
     <div
       className={cn(
-        "relative rounded-xl border backdrop-blur-xl transition-all duration-300",
-        "shadow-lg",
-        "before:absolute before:inset-0 before:rounded-xl before:pointer-events-none before:border-t before:border-white/[0.08]",
+        "relative rounded border transition-all duration-150 corner-bracket",
+        "before:absolute before:inset-0 before:rounded before:pointer-events-none before:border-t before:border-white/[0.05]",
         toneStyles[tone],
         interactive &&
-          "hover:border-cyan-400/50 hover:shadow-cyan-500/15 hover:-translate-y-0.5 cursor-pointer",
+          "hover:border-sky-500/40 hover:bg-[#131b2c] cursor-pointer",
         className
       )}
       {...props}

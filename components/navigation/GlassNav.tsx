@@ -52,37 +52,37 @@ export const GlassNav: React.FC<GlassNavProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full glass-hud border-b border-cyan-500/20 px-4 sm:px-6 py-2.5">
+    <header className="sticky top-0 z-50 w-full bg-[#080b12]/95 border-b border-[#1c2638] px-4 sm:px-6 py-2">
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
         {/* Brand Lockup */}
         <div className="flex items-center gap-3">
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="relative flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500/30 via-slate-900 to-blue-900/60 border border-cyan-400/50 shadow-lg shadow-cyan-500/20 group-hover:border-cyan-300 transition-all">
-              <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_10px_#06b6d4] animate-pulse" />
-              <div className="absolute inset-0 rounded-xl border border-cyan-400/20 pointer-events-none" />
+          <Link href="/" className="flex items-center gap-3 group">
+            <div className="relative flex items-center justify-center w-8 h-8 rounded-sm bg-[#0e1522] border border-[#23334d] text-sky-400 font-mono font-bold text-sm shadow-xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 absolute top-1 right-1" />
+              JN
             </div>
 
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-base font-bold tracking-tight text-white group-hover:text-cyan-200 transition-colors font-sans">
+                <span className="text-sm font-bold tracking-tight text-white group-hover:text-sky-200 transition-colors font-sans uppercase">
                   JALNETRA
                 </span>
-                <span className="text-xs px-1.5 py-0.2 rounded font-mono font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                  GLOBAL
+                <span className="text-[10px] px-1 py-0.2 rounded font-mono font-bold bg-[#142032] text-sky-300 border border-sky-500/30">
+                  OPS-COMMAND
                 </span>
-                <span className="text-[10px] font-mono text-slate-400 hidden sm:inline">
-                  v2.0
+                <span className="text-[10px] font-mono text-slate-500 hidden md:inline">
+                  v2.0 // BASIN-01
                 </span>
               </div>
-              <p className="text-[10px] text-cyan-400/80 font-mono tracking-wider hidden sm:block">
-                CLIMATE, RAINFALL & WATER DIGITAL TWIN
+              <p className="text-[10px] text-slate-400 font-mono tracking-wider hidden sm:block">
+                HOOGHLY DELTA & GREATER KOLKATA [22.5726°N 88.3639°E]
               </p>
             </div>
           </Link>
         </div>
 
         {/* Desktop Navigation */}
-        <nav className="hidden xl:flex items-center gap-1 bg-slate-950/60 p-1 rounded-xl border border-slate-800/80">
+        <nav className="hidden xl:flex items-center gap-0.5 bg-[#090d16] p-0.5 rounded border border-[#1c2638]">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeScreen === item.id;
@@ -91,16 +91,16 @@ export const GlassNav: React.FC<GlassNavProps> = ({
                 key={item.id}
                 onClick={() => handleNavClick(item.id)}
                 className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 cursor-pointer",
+                  "flex items-center gap-1.5 px-2.5 py-1 rounded-sm text-xs font-mono transition-all duration-150 cursor-pointer",
                   isActive
-                    ? "bg-cyan-500/15 text-cyan-300 border border-cyan-500/40 shadow-sm"
-                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-900/50 border border-transparent"
+                    ? "bg-[#142032] text-sky-300 border border-sky-500/40 font-semibold"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-[#0e1422] border border-transparent"
                 )}
               >
-                <Icon className={cn("w-3.5 h-3.5", isActive ? "text-cyan-400" : "text-slate-400")} />
-                <span>{item.label}</span>
+                <Icon className={cn("w-3.5 h-3.5", isActive ? "text-sky-400" : "text-slate-500")} />
+                <span className="uppercase text-[11px] tracking-wide">{item.label}</span>
                 {item.badge && (
-                  <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                  <span className="px-1.5 py-0.2 rounded text-[9px] font-mono bg-rose-500/20 text-rose-300 border border-rose-500/40">
                     {item.badge}
                   </span>
                 )}
@@ -109,11 +109,12 @@ export const GlassNav: React.FC<GlassNavProps> = ({
           })}
         </nav>
 
-        {/* Right CTA Actions */}
+        {/* Right Status & Actions */}
         <div className="flex items-center gap-2.5">
-          <div className="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-lg bg-emerald-950/30 border border-emerald-500/30 text-[11px] font-mono text-emerald-300">
-            <Radio className="w-3 h-3 text-emerald-400 animate-pulse" />
-            <span>LIVE TWIN</span>
+          <div className="hidden lg:flex items-center gap-2 px-2 py-0.5 rounded bg-[#0b101a] border border-[#1c2638] text-[10px] font-mono text-slate-300">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-slate-400">RADAR:</span>
+            <span className="text-emerald-400 font-semibold">SWEEP ACTIVE</span>
           </div>
 
           <Button
@@ -128,13 +129,13 @@ export const GlassNav: React.FC<GlassNavProps> = ({
               }
             }}
           >
-            <span className="hidden sm:inline">What-If</span> Simulator
+            <span className="hidden sm:inline">SIMULATE</span> DISPATCH
           </Button>
 
           {/* Mobile Menu Button */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="xl:hidden p-2 rounded-lg bg-slate-900/80 border border-slate-700 text-slate-300 hover:text-white"
+            className="xl:hidden p-1.5 rounded bg-[#0e1422] border border-[#1c2638] text-slate-300 hover:text-white cursor-pointer"
             aria-label="Toggle navigation menu"
           >
             {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}

@@ -27,58 +27,51 @@ export const StatCard: React.FC<StatCardProps> = ({
   onClick,
   className,
 }) => {
-  const statusColors = {
+  const statusBadge = {
     ok: "border-emerald-500/30 text-emerald-400 bg-emerald-500/10",
-    warn: "border-amber-500/30 text-amber-400 bg-amber-500/10",
-    critical: "border-rose-500/30 text-rose-400 bg-rose-500/10",
-    info: "border-cyan-500/30 text-cyan-400 bg-cyan-500/10",
+    warn: "border-amber-500/40 text-amber-300 bg-amber-500/10",
+    critical: "border-rose-500/40 text-rose-400 bg-rose-500/10",
+    info: "border-sky-500/30 text-sky-400 bg-sky-500/10",
   };
 
-  const statusDot = {
-    ok: "bg-emerald-400 shadow-[0_0_8px_#10b981]",
-    warn: "bg-amber-400 shadow-[0_0_8px_#f59e0b]",
-    critical: "bg-rose-400 animate-pulse shadow-[0_0_8px_#ef4444]",
-    info: "bg-cyan-400 shadow-[0_0_8px_#06b6d4]",
+  const statusIndicator = {
+    ok: "bg-emerald-400",
+    warn: "bg-amber-400",
+    critical: "bg-rose-500 animate-pulse",
+    info: "bg-sky-400",
   };
 
   return (
     <div
       onClick={onClick}
       className={cn(
-        "relative rounded-2xl p-5 border backdrop-blur-xl transition-all duration-300",
-        "bg-[rgba(11,18,33,0.78)] border-slate-800/80 shadow-lg shadow-black/40",
-        "before:absolute before:inset-0 before:rounded-2xl before:pointer-events-none before:border-t before:border-white/[0.08]",
-        onClick && "hover:border-cyan-500/40 hover:-translate-y-0.5 cursor-pointer",
+        "relative rounded p-4 border transition-all duration-150 corner-bracket",
+        "bg-[#0d121e]/90 border-[#1c2638] shadow-sm",
+        onClick && "hover:border-sky-500/40 hover:bg-[#111726] cursor-pointer",
         className
       )}
     >
-      {/* Top row: Icon chip + Action chip */}
-      <div className="flex items-center justify-between">
-        <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-slate-800/70 border border-slate-700/60 text-cyan-400 shadow-inner">
-          {icon}
-          <span
-            className={cn(
-              "absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full ring-2 ring-[#030712]",
-              statusDot[status]
-            )}
-          />
+      {/* Top Header Flange */}
+      <div className="flex items-center justify-between border-b border-[#1c2638]/70 pb-2.5 mb-3">
+        <div className="flex items-center gap-2">
+          <span className={cn("w-1.5 h-1.5 rounded-full", statusIndicator[status])} />
+          <span className="text-[10px] font-mono tracking-widest text-slate-400 uppercase font-semibold">
+            {label}
+          </span>
         </div>
 
-        {onClick && (
-          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-800/40 hover:bg-cyan-500/20 text-slate-400 hover:text-cyan-300 transition-colors">
-            <ArrowUpRight className="w-4 h-4" />
-          </div>
-        )}
+        <div className="flex items-center gap-1.5">
+          <span className="text-slate-400/80">{icon}</span>
+          {onClick && (
+            <ArrowUpRight className="w-3.5 h-3.5 text-slate-500 hover:text-sky-400 transition-colors" />
+          )}
+        </div>
       </div>
 
-      {/* Metric details */}
-      <p className="mt-4 text-xs font-medium text-slate-400 uppercase tracking-wider">
-        {label}
-      </p>
-
-      <div className="mt-1 flex items-baseline justify-between gap-2">
+      {/* Main Metric Figure */}
+      <div className="flex items-baseline justify-between gap-2 mt-1">
         <div className="flex items-baseline gap-1.5">
-          <span className="text-3xl font-semibold text-slate-100 tracking-tight telemetry-num">
+          <span className="text-2xl sm:text-3xl font-bold text-slate-100 font-mono tracking-tight tabular-nums">
             {value}
           </span>
           {unit && (
@@ -91,13 +84,13 @@ export const StatCard: React.FC<StatCardProps> = ({
         {trend && (
           <span
             className={cn(
-              "text-[11px] font-mono px-2 py-0.5 rounded-full border",
+              "text-[10px] font-mono px-1.5 py-0.5 rounded border uppercase tracking-wider",
               trend.isPositive !== false
                 ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/30"
                 : "bg-rose-500/10 text-rose-300 border-rose-500/30"
             )}
           >
-            {trend.direction === "up" ? "↑" : trend.direction === "down" ? "↓" : "•"}{" "}
+            {trend.direction === "up" ? "▲" : trend.direction === "down" ? "▼" : "■"}{" "}
             {trend.label}
           </span>
         )}
