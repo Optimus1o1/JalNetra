@@ -98,13 +98,15 @@ function generateFallbackDayTexture(): THREE.CanvasTexture {
   if (!ctx) return new THREE.CanvasTexture(canvas);
 
   const grad = ctx.createLinearGradient(0, 0, 0, h);
-  grad.addColorStop(0, "#081b33");
-  grad.addColorStop(0.5, "#0b2b4f");
-  grad.addColorStop(1, "#081b33");
+  grad.addColorStop(0, "#012a66");
+  grad.addColorStop(0.3, "#0077b6");
+  grad.addColorStop(0.5, "#0284c7");
+  grad.addColorStop(0.7, "#0077b6");
+  grad.addColorStop(1, "#012a66");
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, w, h);
 
-  ctx.fillStyle = "#1e3a29";
+  ctx.fillStyle = "#166534";
   // Rough India / Eurasia
   ctx.fillRect(w * 0.65, h * 0.35, w * 0.12, h * 0.2);
   // Americas
@@ -129,7 +131,6 @@ function generateFallbackNightTexture(): THREE.CanvasTexture {
   ctx.fillRect(0, 0, w, h);
 
   ctx.fillStyle = "#fbbf24";
-  // Major city light dots
   const [kx, ky] = geoToCanvas(88.36, 22.57, w, h);
   ctx.fillRect(kx, ky, 3, 3);
   const [dx, dy] = geoToCanvas(77.2, 28.61, w, h);
@@ -154,6 +155,10 @@ export const GlobalClimateGlobe3D: React.FC = () => {
   const [zoomLevel, setZoomLevel] = useState<number>(1);
   const [satelliteSourceLoaded, setSatelliteSourceLoaded] = useState<boolean>(false);
 
+  // Smooth camera zoom tracking refs
+  const targetCameraZRef = useRef<number>(210);
+  const lastReportedZoomRef = useRef<number>(1);
+
   // Simulation Controls & Telemetry State
   const [simSpeed, setSimSpeed] = useState<"1x" | "60x" | "1440x">("1x");
   const [layers, setLayers] = useState({
@@ -163,6 +168,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
     vaporStream: true,
     beacons: true,
     specularGlint: true,
+    oceanBoost: true,
   });
 
   const [simTelemetry, setSimTelemetry] = useState<{
@@ -220,7 +226,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.4;
+    renderer.toneMappingExposure = 1.45;
     container.innerHTML = "";
     container.appendChild(renderer.domElement);
 
@@ -234,11 +240,10 @@ export const GlobalClimateGlobe3D: React.FC = () => {
     // 4. Load Real NASA Satellite Imagery Textures
     const textureLoader = new THREE.TextureLoader();
 
-    // Fallbacks initialized
     const fallbackDay = generateFallbackDayTexture();
     const fallbackNight = generateFallbackNightTexture();
 
-    // Custom NASA Satellite Shader Material
+    // Enhanced NASA Satellite Shader Material with Rich Bluish Oceans & Rayleigh Scattering
     const earthCustomShader = {
       uniforms: {
         dayMap: { value: fallbackDay },
@@ -247,6 +252,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         sunDirection: { value: new THREE.Vector3(1, 0, 0) },
         useTerminator: { value: 1.0 },
         useSpecular: { value: 1.0 },
+        useOceanBoost: { value: 1.0 },
       },
       vertexShader: `
         varying vec2 vUv;
@@ -268,6 +274,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         uniform vec3 sunDirection;
         uniform float useTerminator;
         uniform float useSpecular;
+        uniform float useOceanBoost;
 
         varying vec2 vUv;
         varying vec3 vNormal;
@@ -280,29 +287,49 @@ export const GlobalClimateGlobe3D: React.FC = () => {
 
           float sunDot = dot(n, s);
           // Twilight transition band
-          float dayFactor = smoothstep(-0.22, 0.22, sunDot);
+          float dayFactor = smoothstep(-0.20, 0.20, sunDot);
 
           vec4 dayColor = texture2D(dayMap, vUv);
           vec4 nightColor = texture2D(nightMap, vUv);
           float specMask = texture2D(specularMap, vUv).r;
 
-          // Realistic ocean specular sun glint
-          vec3 r = reflect(-s, n);
-          float spec = pow(max(0.0, dot(r, v)), 28.0) * specMask * useSpecular * 1.8;
-          vec3 specularColor = vec3(0.9, 0.95, 1.0) * spec * max(0.0, sunDot);
+          // RADIANT CELESTIAL BLUE OCEANS:
+          // In NASA specular mask: water = 1.0, land = 0.0
+          // Deep oceanic sapphire blue
+          vec3 deepOceanBlue = vec3(0.015, 0.28, 0.82); 
+          // Vibrant shallow / coastal cyan-turquoise (shelf bathymetry)
+          vec3 coastalCyan = vec3(0.04, 0.65, 0.94); 
+          // Gradient between deep oceanic trench and sunlit coastal shelf waters
+          vec3 vibrantWater = mix(coastalCyan, deepOceanBlue, clamp(specMask * 1.1, 0.0, 1.0));
 
-          // Atmospheric limb fresnel glow (Electric Cyan)
-          float fresnel = pow(1.0 - max(0.0, dot(v, n)), 3.2) * 0.42;
-          vec3 atmosGlow = vec3(0.06, 0.75, 0.95) * fresnel;
+          vec3 baseDay = dayColor.rgb;
+          if (useOceanBoost > 0.5 && specMask > 0.04) {
+            // Transform dark satellite ocean water into glowing sapphire blue
+            // Combine natural satellite cloud reflections/water texture with radiant ocean blue
+            vec3 tintedWater = vibrantWater + dayColor.rgb * 0.45;
+            baseDay = mix(baseDay, tintedWater, 0.84);
+          } else {
+            // Subtle crisp contrast enhancement on landmasses
+            baseDay = baseDay * 1.12;
+          }
+
+          // Oceanic Specular Sun Glint (bright celestial sun reflection over water)
+          vec3 r = reflect(-s, n);
+          float spec = pow(max(0.0, dot(r, v)), 36.0) * specMask * useSpecular * 3.2;
+          vec3 specularColor = vec3(0.92, 0.96, 1.0) * spec * max(0.0, sunDot);
+
+          // Atmospheric Rayleigh scattering limb fresnel (Iconic radiant blue Earth halo)
+          float fresnel = pow(1.0 - max(0.0, dot(v, n)), 2.6);
+          vec3 atmosGlow = vec3(0.12, 0.68, 1.0) * fresnel * 0.95;
 
           if (useTerminator > 0.5) {
             // Authentic Black Marble city light illumination
-            vec3 nightLit = nightColor.rgb * 1.9;
-            vec3 dayLit = dayColor.rgb + specularColor;
+            vec3 nightLit = nightColor.rgb * 2.0;
+            vec3 dayLit = baseDay + specularColor;
             vec3 blended = mix(nightLit, dayLit, dayFactor);
             gl_FragColor = vec4(blended + (dayFactor * atmosGlow), 1.0);
           } else {
-            gl_FragColor = vec4(dayColor.rgb + specularColor + atmosGlow, 1.0);
+            gl_FragColor = vec4(baseDay + specularColor + atmosGlow, 1.0);
           }
         }
       `,
@@ -325,12 +352,13 @@ export const GlobalClimateGlobe3D: React.FC = () => {
       (tex) => {
         tex.wrapS = THREE.RepeatWrapping;
         tex.wrapT = THREE.ClampToEdgeWrapping;
+        tex.colorSpace = THREE.SRGBColorSpace;
         earthShaderMat.uniforms.dayMap.value = tex;
         setSatelliteSourceLoaded(true);
       },
       undefined,
       (err) => {
-        console.warn("Satellite day texture load fallback:", err);
+        console.warn("Satellite day texture fallback active:", err);
       }
     );
 
@@ -339,6 +367,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
       (tex) => {
         tex.wrapS = THREE.RepeatWrapping;
         tex.wrapT = THREE.ClampToEdgeWrapping;
+        tex.colorSpace = THREE.SRGBColorSpace;
         earthShaderMat.uniforms.nightMap.value = tex;
       }
     );
@@ -352,13 +381,14 @@ export const GlobalClimateGlobe3D: React.FC = () => {
       }
     );
 
-    // 5. Authentic Atmospheric Cloud Layer (NASA Cloud Photography)
+    // 5. Authentic Atmospheric Cloud Layer (NASA Cloud Photography with subtle cyan tint)
     const cloudsGeo = new THREE.SphereGeometry(GLOBE_RADIUS * 1.015, 48, 48);
-    const cloudsMat = new THREE.MeshStandardMaterial({
+    const cloudsMat = new THREE.MeshBasicMaterial({
       transparent: true,
-      opacity: 0.5,
+      opacity: 0.38,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
+      color: 0xffffff,
     });
     const cloudsMesh = new THREE.Mesh(cloudsGeo, cloudsMat);
     cloudsMeshRef.current = cloudsMesh;
@@ -374,18 +404,32 @@ export const GlobalClimateGlobe3D: React.FC = () => {
       }
     );
 
-    // 6. Outer Atmospheric Glowing Corona (Cyberpunk Cyan Limb)
-    const coronaGeo = new THREE.SphereGeometry(GLOBE_RADIUS * 1.12, 32, 32);
-    const coronaMat = new THREE.MeshBasicMaterial({
-      color: 0x06b6d4, // Electric Cyan
+    // 6. Atmospheric Rayleigh Haze Shell (Concentric outer blue scattering)
+    const rayleighGeo = new THREE.SphereGeometry(GLOBE_RADIUS * 1.012, 64, 64);
+    const rayleighMat = new THREE.MeshBasicMaterial({
+      color: 0x38bdf8, // Sky Cyan-Blue
       transparent: true,
-      opacity: 0.14,
+      opacity: 0.22,
+      blending: THREE.AdditiveBlending,
+      side: THREE.FrontSide,
+      depthWrite: false,
+    });
+    const rayleighMesh = new THREE.Mesh(rayleighGeo, rayleighMat);
+    globeGroup.add(rayleighMesh);
+
+    // 7. Outer Atmospheric Glowing Corona (Vibrant Oceanic Blue Limb)
+    const coronaGeo = new THREE.SphereGeometry(GLOBE_RADIUS * 1.14, 48, 48);
+    const coronaMat = new THREE.MeshBasicMaterial({
+      color: 0x0284c7, // Vibrant Oceanic Blue
+      transparent: true,
+      opacity: 0.35,
       side: THREE.BackSide,
+      blending: THREE.AdditiveBlending,
     });
     const coronaMesh = new THREE.Mesh(coronaGeo, coronaMat);
     globeGroup.add(coronaMesh);
 
-    // 7. 3D Animated Monsoonal Moisture Jet Stream (Somali Jet -> Bay of Bengal -> Kolkata)
+    // 8. 3D Animated Monsoonal Moisture Jet Stream (Somali Jet -> Bay of Bengal -> Kolkata)
     const moistureSpline = new THREE.CatmullRomCurve3([
       latLonToVector3(-15, 60, GLOBE_RADIUS * 1.03), // Southern Ocean
       latLonToVector3(-2, 52, GLOBE_RADIUS * 1.035), // Equatorial Somali Jet
@@ -431,7 +475,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
     const moistureParticles = new THREE.Points(particleGeo, particleMat);
     globeGroup.add(moistureParticles);
 
-    // 8. Sea Surface Temperature (SST) Thermal Anomaly Convective Plumes
+    // 9. Sea Surface Temperature (SST) Thermal Anomaly Convective Plumes
     const sstGroup = new THREE.Group();
     const sstPlumes = [
       { lat: 0.0, lon: -140.0, color: 0x8b5cf6, r: 8, label: "Niño 3.4" }, // Quantum Purple
@@ -458,7 +502,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
     });
     globeGroup.add(sstGroup);
 
-    // 9. Telemetry Hotspots & Beacons
+    // 10. Telemetry Hotspots & Beacons
     const beaconMeshes: { mesh: THREE.Mesh; ring: THREE.Mesh; hotspot: Hotspot }[] = [];
     const beaconsGroup = new THREE.Group();
 
@@ -492,54 +536,153 @@ export const GlobalClimateGlobe3D: React.FC = () => {
     globeGroup.rotation.y = -Math.PI * 0.45;
     globeGroup.rotation.x = 0.22;
 
-    // 10. Mouse & Touch Controls
+    // 11. Interactive Mouse & Touch Drag Controls (WITH ISOLATED WHEEL & PINCH ZOOM)
     let isDragging = false;
     let prevMouseX = 0;
     let prevMouseY = 0;
 
-    const handlePointerDown = (e: MouseEvent | TouchEvent) => {
-      isDragging = true;
-      const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
-      const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
-      prevMouseX = clientX;
-      prevMouseY = clientY;
+    // Pinch-to-zoom state for mobile / trackpads
+    let initialPinchDistance: number | null = null;
+    let startPinchCameraZ = 210;
+
+    const getPinchDistance = (touches: TouchList) => {
+      if (touches.length < 2) return 0;
+      const dx = touches[0].clientX - touches[1].clientX;
+      const dy = touches[0].clientY - touches[1].clientY;
+      return Math.sqrt(dx * dx + dy * dy);
     };
 
-    const handlePointerMove = (e: MouseEvent | TouchEvent) => {
-      if (!isDragging || !globeGroupRef.current) return;
-      const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
-      const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+    const handlePointerDown = (e: MouseEvent) => {
+      isDragging = true;
+      prevMouseX = e.clientX;
+      prevMouseY = e.clientY;
+    };
 
-      const deltaX = clientX - prevMouseX;
-      const deltaY = clientY - prevMouseY;
+    const handlePointerMove = (e: MouseEvent) => {
+      if (!isDragging || !globeGroupRef.current) return;
+      const deltaX = e.clientX - prevMouseX;
+      const deltaY = e.clientY - prevMouseY;
 
       globeGroupRef.current.rotation.y += deltaX * 0.006;
       globeGroupRef.current.rotation.x += deltaY * 0.006;
 
-      prevMouseX = clientX;
-      prevMouseY = clientY;
+      prevMouseX = e.clientX;
+      prevMouseY = e.clientY;
     };
 
     const handlePointerUp = () => {
       isDragging = false;
     };
 
+    // CRITICAL ZOOM FIX: Dedicated non-passive wheel handler preventing browser page zoom and page scroll
+    const handleWheel = (e: WheelEvent) => {
+      // Stop browser page zoom (Ctrl+Wheel / trackpad pinch) and document scroll
+      e.preventDefault();
+      e.stopPropagation();
+
+      let delta = e.deltaY;
+      if (e.ctrlKey) {
+        // Trackpad pinch gesture on Windows / Mac (fires with ctrlKey=true)
+        delta = e.deltaY * 0.85;
+      } else if (Math.abs(delta) > 50) {
+        // Discrete mouse wheel notch
+        delta = Math.sign(delta) * 20;
+      } else {
+        // Continuous smooth trackpad scroll
+        delta = delta * 0.35;
+      }
+
+      targetCameraZRef.current = Math.max(76, Math.min(320, targetCameraZRef.current + delta));
+      const currentZoom = Number((210 / targetCameraZRef.current).toFixed(2));
+      setZoomLevel(currentZoom);
+    };
+
+    // Touch controls for single finger rotation and two-finger pinch zoom
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 1) {
+        isDragging = true;
+        prevMouseX = e.touches[0].clientX;
+        prevMouseY = e.touches[0].clientY;
+      } else if (e.touches.length === 2) {
+        isDragging = false;
+        initialPinchDistance = getPinchDistance(e.touches);
+        startPinchCameraZ = targetCameraZRef.current;
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 1 && isDragging && globeGroupRef.current) {
+        const clientX = e.touches[0].clientX;
+        const clientY = e.touches[0].clientY;
+        const deltaX = clientX - prevMouseX;
+        const deltaY = clientY - prevMouseY;
+        globeGroupRef.current.rotation.y += deltaX * 0.006;
+        globeGroupRef.current.rotation.x += deltaY * 0.006;
+        prevMouseX = clientX;
+        prevMouseY = clientY;
+      } else if (e.touches.length === 2 && initialPinchDistance !== null) {
+        e.preventDefault(); // Stop native mobile page pinch-to-zoom!
+        e.stopPropagation();
+        const currentDistance = getPinchDistance(e.touches);
+        if (currentDistance > 0) {
+          const ratio = initialPinchDistance / currentDistance;
+          targetCameraZRef.current = Math.max(76, Math.min(320, startPinchCameraZ * ratio));
+          const currentZoom = Number((210 / targetCameraZRef.current).toFixed(2));
+          setZoomLevel(currentZoom);
+        }
+      }
+    };
+
+    const handleTouchEnd = () => {
+      isDragging = false;
+      initialPinchDistance = null;
+    };
+
+    // Style canvas to prevent browser gestures and fill viewport
     const domElement = renderer.domElement;
-    domElement.addEventListener("mousedown", handlePointerDown);
+    domElement.style.touchAction = "none";
+    domElement.style.display = "block";
+    domElement.style.width = "100%";
+    domElement.style.height = "100%";
+
+    // Attach interaction listeners directly to container AND domElement
+    container.addEventListener("mousedown", handlePointerDown);
+    container.addEventListener("wheel", handleWheel, { passive: false });
+    container.addEventListener("touchstart", handleTouchStart, { passive: false });
+    container.addEventListener("touchmove", handleTouchMove, { passive: false });
+    container.addEventListener("touchend", handleTouchEnd);
+
+    domElement.addEventListener("wheel", handleWheel, { passive: false });
+    domElement.addEventListener("touchstart", handleTouchStart, { passive: false });
+
     window.addEventListener("mousemove", handlePointerMove);
     window.addEventListener("mouseup", handlePointerUp);
-    domElement.addEventListener("touchstart", handlePointerDown, { passive: true });
-    window.addEventListener("touchmove", handlePointerMove, { passive: true });
-    window.addEventListener("touchend", handlePointerUp);
+    window.addEventListener("touchmove", handleTouchMove, { passive: false });
+    window.addEventListener("touchend", handleTouchEnd);
 
-    // 11. Main Real-Time Animation Loop
+    // 12. Main Real-Time Animation Loop (Using high-precision timestamp without deprecated THREE.Clock)
     let animationFrameId: number;
-    const clock = new THREE.Clock();
+    let lastTime = performance.now();
+    let elapsedSimSeconds = 0;
 
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
-      const delta = clock.getDelta();
-      const elapsed = clock.getElapsedTime();
+      const nowMs = performance.now();
+      const delta = Math.min((nowMs - lastTime) / 1000, 0.1);
+      lastTime = nowMs;
+      elapsedSimSeconds += delta;
+
+      // Smooth camera zoom interpolation toward targetCameraZRef
+      if (cameraRef.current) {
+        cameraRef.current.position.z += (targetCameraZRef.current - cameraRef.current.position.z) * 0.18;
+        cameraRef.current.lookAt(0, 0, 0);
+
+        const currentZoom = Number((210 / cameraRef.current.position.z).toFixed(2));
+        if (Math.abs(currentZoom - lastReportedZoomRef.current) >= 0.05) {
+          lastReportedZoomRef.current = currentZoom;
+          setZoomLevel(currentZoom);
+        }
+      }
 
       // Update simulation time offset
       const speedMultiplier = simSpeed === "1440x" ? 1440 : simSpeed === "60x" ? 60 : 1;
@@ -563,6 +706,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         earthShaderMatRef.current.uniforms.sunDirection.value.copy(sunVec);
         earthShaderMatRef.current.uniforms.useTerminator.value = layers.terminator ? 1.0 : 0.0;
         earthShaderMatRef.current.uniforms.useSpecular.value = layers.specularGlint ? 1.0 : 0.0;
+        earthShaderMatRef.current.uniforms.useOceanBoost.value = layers.oceanBoost ? 1.0 : 0.0;
       }
 
       // Atmospheric Cloud Drift
@@ -591,7 +735,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
       sstGroup.visible = layers.sstAnomalies;
       if (layers.sstAnomalies) {
         sstMeshes.forEach((mesh, idx) => {
-          const s = 1.0 + Math.sin(elapsed * 2.5 + idx * 1.5) * 0.2;
+          const s = 1.0 + Math.sin(elapsedSimSeconds * 2.5 + idx * 1.5) * 0.2;
           mesh.scale.set(s, s, s);
         });
       }
@@ -600,7 +744,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
       beaconsGroup.visible = layers.beacons;
       if (layers.beacons) {
         beaconMeshes.forEach(({ ring }, idx) => {
-          const s = 1.0 + Math.sin(elapsed * 3.0 + idx) * 0.25;
+          const s = 1.0 + Math.sin(elapsedSimSeconds * 3.0 + idx) * 0.25;
           ring.scale.set(s, s, 1);
         });
       }
@@ -613,7 +757,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
       renderer.render(scene, camera);
 
       // Periodically update telemetry state
-      if (Math.floor(elapsed * 10) % 6 === 0) {
+      if (Math.floor(elapsedSimSeconds * 10) % 6 === 0) {
         const kolkataVec = latLonToVector3(22.57, 88.36, 1.0).normalize();
         const kolkataSunDot = kolkataVec.dot(sunVec);
         const solarZenithDeg = (Math.acos(Math.max(-1, Math.min(1, kolkataSunDot))) * 180) / Math.PI;
@@ -630,7 +774,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
 
     animate();
 
-    // 12. Responsive ResizeObserver
+    // 13. Responsive ResizeObserver
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const newW = entry.contentRect.width;
@@ -644,15 +788,20 @@ export const GlobalClimateGlobe3D: React.FC = () => {
     });
     resizeObserver.observe(container);
 
-    // 13. Cleanup
+    // 14. Cleanup
     return () => {
       cancelAnimationFrame(animationFrameId);
-      domElement.removeEventListener("mousedown", handlePointerDown);
+      container.removeEventListener("mousedown", handlePointerDown);
+      container.removeEventListener("wheel", handleWheel);
+      container.removeEventListener("touchstart", handleTouchStart);
+      container.removeEventListener("touchmove", handleTouchMove);
+      container.removeEventListener("touchend", handleTouchEnd);
+      domElement.removeEventListener("wheel", handleWheel);
+      domElement.removeEventListener("touchstart", handleTouchStart);
       window.removeEventListener("mousemove", handlePointerMove);
       window.removeEventListener("mouseup", handlePointerUp);
-      domElement.removeEventListener("touchstart", handlePointerDown);
-      window.removeEventListener("touchmove", handlePointerMove);
-      domElement.removeEventListener("touchend", handlePointerUp);
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchend", handleTouchEnd);
       resizeObserver.disconnect();
 
       renderer.dispose();
@@ -660,6 +809,8 @@ export const GlobalClimateGlobe3D: React.FC = () => {
       earthShaderMat.dispose();
       cloudsGeo.dispose();
       cloudsMat.dispose();
+      rayleighGeo.dispose();
+      rayleighMat.dispose();
       coronaGeo.dispose();
       coronaMat.dispose();
       moistureLineGeo.dispose();
@@ -669,22 +820,33 @@ export const GlobalClimateGlobe3D: React.FC = () => {
       fallbackDay.dispose();
       fallbackNight.dispose();
     };
-  }, [autoRotate, simSpeed, layers.clouds, layers.terminator, layers.sstAnomalies, layers.vaporStream, layers.beacons, layers.specularGlint]);
+  }, [
+    autoRotate,
+    simSpeed,
+    layers.clouds,
+    layers.terminator,
+    layers.sstAnomalies,
+    layers.vaporStream,
+    layers.beacons,
+    layers.specularGlint,
+    layers.oceanBoost,
+  ]);
 
   const handleZoom = (direction: "in" | "out") => {
-    if (!cameraRef.current) return;
-    const newZ =
-      direction === "in"
-        ? Math.max(110, cameraRef.current.position.z - 25)
-        : Math.min(310, cameraRef.current.position.z + 25);
-    cameraRef.current.position.z = newZ;
-    setZoomLevel(Number((210 / newZ).toFixed(2)));
+    const step = 28;
+    if (direction === "in") {
+      targetCameraZRef.current = Math.max(76, targetCameraZRef.current - step);
+    } else {
+      targetCameraZRef.current = Math.min(320, targetCameraZRef.current + step);
+    }
+    setZoomLevel(Number((210 / targetCameraZRef.current).toFixed(2)));
   };
 
   const resetView = () => {
     if (!globeGroupRef.current || !cameraRef.current) return;
     globeGroupRef.current.rotation.y = -Math.PI * 0.45;
     globeGroupRef.current.rotation.x = 0.22;
+    targetCameraZRef.current = 210;
     cameraRef.current.position.z = 210;
     setZoomLevel(1);
     setActiveHotspot(HOTSPOTS[0]);
@@ -697,6 +859,8 @@ export const GlobalClimateGlobe3D: React.FC = () => {
     const targetRotX = (spot.lat * Math.PI) / 360;
     globeGroupRef.current.rotation.y = targetRotY;
     globeGroupRef.current.rotation.x = targetRotX;
+    targetCameraZRef.current = spot.id === "kolkata" ? 140 : 160;
+    setZoomLevel(Number((210 / targetCameraZRef.current).toFixed(2)));
   };
 
   return (
@@ -823,10 +987,11 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         </div>
       </div>
 
-      {/* 3D WebGL Canvas Viewport */}
+      {/* 3D WebGL Canvas Viewport with TOUCH-ACTION: NONE to prevent browser page zoom */}
       <div
         ref={containerRef}
-        className="w-full h-[400px] sm:h-[480px] cursor-grab active:cursor-grabbing relative"
+        style={{ touchAction: "none" }}
+        className="w-full h-[400px] sm:h-[480px] cursor-grab active:cursor-grabbing relative overflow-hidden select-none"
       />
 
       {/* Live Simulation Layer Filters */}
@@ -836,6 +1001,16 @@ export const GlobalClimateGlobe3D: React.FC = () => {
             <Layers className="w-3.5 h-3.5 text-cyan-400" />
             SATELLITE LAYERS:
           </span>
+          <button
+            onClick={() => toggleLayer("oceanBoost")}
+            className={`px-2 py-0.5 rounded-xs border cursor-pointer ${
+              layers.oceanBoost
+                ? "bg-sky-950/40 text-sky-300 border-sky-500/50 font-bold"
+                : "bg-slate-900 text-slate-500 border-slate-800"
+            }`}
+          >
+            OCEAN BLUE TONE
+          </button>
           <button
             onClick={() => toggleLayer("terminator")}
             className={`px-2 py-0.5 rounded-xs border cursor-pointer ${
@@ -889,7 +1064,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         </div>
 
         <div className="text-[10px] font-mono text-slate-400">
-          Zoom: <span className="text-cyan-400 font-bold">{zoomLevel}x</span> | 360° Drag & Track
+          Zoom: <span className="text-cyan-400 font-bold">{zoomLevel}x</span> | Scroll Wheel / Pinch to Zoom (3D Model Only)
         </div>
       </div>
 
