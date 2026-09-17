@@ -149,3 +149,6 @@ export const IOT_SENSOR_NODES: SensorNode[] = [
     anomalyDetected: false,
   },
 ];
+
+export const SENSOR_FLEET = IOT_SENSOR_NODES;
+

@@ -168,10 +168,12 @@ export interface AlertItem {
   affectedInfrastructure: string[];
   recommendedCivilActions: string[];
   issuedAt: string;
-  status: "active" | "acknowledged" | "cleared";
+  status: "active" | "acknowledged" | "cleared" | "resolved";
   acknowledgedBy?: string;
   acknowledgedAt?: string;
 }
+
+export type AlertIncident = AlertItem;
 
 export interface ModelMetadata {
   id: string;

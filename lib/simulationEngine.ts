@@ -92,13 +92,31 @@ export function runSimulationScenario(
       totalInundatedAreaSqKm += 1.8; // Average ward footprint
     }
 
-    if (delta < -0.1) {
-      // Risk substantially mitigated
-      sparedPopulation += Math.round(cell.populationDensity * 0.45);
+    // Counterfactual unmitigated risk (without emergency interventions)
+    const unmitigatedDrainage = cell.drainageCapacity * (1 + drainageEfficiencyPct / 100);
+    const unmitigatedRainExcessMm = Math.max(
+      0,
+      adjustedRainfall * (durationHours / 24) * runoffCoefficient -
+        unmitigatedDrainage * (durationHours / 24)
+    );
+    const unmitigatedHazardScore = Math.min(
+      1.0,
+      (unmitigatedRainExcessMm / 70) * 0.6 +
+        soilFactor * 0.2 +
+        elevationVulnerability * 0.15 +
+        tidalPenetrationFactor
+    );
+    const unmitigatedRisk = Number(
+      Math.min(1.0, Math.max(0.05, unmitigatedHazardScore * cell.exposureScore * cell.vulnerabilityScore * 1.35)).toFixed(2)
+    );
+
+    const interventionBenefit = unmitigatedRisk - newScenarioRisk;
+    if (interventionBenefit > 0.01 || delta < -0.05) {
+      sparedPopulation += Math.round(cell.populationDensity * Math.max(interventionBenefit, 0.05) * 1.25);
     }
 
     let status: "mitigated" | "escalated" | "unchanged" = "unchanged";
-    if (delta < -0.04) status = "mitigated";
+    if (delta < -0.04 || interventionBenefit > 0.05) status = "mitigated";
     else if (delta > 0.04) status = "escalated";
 
     return {
@@ -120,7 +138,10 @@ export function runSimulationScenario(
 
   // Economic risk mitigation estimation (in Indian Crore INR)
   const mitigatedEconomicRiskCr = Number(
-    Math.max(0, (sparedPopulation / 10000) * 1.85 + (baselineAvgRisk - scenarioAvgRisk) * 45).toFixed(1)
+    Math.max(
+      sparedPopulation > 0 ? 1.5 : 0,
+      (sparedPopulation / 10000) * 1.85 + Math.max(0, baselineAvgRisk - scenarioAvgRisk) * 45
+    ).toFixed(1)
   );
 
   return {

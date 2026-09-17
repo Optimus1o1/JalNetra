@@ -1,0 +1,171 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Ward {
+  id                        String             @id @default(uuid())
+  wardNumber                Int                @unique @map("ward_number")
+  wardName                  String             @map("ward_name")
+  borough                   String
+  areaSqKm                  Float              @map("area_sq_km")
+  population                Int
+  elevationBaselineM        Float              @map("elevation_baseline_m")
+  imperviousnessPct         Float              @map("imperviousness_pct")
+  baseDrainageCapacityCumec Float              @map("base_drainage_capacity_cumec")
+  criticalInfrastructure    Json               @default("[]") @map("critical_infrastructure")
+  geometry                  Json?
+  sensors                   SensorNode[]
+  riskSnapshots             RiskSnapshot[]
+  incidents                 IncidentAlert[]
+  createdAt                 DateTime           @default(now()) @map("created_at")
+  updatedAt                 DateTime           @updatedAt @map("updated_at")
+
+  @@map("wards")
+}
+
+model SensorNode {
+  id                 String              @id @default(uuid())
+  nodeKey            String              @unique @map("node_key")
+  name               String
+  type               String              // "SUMP", "CANAL_STAGE", "RIVER_GAUGE", "DOPPLER_RADAR", "SLUICE_GATE"
+  wardId             String?             @map("ward_id")
+  ward               Ward?               @relation(fields: [wardId], references: [id], onDelete: SetNull)
+  latitude           Float
+  longitude          Float
+  elevationM         Float               @map("elevation_m")
+  hardwareSpec       String              @default("ESP32-S3") @map("hardware_spec")
+  firmwareVersion    String              @default("v2.4.1-rc3") @map("firmware_version")
+  status             String              @default("ONLINE") // "ONLINE", "WARN", "CRITICAL", "OFFLINE"
+  batteryPct         Int                 @default(100) @map("battery_pct")
+  lastWaterLevelM    Float?              @map("last_water_level_m")
+  lastDischargeCumec Float?              @map("last_discharge_cumec")
+  lastPingAt         DateTime            @default(now()) @map("last_ping_at")
+  observations       SensorObservation[]
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
+
+  @@index([type])
+  @@index([status])
+  @@map("sensor_nodes")
+}
+
+model SensorObservation {
+  id                   String      @id @default(uuid())
+  sensorId             String      @map("sensor_id")
+  sensor               SensorNode  @relation(fields: [sensorId], references: [id], onDelete: Cascade)
+  recordedAt           DateTime    @default(now()) @map("recorded_at")
+  waterLevelM          Float?      @map("water_level_m")
+  dischargeRateCumec   Float?      @map("discharge_rate_cumec")
+  siltationDepthCm     Float?      @map("siltation_depth_cm")
+  pumpOperatingRatePct Float?      @map("pump_operating_rate_pct")
+  salinityPpt          Float?      @map("salinity_ppt")
+  qualityFlag          String      @default("QC_PASSED") @map("quality_flag")
+  rawPayload           Json?       @map("raw_payload")
+
+  @@index([sensorId, recordedAt(sort: Desc)])
+  @@index([qualityFlag])
+  @@map("sensor_observations")
+}
+
+model RainfallForecast {
+  id                String      @id @default(uuid())
+  modelName         String      @default("TCN_Spatiotemporal_Ensemble") @map("model_name")
+  forecastRunAt     DateTime    @default(now()) @map("forecast_run_at")
+  horizon           String      // "15m", "1h", "3h", "6h", "24h", "72h"
+  p10Mm             Float       @map("p10_mm")
+  p50Mm             Float       @map("p50_mm")
+  p90Mm             Float       @map("p90_mm")
+  popHeavyPct       Float       @map("pop_heavy_pct")
+  intensityCategory String      @map("intensity_category")
+  returnPeriodYears Float       @default(1.0) @map("return_period_years")
+
+  @@index([forecastRunAt(sort: Desc), horizon])
+  @@map("rainfall_forecasts")
+}
+
+model HooghlyTideRecord {
+  id                    String      @id @default(uuid())
+  stationName           String      @default("Outram Ghat") @map("station_name")
+  recordedAt            DateTime    @default(now()) @map("recorded_at")
+  stageMmsl             Float       @map("stage_m_msl")
+  tideType              String      @default("SPRING") @map("tide_type")
+  sluiceInterlockActive Boolean     @default(false) @map("sluice_interlock_active")
+  minutesToHighTide     Int         @default(0) @map("minutes_to_high_tide")
+  surgeAnomalyM         Float       @default(0.0) @map("surge_anomaly_m")
+
+  @@index([recordedAt(sort: Desc)])
+  @@map("hooghly_tide_records")
+}
+
+model RiskSnapshot {
+  id                    String      @id @default(uuid())
+  wardId                String      @map("ward_id")
+  ward                  Ward        @relation(fields: [wardId], references: [id], onDelete: Cascade)
+  computedAt            DateTime    @default(now()) @map("computed_at")
+  hazardIndex           Float       @map("hazard_index")
+  exposureIndex         Float       @map("exposure_index")
+  vulnerabilityIndex    Float       @map("vulnerability_index")
+  compositeRiskScore    Float       @map("composite_risk_score")
+  pondingDepthCm        Float       @map("ponding_depth_cm")
+  treeShapDecomposition Json        @default("[]") @map("treeshap_decomposition")
+  floodStatus           String      @default("NORMAL") @map("flood_status")
+
+  @@index([wardId, computedAt(sort: Desc)])
+  @@map("risk_snapshots")
+}
+
+model IncidentAlert {
+  id                     String      @id @default(uuid())
+  alertCode              String      @unique @map("alert_code")
+  wardId                 String?     @map("ward_id")
+  ward                   Ward?       @relation(fields: [wardId], references: [id], onDelete: SetNull)
+  severity               String      // "LOW", "MEDIUM", "HIGH", "CRITICAL"
+  title                  String
+  description            String
+  triggerMechanism       String      @map("trigger_mechanism")
+  confidenceScore        Float       @default(0.85) @map("confidence_score")
+  affectedInfrastructure Json        @default("[]") @map("affected_infrastructure")
+  recommendedActions     Json        @default("[]") @map("recommended_actions")
+  status                 String      @default("ACTIVE") // "ACTIVE", "ACKNOWLEDGED", "DISPATCHED", "RESOLVED"
+  acknowledgedBy         String?     @map("acknowledged_by")
+  acknowledgedAt         DateTime?   @map("acknowledged_at")
+  issuedAt               DateTime    @default(now()) @map("issued_at")
+
+  @@index([status, severity])
+  @@map("incident_alerts")
+}
+
+model SimulationRun {
+  id                  String      @id @default(uuid())
+  scenarioName        String      @map("scenario_name")
+  createdBy           String      @default("OPERATOR_CONSOLE") @map("created_by")
+  inputs              Json
+  outcomes            Json
+  dispatchedResources Json?       @map("dispatched_resources")
+  createdAt           DateTime    @default(now()) @map("created_at")
+
+  @@index([createdAt(sort: Desc)])
+  @@map("simulation_runs")
+}
+
+model ModelRecord {
+  id                 String      @id @default(uuid())
+  modelKey           String      @unique @map("model_key")
+  modelName          String      @map("model_name")
+  version            String
+  architecture       String
+  brierScore         Float       @map("brier_score")
+  crps               Float
+  spatialIou         Float       @map("spatial_iou")
+  freshnessMin       Int         @map("freshness_min")
+  parameters         String      @default("14.2M")
+  inferenceLatencyMs Int         @default(45) @map("inference_latency_ms")
+  status             String      @default("PRODUCTION_ACTIVE")
+  lastTrainedAt      DateTime    @default(now()) @map("last_trained_at")
+
+  @@map("model_records")
+}

@@ -7,13 +7,17 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --test tests/e2e_twin_tests.mjs"
+    "test": "node --test tests/e2e_twin_tests.mjs tests/backend_service_tests.mjs",
+    "test:backend": "node --test tests/backend_service_tests.mjs",
+    "test:e2e": "node --test tests/e2e_twin_tests.mjs"
   },
   "dependencies": {
+    "@prisma/client": "^7.10.0",
     "clsx": "^2.1.1",
     "framer-motion": "^13.4.0",
     "lucide-react": "^1.47.0",
     "next": "16.3.5",
+    "prisma": "^7.10.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "tailwind-merge": "^3.7.0"

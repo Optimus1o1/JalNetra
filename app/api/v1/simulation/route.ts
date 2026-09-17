@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { runSimulationScenario } from "@/lib/simulationEngine";
+import { executeAndLogSimulation, getRecentSimulationRuns } from "@/lib/services/simulationService";
 import { SimulationScenarioRequest } from "@/lib/types";
 
 export async function POST(request: NextRequest) {
@@ -17,8 +17,20 @@ export async function POST(request: NextRequest) {
       temporaryBundsDeployed: body.temporaryBundsDeployed ?? false,
     };
 
-    const result = runSimulationScenario(inputs);
-    return NextResponse.json({ status: "success", simulation: result });
+    const { result, runId } = await executeAndLogSimulation(
+      inputs,
+      body.temporaryBundsDeployed ? "Emergency Civil Defense Deployment" : "Standard Nowcast Simulation"
+    );
+
+    return NextResponse.json({
+      status: "success",
+      runId,
+      simulation: {
+        ...result,
+        sparedPopulation: result.summary.sparedPopulationEst,
+        avoidedLossCrores: result.summary.mitigatedEconomicRiskCr,
+      },
+    });
   } catch (error) {
     return NextResponse.json(
       { error: "Failed to compute scenario simulation", details: String(error) },
@@ -28,7 +40,6 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
-  // Return default benchmark run
   const defaultInputs: SimulationScenarioRequest = {
     rainfallMultiplier: 1.2,
     durationHours: 6,
@@ -39,6 +50,13 @@ export async function GET() {
     permeablePavementScenario: false,
     temporaryBundsDeployed: false,
   };
-  const result = runSimulationScenario(defaultInputs);
-  return NextResponse.json({ status: "success", defaultBenchmark: result });
+
+  const { result } = await executeAndLogSimulation(defaultInputs, "Executive Benchmark Run");
+  const recentRuns = await getRecentSimulationRuns(5);
+
+  return NextResponse.json({
+    status: "success",
+    defaultBenchmark: result,
+    recentHistory: recentRuns,
+  });
 }

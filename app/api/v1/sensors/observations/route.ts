@@ -1,32 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ingestTelemetry, TelemetryPayload } from "@/lib/services/telemetryService";
 
 export async function POST(request: NextRequest) {
   try {
-    const payload = await request.json();
-    const { sensorId, timestamp, metric, value, unit, batteryPct, qualityFlag } = payload;
+    const payload = (await request.json()) as TelemetryPayload;
+    const result = await ingestTelemetry(payload);
 
-    if (!sensorId || value === undefined) {
+    if (!result.success) {
       return NextResponse.json(
-        { error: "Validation failed: sensorId and value are required" },
-        { status: 400 }
-      );
-    }
-
-    // Perform boundary validation to reject impossible sensor spikes
-    if (metric === "waterLevelM" && (value < 0 || value > 25)) {
-      return NextResponse.json(
-        { error: "Quality control rejected: impossible water level reading (>25m or <0m)" },
-        { status: 422 }
+        { error: result.message, status: result.status, check: result.qualityCheck },
+        { status: result.qualityCheck.includes("OUT_OF_BOUNDS") ? 422 : 400 }
       );
     }
 
     return NextResponse.json({
       status: "ingested",
-      receiptId: `rcpt-${Date.now()}`,
-      sensorId,
-      processedTimestamp: new Date().toISOString(),
-      qualityCheck: qualityFlag || "PASSED_BOUNDARY_CHECKS",
-      message: `Observation for ${sensorId} [${metric}: ${value} ${unit || ""}] ingested into TimescaleDB time-series partition.`,
+      receiptId: result.receiptId,
+      sensorId: result.sensorId,
+      processedTimestamp: result.processedAt,
+      qualityCheck: result.qualityCheck,
+      message: result.message,
     });
   } catch (error) {
     return NextResponse.json(
