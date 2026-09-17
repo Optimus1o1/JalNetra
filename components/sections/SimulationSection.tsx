@@ -7,6 +7,7 @@ import { PlaySquare, Sliders, CheckCircle2, TrendingDown, TrendingUp, ShieldChec
 import { GlassCard } from "../ui/GlassCard";
 import { Button } from "../ui/Button";
 import { Badge } from "../ui/Badge";
+import { HydrodynamicPhysicsSandbox3D } from "../3d/HydrodynamicPhysicsSandbox3D";
 
 interface SimulationSectionProps {
   onApplyScenarioToMap?: (scenario: SimulationScenarioResult) => void;
@@ -100,6 +101,15 @@ export const SimulationSection: React.FC<SimulationSectionProps> = ({
           </Button>
         </div>
       </div>
+
+      {/* 3D Hydrodynamic Inundation Physics Sandbox */}
+      <HydrodynamicPhysicsSandbox3D
+        rainfallMultiplier={rainfallMultiplier}
+        emergencyPumpsActive={emergencyPumpsActive}
+        temporaryBundsDeployed={temporaryBundsDeployed}
+        drainageEfficiencyPct={drainageEfficiencyPct}
+        tidalSurgeMeters={tidalSurgeMeters}
+      />
 
       {/* Simulator Control Cockpit */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

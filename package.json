@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@prisma/client": "^7.10.0",
+    "@types/three": "^0.186.0",
     "clsx": "^2.1.1",
     "framer-motion": "^13.4.0",
     "lucide-react": "^1.47.0",
@@ -20,7 +21,8 @@
     "prisma": "^7.10.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "tailwind-merge": "^3.7.0"
+    "tailwind-merge": "^3.7.0",
+    "three": "^0.186.0"
   },
   "devDependencies": {
     "@modelcontextprotocol/server-github": "^2025.4.8",

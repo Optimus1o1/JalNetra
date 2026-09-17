@@ -6,6 +6,8 @@ import { CloudRain, Compass, AlertCircle, BarChart3, Clock } from "lucide-react"
 import { GlassCard } from "../ui/GlassCard";
 import { Badge } from "../ui/Badge";
 
+import { VolumetricRadar3D } from "../3d/VolumetricRadar3D";
+
 export const RainfallNowcastSection: React.FC = () => {
   const [selectedHorizon, setSelectedHorizon] = useState<string>("3-Hour Storm Window");
 
@@ -47,6 +49,9 @@ export const RainfallNowcastSection: React.FC = () => {
           <span>Next Model Run: 15:30 IST</span>
         </div>
       </div>
+
+      {/* 3D Volumetric Radar Beam & Storm Cell Point Cloud */}
+      <VolumetricRadar3D />
 
       {/* Multi-Horizon Horizon Selector Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">

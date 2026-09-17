@@ -6,6 +6,8 @@ import { Cpu, CheckCircle2, ShieldCheck, Database, Award, Activity, AlertTriangl
 import { GlassCard } from "../ui/GlassCard";
 import { Badge } from "../ui/Badge";
 
+import { ModelArchitecture3D } from "../3d/ModelArchitecture3D";
+
 export const ModelLabSection: React.FC = () => {
   return (
     <section id="models" className="space-y-6">
@@ -28,6 +30,9 @@ export const ModelLabSection: React.FC = () => {
           <span>Champion: Spatiotemporal PINN v2.4.1</span>
         </div>
       </div>
+
+      {/* 3D Neural Network Architecture & CRPS Loss Manifold */}
+      <ModelArchitecture3D />
 
       {/* Model Architectures Comparison Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">

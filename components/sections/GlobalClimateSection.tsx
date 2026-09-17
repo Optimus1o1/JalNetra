@@ -6,6 +6,8 @@ import { Globe2, Satellite, Waves, Activity, Radio, ArrowUpRight, ShieldCheck } 
 import { GlassCard } from "../ui/GlassCard";
 import { Badge } from "../ui/Badge";
 
+import { GlobalClimateGlobe3D } from "../3d/GlobalClimateGlobe3D";
+
 export const GlobalClimateSection: React.FC = () => {
   const { enso, iod, mjo, sstAnomalyBayOfBengalC, lastUpdated } = CLIMATE_INDICES_SNAPSHOT;
 
@@ -30,6 +32,9 @@ export const GlobalClimateSection: React.FC = () => {
           {lastUpdated}
         </Badge>
       </div>
+
+      {/* 3D Interactive Terrestrial Globe with SST Anomaly Heatmaps */}
+      <GlobalClimateGlobe3D />
 
       {/* Primary Teleconnection Driver Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

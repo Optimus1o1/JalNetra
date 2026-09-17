@@ -16,9 +16,11 @@ import {
   Eye,
   Radar,
   Info,
+  Box,
 } from "lucide-react";
 import { Badge } from "../ui/Badge";
 import { CellDetailDrawer } from "./CellDetailDrawer";
+import { TacticalGlobeOverlay3D } from "../3d/TacticalGlobeOverlay3D";
 
 type MapLayer = "risk" | "rainfall" | "elevation" | "imperviousness";
 
@@ -33,6 +35,7 @@ export const DigitalTwinMap: React.FC<DigitalTwinMapProps> = ({
   overrideCells,
   className,
 }) => {
+  const [is3DMode, setIs3DMode] = useState(false);
   const [selectedCell, setSelectedCell] = useState<GridCell | null>(null);
   const [activeLayer, setActiveLayer] = useState<MapLayer>("risk");
   const [showSensors, setShowSensors] = useState(true);
@@ -176,11 +179,29 @@ export const DigitalTwinMap: React.FC<DigitalTwinMapProps> = ({
           >
             <Radar className="w-3 h-3" />
           </button>
+
+          {/* 3D WebGL Tactical Twin Mode Toggle */}
+          <button
+            onClick={() => setIs3DMode(!is3DMode)}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xs border uppercase tracking-wider transition-all cursor-pointer font-bold ${
+              is3DMode
+                ? "bg-cyan-500/25 text-cyan-300 border-cyan-400 shadow-md shadow-cyan-500/30"
+                : "bg-[#0e1422] text-slate-400 border-[#1c2638] hover:text-cyan-300 hover:border-cyan-500/40"
+            }`}
+          >
+            <Box className="w-3.5 h-3.5 text-cyan-400" />
+            <span>{is3DMode ? "3D WebGL Twin" : "Switch to 3D"}</span>
+          </button>
         </div>
       </div>
 
-      {/* SVG GIS Canvas */}
-      <div className="relative w-full aspect-[4/3] sm:aspect-[16/10] min-h-[480px] select-none overflow-hidden flex items-center justify-center">
+      {/* Viewport: 3D Tactical WebGL Twin OR 2D SVG GIS Canvas */}
+      {is3DMode ? (
+        <div className="p-3 bg-slate-950/90 min-h-[480px]">
+          <TacticalGlobeOverlay3D onSelectWard={onSelectWard} />
+        </div>
+      ) : (
+        <div className="relative w-full aspect-[4/3] sm:aspect-[16/10] min-h-[480px] select-none overflow-hidden flex items-center justify-center">
         {/* Radar beam scan overlay */}
         {showRadarScan && (
           <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-30">
@@ -518,6 +539,7 @@ export const DigitalTwinMap: React.FC<DigitalTwinMapProps> = ({
           </div>
         )}
       </div>
+      )}
 
       {/* Bottom Map Legend */}
       <div className="p-3 bg-[rgba(3,7,18,0.92)] border-t border-slate-800 flex flex-wrap items-center justify-between gap-4 text-xs font-mono text-slate-400">

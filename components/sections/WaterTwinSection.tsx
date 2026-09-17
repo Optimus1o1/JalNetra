@@ -8,6 +8,8 @@ import { GlassCard } from "../ui/GlassCard";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 
+import { HydraulicSluiceGate3D } from "../3d/HydraulicSluiceGate3D";
+
 export const WaterTwinSection: React.FC = () => {
   const [sensors, setSensors] = useState<SensorNode[]>(IOT_SENSOR_NODES);
   const [ingestionStatus, setIngestionStatus] = useState<string | null>(null);
@@ -95,6 +97,9 @@ export const WaterTwinSection: React.FC = () => {
           </button>
         </div>
       )}
+
+      {/* 3D Hydraulic Sluice Gate Simulator & Backflow Interlock */}
+      <HydraulicSluiceGate3D />
 
       {/* Sensor Nodes Table / Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
