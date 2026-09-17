@@ -20,9 +20,12 @@ import {
   Shield,
   Zap,
   Cpu,
+  Box,
 } from "lucide-react";
 import { runSimulationScenario } from "@/lib/simulationEngine";
 import { PILOT_GRID_CELLS } from "@/lib/data/pilotRegionData";
+import { Hydrograph3D } from "@/components/3d/Hydrograph3D";
+import { TacticalGlobeOverlay3D } from "@/components/3d/TacticalGlobeOverlay3D";
 
 interface MissionControlCockpitProps {
   onSelectWard?: (wardNumber: number) => void;
@@ -33,6 +36,10 @@ export const MissionControlCockpit: React.FC<MissionControlCockpitProps> = ({
   onSelectWard,
   onNavigateToSection,
 }) => {
+  // 3D Visualization Modes
+  const [hydrographMode, setHydrographMode] = useState<"2d" | "3d">("3d");
+  const [mapMode, setMapMode] = useState<"2d" | "3d">("2d");
+
   // 1. Search & Sector Filtering
   const [filterQuery, setFilterQuery] = useState("");
 
@@ -457,6 +464,33 @@ export const MissionControlCockpit: React.FC<MissionControlCockpitProps> = ({
             </div>
 
             <div className="flex items-center gap-3 text-slate-400">
+              {/* Map 2D / 3D Toggle */}
+              <div className="flex items-center gap-1 bg-[#050811] border border-[#1c2638] p-0.5 rounded text-[9px] font-mono mr-1">
+                <button
+                  type="button"
+                  onClick={() => setMapMode("2d")}
+                  className={`px-2 py-0.5 rounded-xs transition-all cursor-pointer ${
+                    mapMode === "2d"
+                      ? "bg-sky-500/20 text-sky-300 border border-sky-500/50 font-bold"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  2D VECTOR
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMapMode("3d")}
+                  className={`px-2 py-0.5 rounded-xs transition-all flex items-center gap-1 cursor-pointer ${
+                    mapMode === "3d"
+                      ? "bg-sky-500/20 text-sky-300 border border-sky-500/50 font-bold shadow-[0_0_8px_rgba(56,189,248,0.3)]"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  <Box className="w-2.5 h-2.5 text-sky-400" />
+                  <span>3D TWIN</span>
+                </button>
+              </div>
+
               <div className="flex items-center gap-1.5">
                 <span>ALPHA:</span>
                 <input
@@ -474,17 +508,22 @@ export const MissionControlCockpit: React.FC<MissionControlCockpitProps> = ({
             </div>
           </div>
 
-          {/* Master SVG Vector GIS Twin */}
-          <div className="relative flex-1 min-h-[380px] bg-[#06090f] overflow-hidden flex items-center justify-center">
-            {/* Coordinate Grid Overlay */}
-            <div
-              className="absolute inset-0 opacity-20 pointer-events-none"
-              style={{
-                backgroundImage:
-                  "linear-gradient(to right, #1e293b 1px, transparent 1px), linear-gradient(to bottom, #1e293b 1px, transparent 1px)",
-                backgroundSize: "36px 36px",
-              }}
-            />
+          {/* Master Vector GIS Twin (2D SVG or 3D WebGL) */}
+          {mapMode === "3d" ? (
+            <div className="relative flex-1 min-h-[380px] bg-[#06090f] overflow-hidden">
+              <TacticalGlobeOverlay3D onSelectWard={onSelectWard} />
+            </div>
+          ) : (
+            <div className="relative flex-1 min-h-[380px] bg-[#06090f] overflow-hidden flex items-center justify-center">
+              {/* Coordinate Grid Overlay */}
+              <div
+                className="absolute inset-0 opacity-20 pointer-events-none"
+                style={{
+                  backgroundImage:
+                    "linear-gradient(to right, #1e293b 1px, transparent 1px), linear-gradient(to bottom, #1e293b 1px, transparent 1px)",
+                  backgroundSize: "36px 36px",
+                }}
+              />
 
             <svg
               className="w-full h-full cursor-crosshair select-none"
@@ -710,6 +749,7 @@ export const MissionControlCockpit: React.FC<MissionControlCockpitProps> = ({
               </div>
             </div>
           </div>
+          )}
 
           {/* ==================================================== */}
           {/* BOTTOM 24-HOUR NOWCAST HYDROGRAPH & RADAR SCRUBBER   */}
@@ -723,6 +763,33 @@ export const MissionControlCockpit: React.FC<MissionControlCockpitProps> = ({
                 <span className="text-slate-500 hidden sm:inline">
                   T-12H REASSESSMENT → T+12H PREDICTIVE RUNOFF
                 </span>
+              </div>
+
+              {/* View Switcher: 2D vs 3D */}
+              <div className="flex items-center gap-1 bg-[#050811] border border-[#1c2638] p-0.5 rounded text-[9px] font-mono">
+                <button
+                  type="button"
+                  onClick={() => setHydrographMode("2d")}
+                  className={`px-2 py-0.5 rounded-xs transition-all cursor-pointer ${
+                    hydrographMode === "2d"
+                      ? "bg-sky-500/20 text-sky-300 border border-sky-500/50 font-bold"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  2D DUAL-AXIS
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHydrographMode("3d")}
+                  className={`px-2 py-0.5 rounded-xs transition-all flex items-center gap-1 cursor-pointer ${
+                    hydrographMode === "3d"
+                      ? "bg-sky-500/20 text-sky-300 border border-sky-500/50 font-bold shadow-[0_0_8px_rgba(56,189,248,0.3)]"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  <Box className="w-2.5 h-2.5 text-sky-400" />
+                  <span>3D VOLUMETRIC</span>
+                </button>
               </div>
 
               <div className="flex items-center gap-3 text-slate-300">
@@ -741,54 +808,63 @@ export const MissionControlCockpit: React.FC<MissionControlCockpitProps> = ({
               </div>
             </div>
 
-            {/* Dual-Axis SVG Chart */}
-            <div className="relative h-14 w-full bg-[#05080e] rounded-xs border border-[#1c2638] px-2 flex items-center">
-              <div className="absolute inset-x-0 top-3 border-b border-rose-500/40 border-dashed pointer-events-none flex justify-end pr-2">
-                <span className="text-[8px] font-mono text-rose-400 bg-rose-950/60 px-1 rounded-xs">
-                  CRITICAL BREACH +2.80m
-                </span>
+            {/* Render 3D Volumetric Hydrograph or 2D SVG Dual-Axis Chart */}
+            {hydrographMode === "3d" ? (
+              <Hydrograph3D
+                scrubIndex={scrubIndex}
+                onSelectScrubIndex={(idx) => setScrubIndex(idx)}
+                isPlaying={isPlaying}
+              />
+            ) : (
+              /* Dual-Axis SVG Chart */
+              <div className="relative h-14 w-full bg-[#05080e] rounded-xs border border-[#1c2638] px-2 flex items-center">
+                <div className="absolute inset-x-0 top-3 border-b border-rose-500/40 border-dashed pointer-events-none flex justify-end pr-2">
+                  <span className="text-[8px] font-mono text-rose-400 bg-rose-950/60 px-1 rounded-xs">
+                    CRITICAL BREACH +2.80m
+                  </span>
+                </div>
+
+                <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 1000 60">
+                  {/* Precipitation Bars */}
+                  <rect x="40" y="45" width="14" height="15" fill="#38bdf8" fillOpacity="0.3" />
+                  <rect x="80" y="40" width="14" height="20" fill="#38bdf8" fillOpacity="0.3" />
+                  <rect x="120" y="32" width="14" height="28" fill="#38bdf8" fillOpacity="0.3" />
+                  <rect x="160" y="25" width="14" height="35" fill="#38bdf8" fillOpacity="0.4" />
+                  <rect x="200" y="15" width="14" height="45" fill="#38bdf8" fillOpacity="0.5" />
+                  <rect x="240" y="10" width="14" height="50" fill="#38bdf8" fillOpacity="0.6" />
+                  <rect x="280" y="12" width="14" height="48" fill="#38bdf8" fillOpacity="0.6" />
+                  <rect x="320" y="20" width="14" height="40" fill="#38bdf8" fillOpacity="0.5" />
+                  <rect x="360" y="30" width="14" height="30" fill="#38bdf8" fillOpacity="0.4" />
+                  <rect x="400" y="35" width="14" height="25" fill="#38bdf8" fillOpacity="0.3" />
+
+                  {/* T0 Marker */}
+                  <line x1="500" y1="0" x2="500" y2="60" stroke="#38bdf8" strokeWidth="1.5" />
+
+                  {/* Predictive Bars */}
+                  <rect x="520" y="22" width="14" height="38" fill="#38bdf8" fillOpacity="0.35" stroke="#38bdf8" strokeWidth="0.5" />
+                  <rect x="560" y="14" width="14" height="46" fill="#38bdf8" fillOpacity="0.45" stroke="#38bdf8" strokeWidth="0.5" />
+                  <rect x="600" y="8" width="14" height="52" fill="#ef4444" fillOpacity="0.5" stroke="#ef4444" strokeWidth="0.5" />
+                  <rect x="640" y="15" width="14" height="45" fill="#f59e0b" fillOpacity="0.4" stroke="#f59e0b" strokeWidth="0.5" />
+                  <rect x="680" y="28" width="14" height="32" fill="#38bdf8" fillOpacity="0.25" stroke="#38bdf8" strokeWidth="0.5" />
+                  <rect x="720" y="38" width="14" height="22" fill="#38bdf8" fillOpacity="0.2" />
+                  <rect x="760" y="44" width="14" height="16" fill="#38bdf8" fillOpacity="0.2" />
+
+                  {/* Historical Line */}
+                  <path d="M0,50 Q120,48 240,42 T400,28 T500,16" fill="none" stroke="#38bdf8" strokeWidth="2" />
+
+                  {/* Confidence Ribbon */}
+                  <path d="M500,16 Q600,6 700,10 T900,34 L900,46 Q700,24 600,20 T500,16 Z" fill="#38bdf8" fillOpacity="0.12" />
+
+                  {/* Predictive Hydrograph Crossing Breach */}
+                  <path d="M500,16 Q600,8 650,5 T750,22 T950,42" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeDasharray="6,3" />
+                  <circle cx="650" cy="5" r="4" fill="#ef4444" className="animate-pulse" />
+                </svg>
+
+                <div className="absolute left-1/2 -top-2 transform -translate-x-1/2 bg-sky-500 text-black font-mono text-[9px] px-1.5 py-0.2 rounded font-bold">
+                  T_0 NOW (18:14 IST)
+                </div>
               </div>
-
-              <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 1000 60">
-                {/* Precipitation Bars */}
-                <rect x="40" y="45" width="14" height="15" fill="#38bdf8" fillOpacity="0.3" />
-                <rect x="80" y="40" width="14" height="20" fill="#38bdf8" fillOpacity="0.3" />
-                <rect x="120" y="32" width="14" height="28" fill="#38bdf8" fillOpacity="0.3" />
-                <rect x="160" y="25" width="14" height="35" fill="#38bdf8" fillOpacity="0.4" />
-                <rect x="200" y="15" width="14" height="45" fill="#38bdf8" fillOpacity="0.5" />
-                <rect x="240" y="10" width="14" height="50" fill="#38bdf8" fillOpacity="0.6" />
-                <rect x="280" y="12" width="14" height="48" fill="#38bdf8" fillOpacity="0.6" />
-                <rect x="320" y="20" width="14" height="40" fill="#38bdf8" fillOpacity="0.5" />
-                <rect x="360" y="30" width="14" height="30" fill="#38bdf8" fillOpacity="0.4" />
-                <rect x="400" y="35" width="14" height="25" fill="#38bdf8" fillOpacity="0.3" />
-
-                {/* T0 Marker */}
-                <line x1="500" y1="0" x2="500" y2="60" stroke="#38bdf8" strokeWidth="1.5" />
-
-                {/* Predictive Bars */}
-                <rect x="520" y="22" width="14" height="38" fill="#38bdf8" fillOpacity="0.35" stroke="#38bdf8" strokeWidth="0.5" />
-                <rect x="560" y="14" width="14" height="46" fill="#38bdf8" fillOpacity="0.45" stroke="#38bdf8" strokeWidth="0.5" />
-                <rect x="600" y="8" width="14" height="52" fill="#ef4444" fillOpacity="0.5" stroke="#ef4444" strokeWidth="0.5" />
-                <rect x="640" y="15" width="14" height="45" fill="#f59e0b" fillOpacity="0.4" stroke="#f59e0b" strokeWidth="0.5" />
-                <rect x="680" y="28" width="14" height="32" fill="#38bdf8" fillOpacity="0.25" stroke="#38bdf8" strokeWidth="0.5" />
-                <rect x="720" y="38" width="14" height="22" fill="#38bdf8" fillOpacity="0.2" />
-                <rect x="760" y="44" width="14" height="16" fill="#38bdf8" fillOpacity="0.2" />
-
-                {/* Historical Line */}
-                <path d="M0,50 Q120,48 240,42 T400,28 T500,16" fill="none" stroke="#38bdf8" strokeWidth="2" />
-
-                {/* Confidence Ribbon */}
-                <path d="M500,16 Q600,6 700,10 T900,34 L900,46 Q700,24 600,20 T500,16 Z" fill="#38bdf8" fillOpacity="0.12" />
-
-                {/* Predictive Hydrograph Crossing Breach */}
-                <path d="M500,16 Q600,8 650,5 T750,22 T950,42" fill="none" stroke="#ef4444" strokeWidth="2.5" strokeDasharray="6,3" />
-                <circle cx="650" cy="5" r="4" fill="#ef4444" className="animate-pulse" />
-              </svg>
-
-              <div className="absolute left-1/2 -top-2 transform -translate-x-1/2 bg-sky-500 text-black font-mono text-[9px] px-1.5 py-0.2 rounded font-bold">
-                T_0 NOW (18:14 IST)
-              </div>
-            </div>
+            )}
 
             {/* Time Controls */}
             <div className="flex items-center justify-between text-[10px] font-mono text-slate-400 pt-0.5">
