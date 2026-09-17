@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>JALNETRA GLOBAL v2.0 // MISSION OPERATIONS ACCESS &amp; CLEARANCE PORTAL</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600;700&amp;family=Outfit:wght@500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface-container-low": "#161c28",
+            "on-surface-variant": "#bcc9cd",
+            "on-secondary-fixed": "#002113",
+            "primary": "#4cd7f6",
+            "surface": "#0e131f",
+            "secondary-container": "#00a572",
+            "on-tertiary-fixed-variant": "#653e00",
+            "on-surface": "#dde2f3",
+            "on-secondary-container": "#00311f",
+            "on-primary-fixed": "#001f26",
+            "on-secondary": "#003824",
+            "on-primary": "#003640",
+            "inverse-on-surface": "#2b303d",
+            "on-primary-container": "#00424f",
+            "tertiary": "#ffb95f",
+            "secondary-fixed": "#6ffbbe",
+            "tertiary-fixed-dim": "#ffb95f",
+            "secondary": "#4edea3",
+            "surface-dim": "#0e131f",
+            "on-tertiary-container": "#563400",
+            "surface-container": "#1a202c",
+            "primary-fixed": "#acedff",
+            "error": "#ffb4ab",
+            "surface-variant": "#2f3542",
+            "on-error-container": "#ffdad6",
+            "on-tertiary-fixed": "#2a1700",
+            "on-background": "#dde2f3",
+            "tertiary-container": "#e79400",
+            "surface-tint": "#4cd7f6",
+            "on-tertiary": "#472a00",
+            "surface-container-lowest": "#080e1a",
+            "surface-bright": "#343946",
+            "error-container": "#93000a",
+            "outline": "#869397",
+            "primary-container": "#06b6d4",
+            "inverse-surface": "#dde2f3",
+            "background": "#0e131f",
+            "secondary-fixed-dim": "#4edea3",
+            "primary-fixed-dim": "#4cd7f6",
+            "outline-variant": "#3d494c",
+            "surface-container-high": "#242a36",
+            "on-primary-fixed-variant": "#004e5c",
+            "inverse-primary": "#00687a",
+            "tertiary-fixed": "#ffddb8",
+            "surface-container-highest": "#2f3542",
+            "on-error": "#690005",
+            "on-secondary-fixed-variant": "#005236"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "space-lg": "1.25rem",
+            "margin": "1rem",
+            "space-md": "0.75rem",
+            "space-sm": "0.5rem",
+            "gutter": "0.75rem",
+            "margin-desktop": "1.5rem",
+            "gutter-desktop": "1rem",
+            "space-xs": "0.25rem",
+            "space-xl": "2rem"
+          },
+          "fontFamily": {
+            "telemetry-md": ["JetBrains Mono"],
+            "display-sm": ["Outfit"],
+            "headline-md": ["Outfit"],
+            "body-sm": ["Inter"],
+            "body-lg": ["Inter"],
+            "label-caps": ["JetBrains Mono"],
+            "body-md": ["Inter"],
+            "telemetry-lg": ["JetBrains Mono"],
+            "headline-lg": ["Outfit"],
+            "display-lg": ["Outfit"],
+            "headline-lg-mobile": ["Outfit"]
+          },
+          "fontSize": {
+            "telemetry-md": ["13px", { "lineHeight": "16px", "letterSpacing": "0.04em", "fontWeight": "500" }],
+            "display-sm": ["36px", { "lineHeight": "44px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+            "headline-md": ["20px", { "lineHeight": "26px", "letterSpacing": "0em", "fontWeight": "600" }],
+            "body-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "400" }],
+            "body-lg": ["16px", { "lineHeight": "24px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "label-caps": ["10px", { "lineHeight": "12px", "letterSpacing": "0.12em", "fontWeight": "700" }],
+            "body-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "400" }],
+            "telemetry-lg": ["20px", { "lineHeight": "24px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+            "headline-lg": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+            "headline-lg-mobile": ["22px", { "lineHeight": "28px", "letterSpacing": "0em", "fontWeight": "600" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      display: inline-block;
+      vertical-align: middle;
+      line-height: 1;
+    }
+    
+    /* Technical 32px Grid Background */
+    .tactical-grid-bg {
+      background-color: #070a0f;
+      background-image: 
+        linear-gradient(to right, rgba(61, 73, 76, 0.15) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(61, 73, 76, 0.15) 1px, transparent 1px);
+      background-size: 32px 32px;
+    }
+
+    /* Pulse Breathing Animations */
+    @keyframes subtlePulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.45; transform: scale(0.92); }
+    }
+    .status-pulse {
+      animation: subtlePulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    
+    @keyframes alertBeacon {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
+      50% { box-shadow: 0 0 8px 3px rgba(239, 68, 68, 0.7); }
+    }
+    .beacon-crimson {
+      animation: alertBeacon 1.8s infinite;
+    }
+
+    /* Precision Hairlines */
+    .bracket-corner-tl {
+      position: absolute;
+      top: -1px;
+      left: -1px;
+      width: 8px;
+      height: 8px;
+      border-top: 2px solid #4cd7f6;
+      border-left: 2px solid #4cd7f6;
+    }
+    .bracket-corner-tr {
+      position: absolute;
+      top: -1px;
+      right: -1px;
+      width: 8px;
+      height: 8px;
+      border-top: 2px solid #4cd7f6;
+      border-right: 2px solid #4cd7f6;
+    }
+    .bracket-corner-bl {
+      position: absolute;
+      bottom: -1px;
+      left: -1px;
+      width: 8px;
+      height: 8px;
+      border-bottom: 2px solid #4cd7f6;
+      border-left: 2px solid #4cd7f6;
+    }
+    .bracket-corner-br {
+      position: absolute;
+      bottom: -1px;
+      right: -1px;
+      width: 8px;
+      height: 8px;
+      border-bottom: 2px solid #4cd7f6;
+      border-right: 2px solid #4cd7f6;
+    }
+  </style>
+</head>
+<body class="bg-surface-container-lowest text-on-surface antialiased select-none tactical-grid-bg min-h-screen flex flex-col justify-between overflow-x-hidden font-body-md relative">
+<!-- LAT/LONG BACKGROUND RETICLE WATERMARKS -->
+<div class="fixed top-20 left-6 pointer-events-none opacity-20 font-telemetry-md text-label-caps text-outline-variant space-y-1 z-0 hidden lg:block">
+<div>GRID: LAT 22°34'21.36"N // LON 88°21'50.04"E</div>
+<div>DATUM: WGS84 // UTM-ZONE: 45N // EPSG: 32645</div>
+<div>ELEV: +4.82m MSL // TIDAL REACH: 124 KM</div>
+</div>
+<div class="fixed bottom-14 right-6 pointer-events-none opacity-20 font-telemetry-md text-label-caps text-outline-variant text-right space-y-1 z-0 hidden lg:block">
+<div>RADAR: ALIPORE S-BAND // POL: DUAL-DOPPLER</div>
+<div>TELEMETRY CYCLE: 10ms SCAN-LOOP // ACTIVE</div>
+<div>TARGET: HOOGHLY-SUNDARBANS EMBANKMENTS</div>
+</div>
+<!-- 1. TOP TECHNICAL MASTHEAD (48px dense status bar) -->
+<header class="w-full h-12 bg-surface-container-lowest/95 border-b border-outline-variant/30 backdrop-blur-md px-margin-desktop flex items-center justify-between z-50 sticky top-0">
+<!-- Left Masthead Node -->
+<div class="flex items-center gap-space-md">
+<div class="flex items-center gap-space-xs">
+<span class="w-2 h-2 rounded-full bg-primary inline-block status-pulse"></span>
+<span class="font-label-caps text-label-caps text-primary tracking-widest uppercase">JALNETRA // TERMINAL-AUTH [NODE-CCU-HQ-01]</span>
+</div>
+<div class="hidden xl:flex items-center text-outline-variant font-label-caps text-label-caps">
+<span class="mx-space-xs text-outline-variant">|</span>
+<span class="text-on-surface-variant">BASIN-01: HOOGHLY ESTUARY &amp; GREATER KOLKATA DELTA [22.5726°N 88.3639°E]</span>
+</div>
+</div>
+<!-- Center Security Badges -->
+<div class="hidden md:flex items-center gap-space-sm font-label-caps text-label-caps">
+<span class="px-space-sm py-0.5 bg-surface-container border border-outline-variant/40 text-secondary rounded flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+        TLS 1.3 AES-256-GCM [ACTIVE]
+      </span>
+<span class="px-space-sm py-0.5 bg-surface-container border border-outline-variant/40 text-primary rounded flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+        NDMA / KMC Federated Security Gateway [ONLINE]
+      </span>
+<span class="px-space-sm py-0.5 bg-surface-container border border-outline-variant/40 text-on-surface-variant rounded">
+        HSM FIPS-140-3 [PASS]
+      </span>
+</div>
+<!-- Right Atomic Clocks & Threat Level -->
+<div class="flex items-center gap-space-md font-telemetry-md text-telemetry-md">
+<div class="hidden sm:flex items-center gap-3 text-on-surface-variant">
+<span>UTC <strong class="text-on-surface font-semibold" id="utc-clock">18:24:05</strong></span>
+<span class="text-outline-variant">/</span>
+<span>IST <strong class="text-primary font-semibold" id="ist-clock">23:54:05</strong></span>
+</div>
+<div class="flex items-center gap-2">
+<span class="font-label-caps text-label-caps px-space-xs py-0.5 bg-surface-container-high border border-outline-variant/50 text-tertiary rounded flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">timer</span>
+<span id="session-timer">14:59</span>
+</span>
+<span class="font-label-caps text-label-caps px-space-xs py-0.5 bg-tertiary-container/20 border border-tertiary/40 text-tertiary rounded font-semibold">
+          DEFCON-4 / ADVISORY
+        </span>
+</div>
+</div>
+</header>
+<!-- MAIN VIEWPORT STAGE -->
+<main class="w-full flex-1 flex items-center justify-center px-gutter-desktop py-space-md z-10">
+<div class="w-full max-w-[1400px] flex items-stretch justify-center gap-space-md min-h-[580px]">
+<!-- 2. LEFT TECHNICAL TELEMETRY BRACKET (260px wide) -->
+<aside class="hidden xl:flex flex-col justify-between w-[270px] bg-surface-container-lowest/80 border border-outline-variant/30 rounded-lg p-space-md backdrop-blur-xl relative shadow-[0_4px_24px_rgba(0,0,0,0.4)]">
+<div class="bracket-corner-tl"></div>
+<div class="bracket-corner-bl"></div>
+<div>
+<!-- Header Bracket Title -->
+<div class="flex items-center justify-between border-b border-outline-variant/25 pb-2 mb-space-md">
+<span class="font-label-caps text-label-caps text-primary tracking-wider uppercase">BASIN TELEMETRY HUD</span>
+<span class="material-symbols-outlined text-primary text-[14px]">radar</span>
+</div>
+<!-- Metric Item 1: Hooghly Stage -->
+<div class="mb-space-md p-space-xs bg-surface-container-low/60 border border-outline-variant/20 rounded">
+<div class="flex justify-between items-center text-label-caps font-label-caps text-on-surface-variant mb-1">
+<span>HOOGHLY TIDAL STAGE</span>
+<span class="text-tertiary flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary status-pulse"></span>
+                SURGE WATCH
+              </span>
+</div>
+<div class="flex items-baseline justify-between">
+<span class="font-telemetry-lg text-telemetry-lg text-on-surface font-bold tracking-tight">5.42<span class="text-body-sm font-normal text-on-surface-variant"> m MSL</span></span>
+<span class="text-label-caps font-label-caps text-outline">+0.28m / 30m</span>
+</div>
+<!-- Micro Progress Bar -->
+<div class="w-full bg-surface-container-highest h-1 rounded-full mt-2 overflow-hidden">
+<div class="bg-tertiary h-full w-[72%]"></div>
+</div>
+</div>
+<!-- Metric Item 2: Doppler Radar -->
+<div class="mb-space-md p-space-xs bg-surface-container-low/60 border border-outline-variant/20 rounded">
+<div class="flex justify-between items-center text-label-caps font-label-caps text-on-surface-variant mb-1">
+<span>ALIPORE DOPPLER RADAR</span>
+<span class="text-secondary flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+                ACTIVE
+              </span>
+</div>
+<div class="font-telemetry-md text-telemetry-md text-on-surface">2.8 GHz // DUAL-POL</div>
+<div class="text-label-caps font-label-caps text-on-surface-variant mt-1">SWEEP VELOCITY: 18.4 RPM</div>
+</div>
+<!-- Metric Item 3: Satellite Overpass -->
+<div class="mb-space-md p-space-xs bg-surface-container-low/60 border border-outline-variant/20 rounded">
+<div class="flex justify-between items-center text-label-caps font-label-caps text-on-surface-variant mb-1">
+<span>SENTINEL-1 SAR PASS</span>
+<span class="text-primary font-label-caps">INBOUND</span>
+</div>
+<div class="flex items-baseline justify-between">
+<span class="font-telemetry-lg text-telemetry-lg text-primary font-bold">T-42m:18s</span>
+<span class="text-label-caps font-label-caps text-outline-variant">RES: 10m C-BAND</span>
+</div>
+</div>
+<!-- Packet Ping Sparkline Indicator -->
+<div class="p-space-xs bg-surface-container-low/40 border border-outline-variant/20 rounded">
+<div class="flex justify-between text-label-caps font-label-caps text-on-surface-variant mb-1">
+<span>CCU SUMP SENSOR STREAM</span>
+<span class="text-secondary font-semibold">100Hz NOMINAL</span>
+</div>
+<div class="flex items-end gap-1 h-8 pt-1">
+<span class="w-1/12 bg-primary/40 h-[45%] rounded-t-sm"></span>
+<span class="w-1/12 bg-primary/60 h-[70%] rounded-t-sm"></span>
+<span class="w-1/12 bg-primary/50 h-[60%] rounded-t-sm"></span>
+<span class="w-1/12 bg-primary/80 h-[85%] rounded-t-sm"></span>
+<span class="w-1/12 bg-primary h-[95%] rounded-t-sm"></span>
+<span class="w-1/12 bg-primary/70 h-[75%] rounded-t-sm"></span>
+<span class="w-1/12 bg-primary/60 h-[65%] rounded-t-sm"></span>
+<span class="w-1/12 bg-primary/90 h-[90%] rounded-t-sm"></span>
+<span class="w-1/12 bg-primary h-[100%] rounded-t-sm"></span>
+<span class="w-1/12 bg-primary/75 h-[80%] rounded-t-sm"></span>
+<span class="w-1/12 bg-secondary h-[90%] rounded-t-sm"></span>
+<span class="w-1/12 bg-secondary h-[95%] rounded-t-sm"></span>
+</div>
+</div>
+</div>
+<!-- Left Footer Hardware Metadata -->
+<div class="border-t border-outline-variant/25 pt-2 text-label-caps font-label-caps text-outline-variant flex justify-between items-center">
+<span>TX/RX RTU: 148 NODES</span>
+<span>LATENCY: 4.2ms</span>
+</div>
+</aside>
+<!-- 3. CENTER TERMINAL AUTHENTICATION CHASSIS (Machined 580px Console Dock) -->
+<section class="w-full max-w-[580px] bg-surface-container-low/90 border border-outline-variant/40 rounded-lg p-space-lg backdrop-blur-2xl relative shadow-[0_8px_32px_rgba(0,0,0,0.6)] flex flex-col justify-between">
+<!-- Technical Machined Corner Brackets -->
+<div class="bracket-corner-tl"></div>
+<div class="bracket-corner-tr"></div>
+<div class="bracket-corner-bl"></div>
+<div class="bracket-corner-br"></div>
+<div>
+<!-- Console Top Flange -->
+<div class="flex items-start justify-between border-b border-outline-variant/30 pb-space-sm mb-space-md">
+<div class="flex items-center gap-space-sm">
+<!-- Hexagonal Brand Mark -->
+<div class="w-10 h-10 bg-surface-container-high border border-primary/40 rounded flex items-center justify-center relative">
+<span class="material-symbols-outlined text-primary text-[22px]">water_ec</span>
+<span class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-secondary border-2 border-surface-container-lowest status-pulse"></span>
+</div>
+<div>
+<h1 class="font-headline-md text-headline-md text-on-surface font-bold tracking-wide">
+                  JALNETRA GLOBAL <span class="text-primary text-body-sm font-label-caps font-bold">v2.0</span>
+</h1>
+<p class="font-label-caps text-label-caps text-on-surface-variant tracking-wider">
+                  MISSION OPERATIONS COMMAND // ACCESS GATEWAY
+                </p>
+</div>
+</div>
+<!-- Node Identification Chip -->
+<div class="text-right">
+<span class="inline-block font-label-caps text-label-caps px-space-xs py-0.5 bg-surface-container-highest text-primary border border-primary/30 rounded">
+                GATE-AUTH // DELTA-09
+              </span>
+<div class="font-telemetry-md text-[11px] text-outline mt-0.5">STATUS: ENCRYPTED</div>
+</div>
+</div>
+<!-- Clearance Tier Selector (Segmented Control) -->
+<div class="mb-space-md">
+<div class="flex justify-between items-center mb-1">
+<span class="font-label-caps text-label-caps text-on-surface-variant">SELECT OPERATIONAL CLEARANCE TIER:</span>
+<span class="font-label-caps text-label-caps text-secondary">MUNICIPAL_AUTH_OK</span>
+</div>
+<div class="grid grid-cols-3 gap-1 p-1 bg-surface-container-lowest border border-outline-variant/30 rounded">
+<!-- Tab 1 -->
+<button class="py-2 px-1 text-center font-label-caps text-label-caps text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-all rounded-sm border border-transparent" type="button">
+<div>[LVL 1: OBSERVER]</div>
+<div class="text-[9px] text-outline font-normal mt-0.5 truncate">Ward Sump &amp; Gauges</div>
+</button>
+<!-- Tab 2 (Active) -->
+<button class="py-2 px-1 text-center font-label-caps text-label-caps text-primary bg-primary-container/15 border border-primary/50 rounded-sm shadow-[0_0_12px_rgba(6,182,212,0.15)] font-bold" type="button">
+<div>[LVL 2: HYDROLOGIST]</div>
+<div class="text-[9px] text-primary/80 font-medium mt-0.5 truncate">Canal Sluice Twin</div>
+</button>
+<!-- Tab 3 -->
+<button class="py-2 px-1 text-center font-label-caps text-label-caps text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-all rounded-sm border border-transparent" type="button">
+<div>[LVL 3: COMMANDER]</div>
+<div class="text-[9px] text-outline font-normal mt-0.5 truncate">Emergency Evacuation</div>
+</button>
+</div>
+</div>
+<!-- Form Fields Container -->
+<form class="space-y-space-sm" onsubmit="event.preventDefault();">
+<!-- Input 1: Operator Call Sign / Gov ID -->
+<div class="relative">
+<div class="flex justify-between items-center mb-1">
+<label class="font-label-caps text-label-caps text-on-surface-variant" for="operator-id">
+                  OPERATOR CALL SIGN / GOV ID
+                </label>
+<span class="font-label-caps text-[10px] text-secondary flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">verified</span>
+                  AUTHENTICATED_ID
+                </span>
+</div>
+<div class="relative flex items-center">
+<span class="absolute left-3 material-symbols-outlined text-outline text-[18px]">badge</span>
+<input class="w-full bg-surface-container-lowest/90 border border-outline-variant/40 focus:border-primary focus:ring-1 focus:ring-primary rounded pl-10 pr-10 py-2 font-telemetry-md text-telemetry-md text-on-surface placeholder:text-outline" id="operator-id" spellcheck="false" type="text" value="KMC-HYD-40892"/>
+<span class="absolute right-3 material-symbols-outlined text-secondary text-[18px]">check_circle</span>
+</div>
+</div>
+<!-- Input 2: Cryptographic Passcode -->
+<div class="relative">
+<div class="flex justify-between items-center mb-1">
+<label class="font-label-caps text-label-caps text-on-surface-variant" for="sec-passcode">
+                  CRYPTOGRAPHIC SECURITY PASSCODE
+                </label>
+<span class="font-label-caps text-[10px] text-outline">HASH: ED25519-POLY1305</span>
+</div>
+<div class="relative flex items-center">
+<span class="absolute left-3 material-symbols-outlined text-outline text-[18px]">password</span>
+<input class="w-full bg-surface-container-lowest/90 border border-outline-variant/40 focus:border-primary focus:ring-1 focus:ring-primary rounded pl-10 pr-10 py-2 font-telemetry-md text-telemetry-md text-on-surface tracking-widest" id="sec-passcode" type="password" value="••••••••••••••••••••••••"/>
+<button class="absolute right-3 text-outline hover:text-on-surface flex items-center" type="button">
+<span class="material-symbols-outlined text-[18px]">visibility</span>
+</button>
+</div>
+</div>
+<!-- Input 3: Hardware Key / 2FA Token -->
+<div class="relative">
+<div class="flex justify-between items-center mb-1">
+<label class="font-label-caps text-label-caps text-on-surface-variant" for="hardware-token">
+                  TWO-FACTOR SECURITY TOKEN / HARDWARE KEY
+                </label>
+<span class="font-label-caps text-[10px] text-secondary flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+                  NFC_READER: READY
+                </span>
+</div>
+<div class="relative flex items-center">
+<span class="absolute left-3 material-symbols-outlined text-secondary text-[18px]">usb</span>
+<input class="w-full bg-surface-container-lowest/90 border border-secondary/40 rounded pl-10 pr-28 py-2 font-telemetry-md text-telemetry-md text-secondary" id="hardware-token" readonly="" type="text" value="YubiKey 5 / CAC Token Autodetected: [ID-77189-NFC]"/>
+<span class="absolute right-2 font-label-caps text-label-caps px-2 py-1 bg-secondary-container/30 text-secondary rounded border border-secondary/30">
+                  LINKED
+                </span>
+</div>
+</div>
+<!-- Session MAC Binding & Transmit Prompt -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
+<label class="flex items-center gap-2 cursor-pointer select-none">
+<input checked="" class="rounded-sm bg-surface-container-lowest border-outline-variant text-primary focus:ring-0 w-3.5 h-3.5" type="checkbox"/>
+<span class="font-label-caps text-[10px] text-on-surface-variant hover:text-on-surface">
+                  BIND MAC: 00:1A:2B:3C:4D:5E (OPS-DESK-04)
+                </span>
+</label>
+<button class="font-label-caps text-[10px] text-primary hover:text-on-surface flex items-center gap-1 self-start sm:self-auto py-1 px-2 border border-primary/30 rounded bg-primary/5 hover:bg-primary/15 transition-colors" type="button">
+<span class="material-symbols-outlined text-[13px]">contactless</span>
+                TOUCH HARDWARE TOKEN TO TRANSMIT
+              </button>
+</div>
+<!-- Primary Authentication CTA Button -->
+<div class="pt-2">
+<button class="w-full py-3 px-space-md bg-primary-container/20 border border-primary text-primary hover:bg-primary hover:text-on-primary font-headline-md text-headline-md tracking-wider uppercase rounded transition-all duration-150 flex items-center justify-center gap-2 shadow-[0_0_16px_rgba(6,182,212,0.3)] group cursor-pointer active:scale-[0.99]" type="submit">
+<span class="material-symbols-outlined text-[20px] group-hover:rotate-45 transition-transform duration-200">login</span>
+<span>AUTHENTICATE // INITIALIZE DIGITAL TWIN COCKPIT</span>
+</button>
+</div>
+</form>
+</div>
+<!-- Emergency Disaster Bypass Banner -->
+<div class="mt-space-md pt-space-xs border-t border-outline-variant/30">
+<div class="p-space-sm bg-error-container/20 border border-error/50 rounded flex flex-col sm:flex-row items-start sm:items-center justify-between gap-space-sm">
+<div class="flex items-start gap-2">
+<span class="w-2 h-2 rounded-full bg-error mt-1 flex-shrink-0 beacon-crimson"></span>
+<div>
+<span class="font-label-caps text-label-caps text-error font-bold uppercase tracking-wider block">
+                  EMERGENCY PROTOCOL OVERRIDE [DEFCON-1]
+                </span>
+<p class="font-body-sm text-body-sm text-on-surface-variant text-[11px] leading-tight">
+                  If Cyclone / Embankment Breach Alert is active, trigger National Disaster Response (NDRF) Token Bypass.
+                </p>
+</div>
+</div>
+<button class="w-full sm:w-auto flex-shrink-0 font-label-caps text-label-caps py-1.5 px-3 bg-error/15 border border-error text-error hover:bg-error hover:text-on-error rounded transition-colors uppercase font-bold tracking-wider" type="button">
+              [NDRF OVERRIDE]
+            </button>
+</div>
+</div>
+</section>
+<!-- 4. RIGHT TECHNICAL SECURITY HUD BRACKET (260px wide) -->
+<aside class="hidden xl:flex flex-col justify-between w-[270px] bg-surface-container-lowest/80 border border-outline-variant/30 rounded-lg p-space-md backdrop-blur-xl relative shadow-[0_4px_24px_rgba(0,0,0,0.4)]">
+<div class="bracket-corner-tr"></div>
+<div class="bracket-corner-br"></div>
+<div>
+<!-- Header Security Title -->
+<div class="flex items-center justify-between border-b border-outline-variant/25 pb-2 mb-space-md">
+<span class="font-label-caps text-label-caps text-primary tracking-wider uppercase">SECURITY AUDIT HUD</span>
+<span class="material-symbols-outlined text-primary text-[14px]">shield</span>
+</div>
+<!-- Security Metric 1: Cipher Details -->
+<div class="mb-space-md p-space-xs bg-surface-container-low/60 border border-outline-variant/20 rounded">
+<div class="flex justify-between items-center text-label-caps font-label-caps text-on-surface-variant mb-1">
+<span>AUTHENTICATION CIPHER</span>
+<span class="text-secondary font-label-caps">ELLIPTIC</span>
+</div>
+<div class="font-telemetry-lg text-telemetry-lg text-on-surface font-bold">ED25519-SIG</div>
+<div class="text-label-caps font-label-caps text-outline-variant mt-1">CURVE: 25519 // 128-BIT SEC</div>
+</div>
+<!-- Security Metric 2: Active Sumps -->
+<div class="mb-space-md p-space-xs bg-surface-container-low/60 border border-outline-variant/20 rounded">
+<div class="flex justify-between items-center text-label-caps font-label-caps text-on-surface-variant mb-1">
+<span>ACTIVE NODES LINKED</span>
+<span class="text-secondary font-semibold">ALL NOMINAL</span>
+</div>
+<div class="flex items-baseline justify-between">
+<span class="font-telemetry-lg text-telemetry-lg text-secondary font-bold">8 / 8</span>
+<span class="text-label-caps font-label-caps text-outline">SUMP GAUGES ONLINE</span>
+</div>
+<!-- Mini Sump Nodes Indicator Dots -->
+<div class="grid grid-cols-8 gap-1 mt-2">
+<span class="h-1.5 bg-secondary rounded-sm" title="Palmer Bridge Sump"></span>
+<span class="h-1.5 bg-secondary rounded-sm" title="Ballygunge Drainage Station"></span>
+<span class="h-1.5 bg-secondary rounded-sm" title="Mominpur Sump"></span>
+<span class="h-1.5 bg-secondary rounded-sm" title="Topsia Canal Sump"></span>
+<span class="h-1.5 bg-secondary rounded-sm" title="Thakurpukur Sump"></span>
+<span class="h-1.5 bg-secondary rounded-sm" title="Behala Chowrasta Station"></span>
+<span class="h-1.5 bg-secondary rounded-sm" title="Dhapa Pumping Unit"></span>
+<span class="h-1.5 bg-secondary rounded-sm" title="Chetla Lock Gate"></span>
+</div>
+</div>
+<!-- Security Metric 3: Lockout Threshold -->
+<div class="mb-space-md p-space-xs bg-surface-container-low/60 border border-outline-variant/20 rounded">
+<div class="flex justify-between items-center text-label-caps font-label-caps text-on-surface-variant mb-1">
+<span>FAILED ATTEMPTS</span>
+<span class="text-secondary font-bold">0 / 3</span>
+</div>
+<div class="font-telemetry-md text-telemetry-md text-on-surface">LOCKOUT THRESHOLD: 3</div>
+<div class="w-full bg-surface-container-highest h-1 rounded-full mt-2 overflow-hidden">
+<div class="bg-secondary h-full w-[0%]"></div>
+</div>
+</div>
+<!-- Security Metric 4: Hash Stream Terminal -->
+<div class="p-space-xs bg-surface-container-low/40 border border-outline-variant/20 rounded">
+<div class="flex justify-between text-label-caps font-label-caps text-on-surface-variant mb-1">
+<span>CRYPTOGRAPHIC STREAM</span>
+<span class="text-primary font-semibold">VERIFIED</span>
+</div>
+<div class="font-telemetry-md text-[10px] text-outline leading-4 overflow-hidden font-mono select-all">
+<div class="truncate text-secondary">HASH: 7a8f9c01de554b...</div>
+<div class="truncate">SIG : a482bc194f2010...</div>
+<div class="truncate">NONC: 39f82d1c5e90aa...</div>
+<div class="truncate text-primary">CERT: GOV-IN-CCA-ROOT</div>
+</div>
+</div>
+</div>
+<!-- Right Footer Encryption Status -->
+<div class="border-t border-outline-variant/25 pt-2 text-label-caps font-label-caps text-outline-variant flex justify-between items-center">
+<span>ZERO-TRUST ENCLAVE</span>
+<span class="text-secondary">HARDENED</span>
+</div>
+</aside>
+</div>
+</main>
+<!-- 5. BOTTOM TELEMETRY FOOTER (36px fixed bottom bar) -->
+<footer class="w-full h-9 bg-surface-container-lowest/95 border-t border-outline-variant/30 backdrop-blur-md px-margin-desktop flex items-center justify-between z-50 text-label-caps font-label-caps text-on-surface-variant">
+<!-- Left Agency Cluster -->
+<div class="flex items-center gap-space-sm truncate">
+<span class="hidden lg:inline text-primary font-bold">JALNETRA FEDERATION:</span>
+<span class="truncate">GOVT OF WEST BENGAL &amp; KMC FLOOD FORECASTING // IMD ALIPORE // NASA GPM // SENTINEL-1 SAR</span>
+</div>
+<!-- Center Session Fingerprint -->
+<div class="hidden md:flex items-center gap-2 text-outline">
+<span class="material-symbols-outlined text-[13px]">fingerprint</span>
+<span class="truncate font-telemetry-md text-[11px]">SHA256: 9f8a42b109c...33c1d884</span>
+</div>
+<!-- Right Disaster Control Emergency Helpline -->
+<div class="flex items-center gap-space-sm text-right flex-shrink-0">
+<span class="material-symbols-outlined text-tertiary text-[14px]">phone_in_talk</span>
+<span>KMC CONTROL ROOM: <strong class="text-on-surface">+91 (033) 2286-1212</strong></span>
+<span class="text-outline-variant">|</span>
+<span class="hidden sm:inline">SEC-EXT: <strong class="text-primary">4401</strong></span>
+</div>
+</footer>
+<!-- LIGHTWEIGHT INLINE SCRIPT FOR CLOCKS & REALTIME TIMEOUT -->
+<script>
+    function updateClocks() {
+      const now = new Date();
+      
+      // UTC Time
+      const utcHours = String(now.getUTCHours()).padStart(2, '0');
+      const utcMins = String(now.getUTCMinutes()).padStart(2, '0');
+      const utcSecs = String(now.getUTCSeconds()).padStart(2, '0');
+      const utcEl = document.getElementById('utc-clock');
+      if (utcEl) utcEl.innerText = `${utcHours}:${utcMins}:${utcSecs}`;
+
+      // IST (UTC + 5:30)
+      const istTime = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
+      const istHours = String(istTime.getUTCHours()).padStart(2, '0');
+      const istMins = String(istTime.getUTCMinutes()).padStart(2, '0');
+      const istSecs = String(istTime.getUTCSeconds()).padStart(2, '0');
+      const istEl = document.getElementById('ist-clock');
+      if (istEl) istEl.innerText = `${istHours}:${istMins}:${istSecs}`;
+    }
+
+    // Session Timer Countdown Simulation
+    let sessionSeconds = 14 * 60 + 59;
+    function updateCountdown() {
+      if (sessionSeconds > 0) {
+        sessionSeconds--;
+        const mins = String(Math.floor(sessionSeconds / 60)).padStart(2, '0');
+        const secs = String(sessionSeconds % 60).padStart(2, '0');
+        const timerEl = document.getElementById('session-timer');
+        if (timerEl) timerEl.innerText = `${mins}:${secs}`;
+      }
+    }
+
+    setInterval(updateClocks, 1000);
+    setInterval(updateCountdown, 1000);
+    updateClocks();
+  </script>
+</body></html>

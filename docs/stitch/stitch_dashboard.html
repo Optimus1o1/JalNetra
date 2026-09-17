@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>JALNETRA GLOBAL v2.0 // Delta Ops Cockpit</title>
+<!-- Material Symbols & Typography -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&amp;family=Outfit:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS with custom extensions -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "outline": "#869397",
+            "on-secondary-container": "#00311f",
+            "surface-tint": "#4cd7f6",
+            "inverse-on-surface": "#2b303d",
+            "primary-fixed-dim": "#4cd7f6",
+            "inverse-primary": "#00687a",
+            "primary-container": "#06b6d4",
+            "on-primary-container": "#00424f",
+            "primary": "#4cd7f6",
+            "tertiary-fixed-dim": "#ffb95f",
+            "secondary": "#4edea3",
+            "on-tertiary-fixed": "#2a1700",
+            "on-primary-fixed-variant": "#004e5c",
+            "surface-bright": "#343946",
+            "on-primary-fixed": "#001f26",
+            "surface-container-high": "#242a36",
+            "on-secondary": "#003824",
+            "on-tertiary-container": "#563400",
+            "surface-container-lowest": "#080e1a",
+            "surface-dim": "#0e131f",
+            "secondary-fixed-dim": "#4edea3",
+            "on-surface-variant": "#bcc9cd",
+            "error-container": "#93000a",
+            "error": "#ffb4ab",
+            "surface-container-low": "#161c28",
+            "inverse-surface": "#dde2f3",
+            "on-tertiary-fixed-variant": "#653e00",
+            "background": "#0e131f",
+            "secondary-fixed": "#6ffbbe",
+            "on-error-container": "#ffdad6",
+            "surface-variant": "#2f3542",
+            "on-primary": "#003640",
+            "surface": "#0e131f",
+            "on-background": "#dde2f3",
+            "tertiary-fixed": "#ffddb8",
+            "on-surface": "#dde2f3",
+            "on-error": "#690005",
+            "secondary-container": "#00a572",
+            "on-tertiary": "#472a00",
+            "tertiary-container": "#e79400",
+            "surface-container-highest": "#2f3542",
+            "outline-variant": "#3d494c",
+            "on-secondary-fixed-variant": "#005236",
+            "primary-fixed": "#acedff",
+            "on-secondary-fixed": "#002113",
+            "surface-container": "#1a202c",
+            "tertiary": "#ffb95f"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "gutter": "0.75rem",
+            "space-xs": "0.25rem",
+            "space-md": "0.75rem",
+            "space-xl": "2rem",
+            "space-lg": "1.25rem",
+            "margin-desktop": "1.5rem",
+            "space-sm": "0.5rem",
+            "gutter-desktop": "1rem",
+            "margin": "1rem"
+          },
+          "fontFamily": {
+            "telemetry-lg": ["JetBrains Mono"],
+            "headline-lg-mobile": ["Outfit"],
+            "headline-lg": ["Outfit"],
+            "telemetry-md": ["JetBrains Mono"],
+            "headline-md": ["Outfit"],
+            "body-sm": ["Inter"],
+            "label-caps": ["JetBrains Mono"],
+            "display-sm": ["Outfit"],
+            "display-lg": ["Outfit"],
+            "body-md": ["Inter"],
+            "body-lg": ["Inter"]
+          },
+          "fontSize": {
+            "telemetry-lg": ["20px", { "lineHeight": "24px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+            "headline-lg-mobile": ["22px", { "lineHeight": "28px", "letterSpacing": "0em", "fontWeight": "600" }],
+            "headline-lg": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "telemetry-md": ["13px", { "lineHeight": "16px", "letterSpacing": "0.04em", "fontWeight": "500" }],
+            "headline-md": ["20px", { "lineHeight": "26px", "letterSpacing": "0em", "fontWeight": "600" }],
+            "body-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "400" }],
+            "label-caps": ["10px", { "lineHeight": "12px", "letterSpacing": "0.12em", "fontWeight": "700" }],
+            "display-sm": ["36px", { "lineHeight": "44px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+            "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+            "body-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "400" }],
+            "body-lg": ["16px", { "lineHeight": "24px", "letterSpacing": "0em", "fontWeight": "400" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      font-size: 16px;
+      line-height: 1;
+      display: inline-block;
+      vertical-align: middle;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: #080e1a;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: #3d494c;
+      border-radius: 2px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb:hover {
+      background: #4cd7f6;
+    }
+    @keyframes pulse-subtle {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.35; }
+    }
+    .animate-pulse-subtle {
+      animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    @keyframes flow-anim {
+      from { stroke-dashoffset: 120; }
+      to { stroke-dashoffset: 0; }
+    }
+    .flow-line {
+      stroke-dasharray: 6, 6;
+      animation: flow-anim 4s linear infinite;
+    }
+  </style>
+</head>
+<body class="bg-surface text-on-surface antialiased select-none overflow-hidden h-screen flex flex-col font-body-sm text-body-sm">
+<!-- ========================================== -->
+<!-- TOP NAV BAR (SHARED COMPONENT IMPLEMENTED) -->
+<!-- ========================================== -->
+<header class="flex justify-between items-center w-full px-gutter-desktop h-14 bg-surface-container-lowest/85 backdrop-blur-md border-b border-outline-variant/30 shadow-[0_4px_24px_rgba(6,182,212,0.1)] z-50 shrink-0">
+<!-- Left: Brand Logo & Sector Breadcrumb -->
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-xl" data-icon="radar">radar</span>
+<span class="text-headline-md font-headline-md font-bold tracking-widest text-primary uppercase">JALNETRA GLOBAL v2.0</span>
+</div>
+<div class="h-4 w-px bg-outline-variant/40"></div>
+<div class="flex items-center gap-2 text-label-caps font-label-caps text-on-surface-variant">
+<span class="text-outline">BASIN-01:</span>
+<span class="text-on-surface font-semibold tracking-normal">HOOGHLY ESTUARY &amp; GREATER KOLKATA DELTA</span>
+<span class="text-outline">[22.5726°N, 88.3639°E]</span>
+</div>
+</div>
+<!-- Center Navigation Links (Shared Component Anchors) -->
+<nav class="hidden lg:flex items-center gap-6">
+<a class="text-primary border-b-2 border-primary pb-1 font-semibold text-label-caps font-label-caps tracking-wider transition-all" href="#">Cockpit</a>
+<a class="text-on-surface-variant hover:text-on-surface transition-colors pb-1 text-label-caps font-label-caps tracking-wider" href="#">Global Climate</a>
+<a class="text-on-surface-variant hover:text-on-surface transition-colors pb-1 text-label-caps font-label-caps tracking-wider" href="#">Rainfall Nowcast</a>
+<a class="text-on-surface-variant hover:text-on-surface transition-colors pb-1 text-label-caps font-label-caps tracking-wider" href="#">Water Twin</a>
+<a class="text-on-surface-variant hover:text-on-surface transition-colors pb-1 text-label-caps font-label-caps tracking-wider" href="#">Vulnerability</a>
+<a class="text-on-surface-variant hover:text-on-surface transition-colors pb-1 text-label-caps font-label-caps tracking-wider" href="#">Simulator</a>
+</nav>
+<!-- Trailing Actions & Diagnostics -->
+<div class="flex items-center gap-3">
+<!-- Telemetry Icons from JSON -->
+<div class="flex items-center gap-1.5 px-2 py-1 bg-surface-container-high/40 rounded border border-outline-variant/30">
+<span class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors cursor-pointer" data-icon="satellite_alt" title="Satellite Uplink">satellite_alt</span>
+<span class="material-symbols-outlined text-secondary animate-pulse-subtle cursor-pointer" data-icon="sensors" title="Sensors Mesh Active">sensors</span>
+<span class="material-symbols-outlined text-tertiary cursor-pointer" data-icon="warning" title="Basin Advisory">warning</span>
+<span class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors cursor-pointer" data-icon="terminal" title="CLI Terminal">terminal</span>
+</div>
+<!-- Action Badges & Buttons -->
+<span class="px-2 py-1 rounded bg-tertiary-container/20 border border-tertiary text-tertiary text-label-caps font-label-caps">DEFCON-2 Standby</span>
+<button class="px-3 py-1.5 rounded bg-primary-container text-on-primary-container font-headline-md text-body-sm font-semibold tracking-wider hover:bg-primary transition-all active:scale-95 duration-100 flex items-center gap-1.5 shadow-[0_0_12px_rgba(6,182,212,0.3)]">
+<span class="material-symbols-outlined text-sm" data-icon="send">send</span>
+        Dispatch Protocol
+      </button>
+<!-- User avatar with profile image alt check -->
+<div class="flex items-center gap-2 pl-2 border-l border-outline-variant/30">
+<div class="w-8 h-8 rounded bg-surface-container border border-outline-variant/60 flex items-center justify-center text-primary font-telemetry-md font-bold text-xs" title="Chief Hydrological Flight Controller Avatar">
+          CHFC
+        </div>
+</div>
+</div>
+</header>
+<!-- ========================================== -->
+<!-- MISSION METRICS SUB-BAR (DENSE TELEMETRY)  -->
+<!-- ========================================== -->
+<div class="w-full h-8 bg-surface-container-lowest border-b border-outline-variant/30 px-gutter-desktop flex items-center justify-between font-label-caps text-label-caps text-on-surface-variant shrink-0">
+<div class="flex items-center gap-5">
+<div class="flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+<span class="text-outline">INSAT-3DR:</span>
+<span class="text-secondary font-medium">NOMINAL (12m delay)</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+<span class="text-outline">GPM IMERG:</span>
+<span class="text-on-surface font-medium">SYNCED</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse-subtle"></span>
+<span class="text-outline">SENTINEL-1 SAR:</span>
+<span class="text-primary font-medium">PASS 04:18Z (+38m)</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+<span class="text-outline">ALIPORE S-BAND:</span>
+<span class="text-on-surface">2.8 GHz // R-MAX 250km</span>
+<span class="px-1 bg-secondary-container/20 text-secondary border border-secondary/40 text-[9px] rounded">SWEEP ACTIVE</span>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-2">
+<span class="text-outline">SILTATION AGG:</span>
+<span class="text-tertiary font-telemetry-md font-semibold">54.2%</span>
+<span class="text-tertiary text-[9px] px-1 bg-tertiary/10 border border-tertiary/30 rounded">ELEVATED</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-outline">RISK INDEX:</span>
+<span class="text-error font-telemetry-md font-bold">64.2 / 100</span>
+<span class="text-error text-[9px] px-1 bg-error-container/40 border border-error/40 rounded">ADVISORY</span>
+</div>
+<div class="flex items-center gap-3 font-telemetry-md text-on-surface bg-surface-container-low px-2 py-0.5 rounded border border-outline-variant/30">
+<span><span class="text-outline text-xs">UTC</span> 12:44:18</span>
+<span class="text-outline">|</span>
+<span class="text-primary"><span class="text-outline text-xs">IST</span> 18:14:18</span>
+</div>
+</div>
+</div>
+<!-- ========================================== -->
+<!-- MAIN TACTICAL FLIGHT-DECK (3-COLUMNS)      -->
+<!-- ========================================== -->
+<div class="flex-1 flex overflow-hidden">
+<!-- ---------------------------------------------------- -->
+<!-- LEFT COLUMN: TACTICAL SECTOR STATION RAIL (310px)    -->
+<!-- ---------------------------------------------------- -->
+<aside class="w-[310px] bg-surface-container-low/90 backdrop-blur-xl border-r border-outline-variant/30 flex flex-col shrink-0">
+<!-- SideNav Brand / Status Header from JSON specification -->
+<div class="p-3 border-b border-outline-variant/30 bg-surface-container-lowest/50">
+<div class="flex items-center justify-between">
+<div>
+<div class="text-headline-md font-headline-md font-bold text-primary tracking-wider">SECTOR DELTA-09</div>
+<div class="text-label-caps font-label-caps text-secondary font-mono tracking-widest text-[9px]">SYS_STAT: NOMINAL // 100Hz</div>
+</div>
+<button class="px-2 py-1 bg-primary/10 hover:bg-primary hover:text-surface text-primary border border-primary/40 rounded text-label-caps font-label-caps transition-all active:scale-95 duration-100" title="INITIATE SLUICE LOCK">
+            INITIATE SLUICE LOCK
+          </button>
+</div>
+</div>
+<!-- Sector Header & Filtering Bar -->
+<div class="p-2.5 border-b border-outline-variant/30 bg-surface-container/20 flex flex-col gap-2">
+<div class="flex items-center justify-between text-label-caps font-label-caps">
+<span class="text-primary font-semibold">[SEC_01 // HYDRO_TELEMETRY]</span>
+<span class="text-outline">5 WARDS / 4 CANALS</span>
+</div>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-2 top-2 text-outline text-sm" data-icon="search">search</span>
+<input class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded pl-7 pr-2 py-1 text-xs text-on-surface placeholder:text-outline font-body-sm focus:outline-none focus:border-primary" placeholder="FILTER WARD, CANAL, GAUGE..." type="text"/>
+</div>
+</div>
+<!-- Scrollable Telemetry Cards Stack -->
+<div class="flex-1 overflow-y-auto custom-scroll p-2.5 space-y-2.5">
+<!-- Ward 66 (CRITICAL BREACH WARNING) -->
+<div class="p-2.5 rounded bg-surface-container/80 border-l-2 border-l-error border border-outline-variant/30 hover:border-outline transition-all duration-150 relative">
+<div class="flex justify-between items-start mb-1">
+<div>
+<span class="text-xs font-semibold text-on-surface tracking-wide">Ward 66: Topsia / EM Bypass</span>
+<div class="text-label-caps font-label-caps text-outline">LAT 22.541°N // LON 88.398°E</div>
+</div>
+<span class="px-1.5 py-0.5 rounded bg-error-container/50 border border-error/50 text-error text-label-caps font-label-caps font-bold">CRITICAL SILT</span>
+</div>
+<div class="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-outline-variant/20 font-telemetry-md text-xs">
+<div>
+<div class="text-[10px] text-outline font-label-caps">WATER DEPTH</div>
+<div class="text-error font-semibold flex items-center gap-1">
+                2.45m <span class="text-[10px] text-error font-normal">(+0.35m/h)</span>
+</div>
+</div>
+<div>
+<div class="text-[10px] text-outline font-label-caps">DISCHARGE</div>
+<div class="text-on-surface font-semibold">42.1 m³/s</div>
+</div>
+<div>
+<div class="text-[10px] text-outline font-label-caps">SILTATION</div>
+<div class="text-tertiary font-semibold">68% <span class="text-[9px] text-tertiary font-normal">HIGH</span></div>
+</div>
+<div>
+<div class="text-[10px] text-outline font-label-caps">SLUICE GATE</div>
+<div class="text-primary font-semibold">85% OPEN</div>
+</div>
+</div>
+<!-- Micro Sparkline SVG -->
+<div class="mt-2 h-5 w-full bg-surface-container-lowest/60 rounded flex items-center px-1">
+<svg class="w-full h-4 overflow-visible" preserveaspectratio="none" viewbox="0 0 100 20">
+<path d="M0,16 L20,14 L40,15 L60,10 L80,6 L100,2" fill="none" stroke="#ef4444" stroke-width="1.5"></path>
+<circle class="animate-pulse" cx="100" cy="2" fill="#ef4444" r="2.5"></circle>
+</svg>
+</div>
+</div>
+<!-- Ward 131 (Taratala / Behala) -->
+<div class="p-2.5 rounded bg-surface-container/60 border-l-2 border-l-tertiary border border-outline-variant/30 hover:border-outline transition-all duration-150">
+<div class="flex justify-between items-start mb-1">
+<div>
+<span class="text-xs font-semibold text-on-surface tracking-wide">Ward 131: Taratala / Behala</span>
+<div class="text-label-caps font-label-caps text-outline">DIAMOND HARBOUR RD CORRIDOR</div>
+</div>
+<span class="px-1.5 py-0.5 rounded bg-tertiary-container/30 border border-tertiary/40 text-tertiary text-label-caps font-label-caps">ADVISORY</span>
+</div>
+<div class="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-outline-variant/20 font-telemetry-md text-xs">
+<div>
+<div class="text-[10px] text-outline font-label-caps">WATER DEPTH</div>
+<div class="text-tertiary font-semibold">1.82m <span class="text-[10px] text-outline font-normal">MSL</span></div>
+</div>
+<div>
+<div class="text-[10px] text-outline font-label-caps">DISCHARGE</div>
+<div class="text-on-surface font-semibold">28.4 m³/s</div>
+</div>
+<div>
+<div class="text-[10px] text-outline font-label-caps">SILTATION</div>
+<div class="text-on-surface font-semibold">45%</div>
+</div>
+<div>
+<div class="text-[10px] text-outline font-label-caps">SLUICE GATE</div>
+<div class="text-secondary font-semibold">100% OPEN</div>
+</div>
+</div>
+<!-- Micro Sparkline SVG -->
+<div class="mt-2 h-5 w-full bg-surface-container-lowest/60 rounded flex items-center px-1">
+<svg class="w-full h-4 overflow-visible" preserveaspectratio="none" viewbox="0 0 100 20">
+<path d="M0,12 L20,11 L40,13 L60,11 L80,9 L100,8" fill="none" stroke="#ffb95f" stroke-width="1.5"></path>
+</svg>
+</div>
+</div>
+<!-- Ward 107 (Kasba / Ruby Interchange) -->
+<div class="p-2.5 rounded bg-surface-container/60 border-l-2 border-l-secondary border border-outline-variant/30 hover:border-outline transition-all duration-150">
+<div class="flex justify-between items-start mb-1">
+<div>
+<span class="text-xs font-semibold text-on-surface tracking-wide">Ward 107: Kasba / Ruby</span>
+<div class="text-label-caps font-label-caps text-outline">EAST KOLKATA WETLAND FLANK</div>
+</div>
+<span class="px-1.5 py-0.5 rounded bg-secondary-container/20 border border-secondary/30 text-secondary text-label-caps font-label-caps">NOMINAL</span>
+</div>
+<div class="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-outline-variant/20 font-telemetry-md text-xs">
+<div>
+<div class="text-[10px] text-outline font-label-caps">WATER DEPTH</div>
+<div class="text-on-surface font-semibold">2.10m MSL</div>
+</div>
+<div>
+<div class="text-[10px] text-outline font-label-caps">DISCHARGE</div>
+<div class="text-on-surface font-semibold">31.0 m³/s</div>
+</div>
+<div>
+<div class="text-[10px] text-outline font-label-caps">SILTATION</div>
+<div class="text-tertiary font-semibold">58%</div>
+</div>
+<div>
+<div class="text-[10px] text-outline font-label-caps">SLUICE GATE</div>
+<div class="text-primary font-semibold">60% OPEN</div>
+</div>
+</div>
+</div>
+<!-- Bagjola Canal Drainage Siphon -->
+<div class="p-2.5 rounded bg-surface-container/60 border border-outline-variant/30 hover:border-outline transition-all duration-150">
+<div class="flex justify-between items-start mb-1">
+<div>
+<span class="text-xs font-semibold text-primary tracking-wide">Bagjola Canal Siphon</span>
+<div class="text-label-caps font-label-caps text-outline">PRIMARY NORTH ARTERY // 38.2 KM</div>
+</div>
+<span class="px-1.5 py-0.5 rounded bg-tertiary-container/30 border border-tertiary/40 text-tertiary text-label-caps font-label-caps">CHOKE 72%</span>
+</div>
+<div class="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-outline-variant/20 font-telemetry-md text-xs">
+<div>
+<div class="text-[10px] text-outline font-label-caps">FLOW VELOCITY</div>
+<div class="text-on-surface font-semibold">1.85 m/s</div>
+</div>
+<div>
+<div class="text-[10px] text-outline font-label-caps">TURBINES RUNNING</div>
+<div class="text-secondary font-semibold">4 / 6 Active</div>
+</div>
+</div>
+<div class="w-full bg-surface-container-lowest h-1.5 rounded mt-2 overflow-hidden">
+<div class="bg-tertiary h-full w-[72%]"></div>
+</div>
+</div>
+<!-- Hooghly River Mainstem (Garden Reach) -->
+<div class="p-2.5 rounded bg-surface-container/70 border border-primary/30 hover:border-primary transition-all duration-150">
+<div class="flex justify-between items-start mb-1">
+<div>
+<span class="text-xs font-semibold text-primary tracking-wide">Hooghly River Mainstem</span>
+<div class="text-label-caps font-label-caps text-outline">GARDEN REACH TIDAL STATION</div>
+</div>
+<span class="px-1.5 py-0.5 rounded bg-primary-container/20 border border-primary/40 text-primary text-label-caps font-label-caps">SURGE APPROACH</span>
+</div>
+<div class="flex items-baseline justify-between mt-2 pt-2 border-t border-outline-variant/20 font-telemetry-md">
+<div>
+<div class="text-[10px] text-outline font-label-caps">CURRENT TIDAL STAGE</div>
+<div class="text-primary font-bold text-sm">+2.95m MSL</div>
+</div>
+<div class="text-right">
+<div class="text-[10px] text-outline font-label-caps">HIGH TIDE APOGEE</div>
+<div class="text-error font-semibold text-xs">IN +1h 14m</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Tactical Tabs Footer from JSON SideNav Footer Specs -->
+<div class="p-2 border-t border-outline-variant/30 bg-surface-container-lowest flex items-center justify-around text-label-caps font-label-caps text-on-surface-variant">
+<button class="flex items-center gap-1.5 hover:text-primary transition-colors py-1">
+<span class="material-symbols-outlined text-sm" data-icon="terminal">terminal</span>
+          System Diagnostics
+        </button>
+<div class="h-3 w-px bg-outline-variant/40"></div>
+<button class="flex items-center gap-1.5 hover:text-primary transition-colors py-1">
+<span class="material-symbols-outlined text-sm" data-icon="hub">hub</span>
+          Telemetry Stream
+        </button>
+</div>
+</aside>
+<!-- ---------------------------------------------------- -->
+<!-- CENTER COLUMN: GEOSPATIAL VECTOR DIGITAL TWIN (FLEX) -->
+<!-- ---------------------------------------------------- -->
+<main class="flex-1 flex flex-col bg-surface-container-lowest relative overflow-hidden">
+<!-- Docked Tactical GIS Control Toolbar -->
+<div class="h-10 bg-surface-container-low/90 backdrop-blur-md border-b border-outline-variant/30 px-3 flex items-center justify-between z-20 shrink-0">
+<!-- Layer Toggles -->
+<div class="flex items-center gap-1.5 font-label-caps text-label-caps">
+<span class="text-outline mr-1">GIS LAYERS:</span>
+<button class="px-2 py-1 rounded bg-primary-container/20 text-primary border border-primary/40 font-semibold flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+            VECTORS
+          </button>
+<button class="px-2 py-1 rounded bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/30 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-outline"></span>
+            BATHYMETRY
+          </button>
+<button class="px-2 py-1 rounded bg-tertiary-container/15 text-tertiary border border-tertiary/30 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+            SILTATION
+          </button>
+<button class="px-2 py-1 rounded bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/30 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-outline"></span>
+            RUNOFF COUPLING
+          </button>
+<button class="px-2 py-1 rounded bg-secondary-container/20 text-secondary border border-secondary/40 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+            RADAR REFLECTIVITY dBZ
+          </button>
+</div>
+<!-- Opacity Slider & Projection Tag -->
+<div class="flex items-center gap-4 text-label-caps font-label-caps text-outline">
+<div class="flex items-center gap-2">
+<span>ALPHA:</span>
+<input class="w-16 h-1 accent-primary bg-surface-container-highest rounded" type="range" value="75"/>
+<span class="text-primary font-mono">75%</span>
+</div>
+<span class="bg-surface-container px-1.5 py-0.5 rounded border border-outline-variant/30 text-on-surface">EPSG:3857 (WGS 84 / Pseudo-Mercator)</span>
+</div>
+</div>
+<!-- Vector GIS Map Canvas Container -->
+<div class="flex-1 relative bg-[#070a0f] overflow-hidden flex items-center justify-center">
+<!-- Grid Lines & Coordinate Backdrop -->
+<div class="absolute inset-0 opacity-15 pointer-events-none" style="background-image: linear-gradient(to right, #334155 1px, transparent 1px), linear-gradient(to bottom, #334155 1px, transparent 1px); background-size: 40px 40px;"></div>
+<!-- Master SVG Cartographic Twin of Kolkata & Hooghly Delta -->
+<svg class="w-full h-full cursor-crosshair select-none" preserveaspectratio="xMidYMid meet" viewbox="0 0 900 600">
+<defs>
+<!-- Tidal Backflow Gradient -->
+<lineargradient id="hooghlyTidalGradient" x1="0%" x2="0%" y1="100%" y2="0%">
+<stop offset="0%" stop-color="#0284c7" stop-opacity="0.8"></stop>
+<stop offset="50%" stop-color="#06b6d4" stop-opacity="0.6"></stop>
+<stop offset="100%" stop-color="#38bdf8" stop-opacity="0.4"></stop>
+</lineargradient>
+<!-- Breach Pattern for Flood Risk Zones -->
+<pattern height="8" id="breachHatch" patterntransform="rotate(45 0 0)" patternunits="userSpaceOnUse" width="8">
+<line stroke="#ef4444" stroke-opacity="0.4" stroke-width="1.5" x1="0" x2="0" y1="0" y2="8"></line>
+</pattern>
+<pattern height="8" id="amberHatch" patterntransform="rotate(45 0 0)" patternunits="userSpaceOnUse" width="8">
+<line stroke="#f59e0b" stroke-opacity="0.3" stroke-width="1.5" x1="0" x2="0" y1="0" y2="8"></line>
+</pattern>
+</defs>
+<!-- Municipal Ward Polygons -->
+<!-- Ward 66 (CRITICAL RED POLYGON - EM Bypass / Topsia) -->
+<polygon class="hover:fill-error/20 transition-colors" fill="url(#breachHatch)" points="520,290 610,270 630,340 570,380 500,340" stroke="#ef4444" stroke-width="1.5"></polygon>
+<text fill="#ffb4ab" font-family="JetBrains Mono" font-size="10" font-weight="700" x="545" y="325">WARD 66 [INUNDATION 88%]</text>
+<!-- Ward 107 (Kasba / East Kolkata Wetlands Interface - Amber) -->
+<polygon class="hover:fill-tertiary/20 transition-colors" fill="url(#amberHatch)" points="570,385 660,350 690,430 620,460 550,420" stroke="#f59e0b" stroke-width="1.5"></polygon>
+<text fill="#ffddb8" font-family="JetBrains Mono" font-size="10" font-weight="700" x="590" y="415">WARD 107 [WATERLOG 62%]</text>
+<!-- Ward 131 (Taratala / Behala - Amber) -->
+<polygon fill="url(#amberHatch)" points="340,390 420,380 440,460 360,490 320,430" stroke="#f59e0b" stroke-width="1.2"></polygon>
+<text fill="#ffddb8" font-family="JetBrains Mono" font-size="9" font-weight="600" x="350" y="440">WARD 131 [SURGE 54%]</text>
+<!-- North Kolkata Wards (Nominal / Low Risk) -->
+<polygon fill="#161c28" fill-opacity="0.4" points="410,130 520,110 530,190 440,210" stroke="#334155" stroke-width="1"></polygon>
+<text fill="#869397" font-family="JetBrains Mono" font-size="9" x="445" y="160">WARD 07 (SHYAMBAZAR)</text>
+<!-- East Kolkata Wetlands Retention Zone -->
+<path d="M640,230 Q720,260 760,330 T730,460 Q660,450 635,360 Z" fill="#00311f" fill-opacity="0.3" stroke="#4edea3" stroke-dasharray="4,2" stroke-width="1.5"></path>
+<text fill="#6ffbbe" font-family="JetBrains Mono" font-size="10" font-weight="700" x="670" y="300">EAST KOLKATA WETLANDS (RAMSAR #1208)</text>
+<text fill="#4edea3" font-family="Inter" font-size="8" x="670" y="315">NATURAL SPILL RESIDUAL STORAGE: 78.4 MCM</text>
+<!-- MAIN HOOGHLY RIVER TIDAL REACH (Curved Polyline with Bathymetry depth) -->
+<path d="M360,20 C340,80 320,150 340,210 C360,280 390,320 340,400 C290,480 260,540 240,600" fill="none" stroke="url(#hooghlyTidalGradient)" stroke-linecap="round" stroke-width="32"></path>
+<path class="flow-line" d="M360,20 C340,80 320,150 340,210 C360,280 390,320 340,400 C290,480 260,540 240,600" fill="none" stroke="#4cd7f6" stroke-dasharray="10,6" stroke-width="2"></path>
+<!-- River Labels -->
+<text fill="#4cd7f6" font-family="JetBrains Mono" font-size="11" font-weight="700" letter-spacing="2" x="280" y="100">HOOGHLY RIVER (BHAGIRATHI-GANGES)</text>
+<text fill="#869397" font-family="Inter" font-size="8" x="280" y="115">TIDAL ESTUARINE REACH // INFLOW: 2,410 m³/s</text>
+<!-- CANAL NETWORKS (DRAINAGE TRUNKS) -->
+<!-- Circular Canal -->
+<path d="M350,160 Q440,150 510,190 T560,240" fill="none" stroke="#06b6d4" stroke-width="4"></path>
+<text fill="#acedff" font-family="JetBrains Mono" font-size="8" x="440" y="180">CIRCULAR CANAL</text>
+<!-- Bagjola Canal -->
+<path class="flow-line" d="M350,70 Q480,80 580,120 T720,140" fill="none" stroke="#f59e0b" stroke-dasharray="8,4" stroke-width="5"></path>
+<text fill="#ffb95f" font-family="JetBrains Mono" font-size="9" font-weight="600" x="510" y="105">BAGJOLA CANAL (SILT CHOKE 72%)</text>
+<!-- Tolly's Nullah / Adi Ganga -->
+<path class="flow-line" d="M360,350 Q430,370 480,450 T540,560" fill="none" stroke="#06b6d4" stroke-dasharray="6,4" stroke-width="4"></path>
+<text fill="#acedff" font-family="JetBrains Mono" font-size="8" x="410" y="420">TOLLY'S NULLAH (ADI GANGA)</text>
+<!-- Sluice Gate Nodes on Map -->
+<!-- Sluice #1: Chitpur Lock -->
+<rect fill="#0e131f" height="16" stroke="#4cd7f6" stroke-width="2" width="16" x="342" y="152"></rect>
+<text fill="#dde2f3" font-family="JetBrains Mono" font-size="8" x="365" y="164">SLUICE-01 [CHITPUR LOCK]</text>
+<!-- Sluice #4: Hastings / Tolly Interlock -->
+<rect class="animate-pulse" fill="#ef4444" height="16" stroke="#ffb4ab" stroke-width="2" width="16" x="352" y="342"></rect>
+<text fill="#ffb4ab" font-family="JetBrains Mono" font-size="9" font-weight="700" x="210" y="346">SLUICE-04 [CLOSING INTERLOCK]</text>
+<!-- Sluice #7: Garden Reach -->
+<rect fill="#0e131f" height="16" stroke="#4edea3" stroke-width="2" width="16" x="310" y="415"></rect>
+<text fill="#4edea3" font-family="JetBrains Mono" font-size="8" x="215" y="425">SLUICE-07 [GARDEN REACH]</text>
+<!-- Interactive GIS Crosshair Reticle -->
+<g transform="translate(545, 325)">
+<!-- Target Circle & Crosshairs -->
+<circle cx="0" cy="0" fill="none" r="28" stroke="#4cd7f6" stroke-dasharray="4,2" stroke-width="1"></circle>
+<line stroke="#4cd7f6" stroke-width="1.2" x1="-36" x2="36" y1="0" y2="0"></line>
+<line stroke="#4cd7f6" stroke-width="1.2" x1="0" x2="0" y1="-36" y2="36"></line>
+<!-- Reticle HUD Box -->
+<rect fill="#080e1a" fill-opacity="0.92" height="72" rx="2" stroke="#4cd7f6" stroke-width="1" width="170" x="32" y="-36"></rect>
+<text fill="#4cd7f6" font-family="JetBrains Mono" font-size="9" font-weight="700" x="40" y="-22">RETICLE: CCU-DELTA-09</text>
+<text fill="#dde2f3" font-family="JetBrains Mono" font-size="8" x="40" y="-10">LAT: 22.541°N | LON: 88.398°E</text>
+<text fill="#ffb95f" font-family="JetBrains Mono" font-size="8" x="40" y="2">ELEVATION: +3.10m MSL</text>
+<text fill="#4edea3" font-family="JetBrains Mono" font-size="8" x="40" y="14">INFILTRATION: 12.4 mm/h</text>
+<text fill="#ffb4ab" font-family="JetBrains Mono" font-size="8" x="40" y="26">SOIL SALINITY: 4.8 ppt [ALERT]</text>
+</g>
+<!-- Radar Beam Sweep Cone (Alipore Radar Overlay) -->
+<path d="M420,290 L260,110 A240,240 0 0,1 590,130 Z" fill="#06b6d4" fill-opacity="0.06" stroke="#06b6d4" stroke-opacity="0.2" stroke-width="1"></path>
+<line stroke="#4cd7f6" stroke-opacity="0.7" stroke-width="1.5" x1="420" x2="480" y1="290" y2="105"></line>
+<circle cx="420" cy="290" fill="#06b6d4" r="4"></circle>
+<text fill="#4cd7f6" font-family="JetBrains Mono" font-size="8" x="430" y="302">ALIPORE DOPPLER TOWER</text>
+</svg>
+<!-- Floating Tactical Map Overlays (Legend, Scale Bar, Map Controls) -->
+<div class="absolute bottom-3 left-3 bg-surface-container-lowest/90 backdrop-blur-md p-2 rounded border border-outline-variant/30 flex flex-col gap-1.5 font-label-caps text-label-caps z-20">
+<div class="text-outline">BATHYMETRIC CONTOUR (MSL)</div>
+<div class="flex items-center gap-1 font-mono text-[9px]">
+<span class="w-3 h-3 bg-[#0284c7]"></span> -12m
+            <span class="w-3 h-3 bg-[#06b6d4] ml-1"></span> -6m
+            <span class="w-3 h-3 bg-[#10b981] ml-1"></span> 0m
+            <span class="w-3 h-3 bg-[#f59e0b] ml-1"></span> +2m
+            <span class="w-3 h-3 bg-[#ef4444] ml-1"></span> +4m
+          </div>
+<div class="flex items-center justify-between pt-1 border-t border-outline-variant/30 text-outline">
+<span>SCALE: 2.5 km</span>
+<div class="w-16 h-1 bg-outline-variant relative">
+<div class="absolute left-0 top-0 bottom-0 w-8 bg-primary"></div>
+</div>
+</div>
+</div>
+<!-- Compass & Coordinate Flange -->
+<div class="absolute top-3 right-3 bg-surface-container-lowest/90 backdrop-blur-md px-3 py-2 rounded border border-outline-variant/30 flex items-center gap-3 z-20">
+<div class="w-7 h-7 rounded-full border border-primary/40 flex items-center justify-center font-telemetry-md text-xs text-primary font-bold">
+            N
+          </div>
+<div class="font-telemetry-md text-[10px] text-on-surface">
+<div>FOV: 14.8km × 9.2km</div>
+<div class="text-outline">ZOOM: 1:25,000</div>
+</div>
+</div>
+</div>
+<!-- ======================================================== -->
+<!-- BOTTOM 24-HOUR NOWCAST SCRUBBER (DOCKED ABOVE FOOTER)    -->
+<!-- ======================================================== -->
+<div class="h-28 bg-surface-container-low/95 border-t border-outline-variant/30 px-gutter-desktop py-2 flex flex-col justify-between shrink-0 z-30">
+<div class="flex items-center justify-between text-label-caps font-label-caps">
+<div class="flex items-center gap-3">
+<span class="text-primary font-semibold flex items-center gap-1.5">
+<span class="material-symbols-outlined text-sm" data-icon="timeline">timeline</span>
+              [SEC_05 // HYDROGRAPH NOWCAST &amp; RADAR QPE SCRUBBER]
+            </span>
+<span class="text-outline">T-12H REASSESSMENT → T+12H PREDICTIVE RUNOFF</span>
+</div>
+<div class="flex items-center gap-4 text-xs">
+<div class="flex items-center gap-1.5">
+<span class="w-2.5 h-1 bg-primary"></span>
+<span class="text-outline">WATER LEVEL (m MSL)</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="w-2.5 h-2 bg-primary/30 border border-primary"></span>
+<span class="text-outline">IMD RADAR PRECIP (mm/h)</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="w-2.5 h-0.5 bg-error"></span>
+<span class="text-error font-medium">BREACH THRESHOLD (2.80m)</span>
+</div>
+<span class="text-secondary font-mono">92% CONFIDENCE ENVELOPE</span>
+</div>
+</div>
+<!-- Scrubber Graph Area -->
+<div class="relative h-14 w-full bg-surface-container-lowest/80 rounded border border-outline-variant/20 px-2 flex items-center">
+<!-- Critical Benchmark Line -->
+<div class="absolute inset-x-0 top-3 border-b border-error/50 border-dashed z-10 pointer-events-none flex justify-end pr-2">
+<span class="text-[9px] font-label-caps text-error bg-error-container/40 px-1 rounded">ALERT CRITICAL +2.80m</span>
+</div>
+<!-- Dual Axis SVG: Bar Chart (Precip) + Curve (Water Level) -->
+<svg class="w-full h-full overflow-visible" preserveaspectratio="none" viewbox="0 0 1000 60">
+<!-- Precipitation Bars (IMD Doppler QPE) -->
+<rect fill="#38bdf8" fill-opacity="0.3" height="15" width="14" x="40" y="45"></rect>
+<rect fill="#38bdf8" fill-opacity="0.3" height="20" width="14" x="80" y="40"></rect>
+<rect fill="#38bdf8" fill-opacity="0.3" height="28" width="14" x="120" y="32"></rect>
+<rect fill="#38bdf8" fill-opacity="0.4" height="35" width="14" x="160" y="25"></rect>
+<rect fill="#38bdf8" fill-opacity="0.5" height="45" width="14" x="200" y="15"></rect>
+<rect fill="#38bdf8" fill-opacity="0.6" height="50" width="14" x="240" y="10"></rect>
+<rect fill="#38bdf8" fill-opacity="0.6" height="48" width="14" x="280" y="12"></rect>
+<rect fill="#38bdf8" fill-opacity="0.5" height="40" width="14" x="320" y="20"></rect>
+<rect fill="#38bdf8" fill-opacity="0.4" height="30" width="14" x="360" y="30"></rect>
+<rect fill="#38bdf8" fill-opacity="0.3" height="25" width="14" x="400" y="35"></rect>
+<!-- T0 Present Vertical Line -->
+<line stroke="#4cd7f6" stroke-width="1.5" x1="500" x2="500" y1="0" y2="60"></line>
+<polygon fill="#4cd7f6" points="496,0 504,0 500,6"></polygon>
+<!-- Predictive Rain Envelope -->
+<rect fill="#4cd7f6" fill-opacity="0.35" height="38" stroke="#4cd7f6" stroke-width="0.5" width="14" x="520" y="22"></rect>
+<rect fill="#4cd7f6" fill-opacity="0.45" height="46" stroke="#4cd7f6" stroke-width="0.5" width="14" x="560" y="14"></rect>
+<rect fill="#ef4444" fill-opacity="0.5" height="52" stroke="#ef4444" stroke-width="0.5" width="14" x="600" y="8"></rect>
+<rect fill="#f59e0b" fill-opacity="0.4" height="45" stroke="#f59e0b" stroke-width="0.5" width="14" x="640" y="15"></rect>
+<rect fill="#4cd7f6" fill-opacity="0.25" height="32" stroke="#4cd7f6" stroke-width="0.5" width="14" x="680" y="28"></rect>
+<rect fill="#4cd7f6" fill-opacity="0.2" height="22" width="14" x="720" y="38"></rect>
+<rect fill="#4cd7f6" fill-opacity="0.2" height="16" width="14" x="760" y="44"></rect>
+<!-- Historical Hydrograph Polyline -->
+<path d="M0,50 Q120,48 240,42 T400,28 T500,16" fill="none" stroke="#4cd7f6" stroke-width="2"></path>
+<!-- Predictive 92% Confidence Ribbon -->
+<path d="M500,16 Q600,6 700,10 T900,34 L900,46 Q700,24 600,20 T500,16 Z" fill="#4cd7f6" fill-opacity="0.12"></path>
+<!-- Predictive Hydrograph Curve (Crosses Breach Threshold) -->
+<path d="M500,16 Q600,8 650,5 T750,22 T950,42" fill="none" stroke="#ef4444" stroke-dasharray="6,3" stroke-width="2.5"></path>
+<!-- Peak Flood Indicator -->
+<circle class="animate-pulse" cx="650" cy="5" fill="#ef4444" r="4"></circle>
+</svg>
+<!-- Current Scrub Head Label -->
+<div class="absolute left-1/2 -top-2 transform -translate-x-1/2 bg-primary text-on-primary font-label-caps text-[9px] px-1.5 py-0.2 rounded font-bold">
+            T_0 NOW (18:14 IST)
+          </div>
+</div>
+<!-- Scrubber Time Controls -->
+<div class="flex items-center justify-between text-label-caps font-label-caps text-outline pt-1">
+<div class="flex items-center gap-2">
+<button class="hover:text-primary transition-colors flex items-center gap-0.5">
+<span class="material-symbols-outlined text-xs" data-icon="play_arrow">play_arrow</span> PLAY
+            </button>
+<button class="hover:text-primary transition-colors flex items-center gap-0.5">
+<span class="material-symbols-outlined text-xs" data-icon="pause">pause</span> PAUSE
+            </button>
+<span class="text-on-surface ml-2">STEP: 1-HOUR SLICE</span>
+</div>
+<div class="flex justify-between w-[60%] font-mono text-[9px]">
+<span>-12h</span>
+<span>-9h</span>
+<span>-6h</span>
+<span>-3h</span>
+<span class="text-primary font-bold">T-0 (NOW)</span>
+<span>+3h</span>
+<span class="text-error font-bold">+6h (APOGEE)</span>
+<span>+9h</span>
+<span>+12h</span>
+</div>
+</div>
+</div>
+</main>
+<!-- ---------------------------------------------------- -->
+<!-- RIGHT COLUMN: PREDICTIVE PHYSICS & TRIAGE (350px)    -->
+<!-- ---------------------------------------------------- -->
+<aside class="w-[350px] bg-surface-container-low/90 backdrop-blur-xl border-l border-outline-variant/30 flex flex-col shrink-0 custom-scroll overflow-y-auto">
+<!-- Module A: TIDAL PHYSICS & LOCK GAUGING -->
+<div class="p-3 border-b border-outline-variant/30">
+<div class="flex items-center justify-between mb-2">
+<div class="text-label-caps font-label-caps text-primary font-semibold">[SEC_02 // TIDAL_PHYSICS]</div>
+<span class="px-1.5 py-0.5 rounded bg-error-container/40 border border-error/50 text-error text-label-caps font-label-caps">FREEBOARD: 0.25m</span>
+</div>
+<div class="text-headline-md font-headline-md font-bold text-on-surface">S2S TIDAL SURGE &amp; LOCK GAUGING</div>
+<!-- Real-Time Tidal Curve SVG -->
+<div class="mt-3 p-2 bg-surface-container-lowest rounded border border-outline-variant/30">
+<div class="flex justify-between text-xs font-telemetry-md mb-1">
+<span class="text-outline">HIGH TIDE: <span class="text-primary font-bold">+2.95m MSL</span></span>
+<span class="text-outline">CREST: <span class="text-on-surface">3.20m MSL</span></span>
+</div>
+<svg class="w-full h-16" viewbox="0 0 300 70">
+<!-- Embankment Crest Line -->
+<line stroke="#ef4444" stroke-dasharray="4,2" stroke-width="1.5" x1="0" x2="300" y1="12" y2="12"></line>
+<text fill="#ffb4ab" font-family="JetBrains Mono" font-size="8" x="210" y="9">CREST 3.20m</text>
+<!-- Tidal Wave Curve -->
+<path d="M0,60 Q75,55 150,18 T300,55" fill="none" stroke="#4cd7f6" stroke-width="2.5"></path>
+<circle class="animate-pulse" cx="150" cy="18" fill="#4cd7f6" r="4"></circle>
+<!-- Danger Fill Under Curve -->
+<path d="M150,18 Q200,28 250,45 L250,12 L150,12 Z" fill="#ef4444" fill-opacity="0.2"></path>
+</svg>
+<!-- Automatic Interlock Status Banner -->
+<div class="mt-2 p-2 bg-error-container/20 border border-error/40 rounded flex items-start gap-2">
+<span class="material-symbols-outlined text-error text-base shrink-0 mt-0.5" data-icon="lock_clock">lock_clock</span>
+<div class="text-[11px] leading-tight font-body-sm">
+<span class="text-error font-semibold font-label-caps block">INTERLOCK CRITICAL: SLUICE #4</span>
+              Closing in <span class="font-mono text-on-surface font-bold">28m 14s</span> to prevent Hooghly saltwater tidal backflow into Tolly's Nullah.
+            </div>
+</div>
+</div>
+</div>
+<!-- Module B: XAI TreeSHAP FLOOD ATTRIBUTION -->
+<div class="p-3 border-b border-outline-variant/30">
+<div class="flex items-center justify-between mb-2">
+<div class="text-label-caps font-label-caps text-primary font-semibold">[SEC_03 // CAUSAL_AI]</div>
+<span class="text-label-caps font-label-caps text-outline">TreeSHAP DECOMP</span>
+</div>
+<div class="text-headline-md font-headline-md font-bold text-on-surface">FLOOD ATTRIBUTION ANALYSIS</div>
+<div class="text-[11px] text-outline mt-0.5">Primary driving factors for Ward 66 &amp; 107 inundation:</div>
+<!-- Telemetry Attribution Bars -->
+<div class="mt-3 space-y-2.5 font-telemetry-md text-xs">
+<div>
+<div class="flex justify-between mb-1">
+<span class="text-on-surface">Extreme Precipitation Intensity</span>
+<span class="text-error font-bold">42.0%</span>
+</div>
+<div class="w-full bg-surface-container-lowest h-2 rounded overflow-hidden">
+<div class="bg-error h-full" style="width: 42%;"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between mb-1">
+<span class="text-on-surface">Hooghly Estuary Tidal Backflow</span>
+<span class="text-primary font-bold">28.0%</span>
+</div>
+<div class="w-full bg-surface-container-lowest h-2 rounded overflow-hidden">
+<div class="bg-primary h-full" style="width: 28%;"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between mb-1">
+<span class="text-on-surface">Embankment &amp; Siphon Siltation</span>
+<span class="text-tertiary font-bold">19.0%</span>
+</div>
+<div class="w-full bg-surface-container-lowest h-2 rounded overflow-hidden">
+<div class="bg-tertiary h-full" style="width: 19%;"></div>
+</div>
+</div>
+<div>
+<div class="flex justify-between mb-1">
+<span class="text-on-surface">Urban Impervious Soil Runoff</span>
+<span class="text-outline font-bold">11.0%</span>
+</div>
+<div class="w-full bg-surface-container-lowest h-2 rounded overflow-hidden">
+<div class="bg-outline h-full" style="width: 11%;"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Module C: SCENARIO SIMULATOR & PUMP DISPATCH -->
+<div class="p-3 flex-1 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-2">
+<div class="text-label-caps font-label-caps text-primary font-semibold">[SEC_04 // DISPATCH_SIM]</div>
+<span class="px-1.5 py-0.5 rounded bg-secondary-container/20 text-secondary text-label-caps font-label-caps">HYDRO-ENGINE</span>
+</div>
+<div class="text-headline-md font-headline-md font-bold text-on-surface">TACTICAL DISPATCH SIMULATOR</div>
+<!-- Interactive Control Sliders -->
+<div class="mt-3 space-y-3">
+<div>
+<div class="flex justify-between text-xs font-telemetry-md mb-1">
+<span class="text-outline">RAINFALL INTENSITY:</span>
+<span class="text-primary font-bold">+45 mm/h</span>
+</div>
+<input class="w-full h-1.5 bg-surface-container-highest accent-primary rounded cursor-pointer" max="100" min="0" type="range" value="45"/>
+</div>
+<div>
+<div class="flex justify-between text-xs font-telemetry-md mb-1">
+<span class="text-outline">SILTATION DREDGE OFFSET:</span>
+<span class="text-tertiary font-bold">35%</span>
+</div>
+<input class="w-full h-1.5 bg-surface-container-highest accent-tertiary rounded cursor-pointer" max="100" min="0" type="range" value="35"/>
+</div>
+<div>
+<div class="flex justify-between text-xs font-telemetry-md mb-1">
+<span class="text-outline">EMERGENCY TURBINES ALLOCATED:</span>
+<span class="text-secondary font-bold">8 / 12 Units</span>
+</div>
+<input class="w-full h-1.5 bg-surface-container-highest accent-secondary rounded cursor-pointer" max="12" min="1" type="range" value="8"/>
+</div>
+</div>
+<!-- Estimated Outcome Preview Card -->
+<div class="mt-4 p-2.5 bg-surface-container rounded border border-outline-variant/30 font-telemetry-md text-xs">
+<div class="text-[10px] text-outline font-label-caps">SIMULATED RESIDUAL FLOOD HEAD:</div>
+<div class="flex items-baseline justify-between mt-1">
+<span class="text-secondary font-bold text-base">-0.42m</span>
+<span class="text-on-surface-variant text-[11px]">WATER RETENTION: <span class="text-on-surface">3.8h</span></span>
+</div>
+<div class="text-[10px] text-secondary mt-1">✓ WARD 66 CREST COLLAPSE AVERTED</div>
+</div>
+</div>
+<!-- High-Impact Tactical Trigger Button -->
+<div class="pt-4">
+<button class="w-full py-2.5 rounded bg-error/15 border border-error text-error font-headline-md text-xs font-bold tracking-wider hover:bg-error hover:text-on-error transition-all duration-150 active:scale-95 flex items-center justify-center gap-2 shadow-[0_0_16px_rgba(239,68,68,0.25)]">
+<span class="material-symbols-outlined text-sm" data-icon="warning">warning</span>
+            EXECUTE HYDRAULIC DISPATCH // CELL-DELTA
+          </button>
+</div>
+</div>
+</aside>
+</div>
+<!-- ========================================== -->
+<!-- FOOTER (SHARED COMPONENT IMPLEMENTED)      -->
+<!-- ========================================== -->
+<footer class="fixed bottom-0 left-0 w-full h-8 flex justify-between items-center px-gutter-desktop border-t border-outline-variant/30 bg-surface-container-lowest/95 backdrop-blur-md shadow-[0_-4px_16px_rgba(0,0,0,0.5)] z-50 shrink-0">
+<!-- Copyright & Security Classification from JSON -->
+<div class="flex items-center gap-3">
+<span class="text-label-caps font-label-caps text-primary font-bold uppercase">JALNETRA DELTA OPS // NATIONAL RIVER &amp; CLIMATE INTELLIGENCE ENGINE // RESTRICTED ACCESS LEVEL-4</span>
+</div>
+<!-- Links from JSON -->
+<div class="flex items-center gap-5 text-label-caps font-label-caps">
+<a class="text-primary font-bold hover:text-primary transition-colors" href="#">ENSO/IOD Feed</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors" href="#">Inundation Protocol</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors" href="#">Satellite Constellation</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors" href="#">GDAL Twin API</a>
+<a class="text-on-surface-variant hover:text-primary transition-colors" href="#">Telemetry Logs</a>
+<div class="flex items-center gap-1.5 pl-3 border-l border-outline-variant/30 text-secondary">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse-subtle"></span>
+<span>LATENCY: 18ms</span>
+</div>
+</div>
+</footer>
+</body></html>

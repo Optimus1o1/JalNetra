@@ -17,6 +17,8 @@ import { runSimulationScenario } from "@/lib/simulationEngine";
 import { SimulationScenarioResult } from "@/lib/types";
 
 // Section Components
+import { MissionControlCockpit } from "@/components/cockpit/MissionControlCockpit";
+import { CellDetailDrawer } from "@/components/gis/CellDetailDrawer";
 import { GlobalClimateSection } from "@/components/sections/GlobalClimateSection";
 import { RainfallNowcastSection } from "@/components/sections/RainfallNowcastSection";
 import { WaterTwinSection } from "@/components/sections/WaterTwinSection";
@@ -43,6 +45,7 @@ import {
 
 export default function JalNetraApp() {
   const [activeScreen, setActiveScreen] = useState<string>("cockpit");
+  const [cockpitMode, setCockpitMode] = useState<"tactical" | "executive">("tactical");
   const [activeSimulationResult, setActiveSimulationResult] = useState<SimulationScenarioResult | null>(null);
   const [selectedWardForDrawer, setSelectedWardForDrawer] = useState<number | null>(null);
 
@@ -56,6 +59,11 @@ export default function JalNetraApp() {
     { id: "alerts", label: "Alerts & Triage", icon: <Bell className="w-3.5 h-3.5" />, badge: "2" },
     { id: "models", label: "Model Lab", icon: <Cpu className="w-3.5 h-3.5" /> },
   ];
+
+  // Selected cell for slide-out telemetry drawer
+  const selectedCell = selectedWardForDrawer
+    ? PILOT_GRID_CELLS.find((c) => c.wardNumber === selectedWardForDrawer) || null
+    : null;
 
   // Top 4 critical wards sorted by risk score
   const topCriticalWards = [...PILOT_GRID_CELLS]
@@ -86,10 +94,54 @@ export default function JalNetraApp() {
 
       {/* Main View Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-4 space-y-6">
-        {/* VIEW 1: EXECUTIVE COCKPIT */}
+        {/* VIEW 1: MISSION OPERATIONS & EXECUTIVE COCKPIT */}
         {activeScreen === "cockpit" && (
-          <div className="space-y-6">
-            {/* Top Telemetry StatCards & ScoreHero Grid */}
+          <div className="space-y-4">
+            {/* View Mode Switcher Header */}
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-[#080d1a] border border-[#1c2638] px-3.5 py-2 rounded">
+              <div className="flex items-center gap-2.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-[11px] font-mono font-bold tracking-widest text-slate-200 uppercase">
+                  DELTA TWIN FLIGHT DECK • HOOGHLY-KOLKATA BASIN
+                </span>
+                <span className="hidden sm:inline-block text-[10px] font-mono text-cyan-400 bg-cyan-950/60 border border-cyan-800/40 px-2 py-0.5 rounded">
+                  DEFENSE-GRADE MISSION INTERFACE
+                </span>
+              </div>
+              <div className="flex items-center gap-1 bg-[#050811] border border-[#1c2638] p-0.5 rounded text-[11px] font-mono">
+                <button
+                  type="button"
+                  onClick={() => setCockpitMode("tactical")}
+                  className={`px-3 py-1 rounded transition-all font-bold cursor-pointer ${
+                    cockpitMode === "tactical"
+                      ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 shadow-[0_0_8px_rgba(6,182,212,0.25)]"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  TACTICAL OPERATIONS
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCockpitMode("executive")}
+                  className={`px-3 py-1 rounded transition-all font-bold cursor-pointer ${
+                    cockpitMode === "executive"
+                      ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 shadow-[0_0_8px_rgba(6,182,212,0.25)]"
+                      : "text-slate-400 hover:text-slate-200"
+                  }`}
+                >
+                  EXECUTIVE SUMMARY
+                </button>
+              </div>
+            </div>
+
+            {cockpitMode === "tactical" ? (
+              <MissionControlCockpit
+                onSelectWard={(w) => setSelectedWardForDrawer(w)}
+                onNavigateToSection={(s) => setActiveScreen(s)}
+              />
+            ) : (
+              <div className="space-y-6">
+                {/* Top Telemetry StatCards & ScoreHero Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
               {/* Regional Composite Risk Index Hero */}
               <div className="lg:col-span-1">
@@ -296,6 +348,8 @@ export default function JalNetraApp() {
             </div>
           </div>
         )}
+      </div>
+    )}
 
         {/* VIEW 2: GLOBAL CLIMATE */}
         {activeScreen === "global" && <GlobalClimateSection />}
@@ -326,6 +380,16 @@ export default function JalNetraApp() {
         {/* VIEW 8: MODEL LAB & MLOPS */}
         {activeScreen === "models" && <ModelLabSection />}
       </main>
+
+      {/* Slide-out Ward Telemetry & Simulation Drawer */}
+      <CellDetailDrawer
+        cell={selectedCell}
+        onClose={() => setSelectedWardForDrawer(null)}
+        onTriggerSimulationForWard={(wardNum) => {
+          setSelectedWardForDrawer(null);
+          setActiveScreen("simulation");
+        }}
+      />
 
       {/* Global Footer */}
       <Footer />
