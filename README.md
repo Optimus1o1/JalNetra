@@ -1,36 +1,54 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# JalNetra Global — AI-Powered Climate & Water Intelligence Digital Twin
 
-## Getting Started
+> **Version 2.0 — Integrated Global-to-Local Architecture**  
+> *Engineered by CIPHER — Decode. Build. Evolve.*
 
-First, run the development server:
+**JalNetra Global** is an intelligence-grade climate, rainfall, and water digital twin platform. It connects macro-scale satellite precipitation signals (NASA GPM IMERG, ENSO, IOD, MJO teleconnections) to hyper-local impacts (urban drainage stress, flood inundation, water levels, and critical infrastructure exposure) through an explainable decision-support dashboard and interactive "What-If" scenario simulator.
+
+---
+
+## 🏛️ Architecture & Core Modules
+
+1. **Executive Cockpit (`/`)**: High-density command HUD with live telemetry ticker, Regional Vulnerability Index gauge, active incident triage feed, and the interactive SVG GIS Digital Twin Canvas.
+2. **Global Climate & Teleconnections (`/#global`)**: Live tracking of Pacific ENSO (Niño 3.4), Indian Ocean Dipole (IOD), Madden-Julian Oscillation (MJO), and global NASA GPM IMERG 0.1° satellite anomalies.
+3. **Rainfall Intelligence & Nowcasting (`/#rainfall`)**: Multi-horizon probabilistic forecasting (15m, 1h, 3h, 6h, 24h, 72h) with P10/P50/P90 percentile envelopes and local return-period threshold calibration.
+4. **Hydrological Water Twin & IoT Network (`/#water-twin`)**: Real-time river gauges (Hooghly tidal stage), drainage canals (Bagjola, Circular, Tolly's Nullah, Monikhali), sump pumps, water quality anomaly detection (turbidity & DO), and an interactive IoT ESP32 observation simulator.
+5. **Climate Vulnerability Matrix (`/#vulnerability`)**: Transparent `Risk = Hazard × Exposure × Vulnerability` engine with critical asset exposure overlay (SSKM Hospital, AMRI, Calcutta Medical College, pumping stations).
+6. **"What-If" Scenario Simulator (`/#simulation`)**: Interactive scenario engine allowing planners to vary rainfall multipliers (0.8x–2.5x), storm durations, drainage siltation (±50%), tidal surges, and emergency interventions (auxiliary pontoon pumps, automated sluice lockouts).
+7. **Alerts & Decision Triage (`/#alerts`)**: Real-time early warning feed with priority severity filtering, civil defense action checklists, and one-click operator acknowledgment.
+8. **Model Lab & Scientific Validation (`/#models`)**: ML model registry (LightGBM baseline vs Spatiotemporal PINN champion vs TCN-LSTM), CRPS / Brier score / Spatial IoU benchmarks, and data leakage audit protocols.
+
+---
+
+## 🔌 API Endpoints (Blueprint Section 16)
+
+| Endpoint | Method | Purpose |
+|---|---|---|
+| `/api/v1/global/rainfall` | `GET` | Global NASA GPM satellite precipitation anomalies |
+| `/api/v1/weather/forecast` | `GET` | Multi-horizon probabilistic rainfall forecast |
+| `/api/v1/climate/indices` | `GET` | ENSO, IOD, and MJO teleconnection driver states |
+| `/api/v1/twin/cells/[id]` | `GET` | Single ward cell state & TreeSHAP local attribution |
+| `/api/v1/risk/map` | `GET` | GeoJSON FeatureCollection of all digital twin cells |
+| `/api/v1/water/forecast` | `GET` | IoT river stage gauges & canal discharge forecasts |
+| `/api/v1/simulation` | `POST` / `GET` | Execute "What-If" scenario simulation & retrieve results |
+| `/api/v1/alerts` | `GET` / `POST` | Active emergency alerts feed & operator acknowledgment |
+| `/api/v1/sensors/observations` | `POST` | Ingest streaming IoT sensor telemetry (ESP32/MQTT) |
+| `/api/v1/models/status` | `GET` | ML model evaluation metrics & pipeline freshness |
+
+---
+
+## 🚀 Running Locally
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# Install dependencies
+npm install
+
+# Run the development server
+npm run dev -- --port 3001
+
+# Production build
+npm run build
+npm run start
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Access the platform at `http://localhost:3001`.

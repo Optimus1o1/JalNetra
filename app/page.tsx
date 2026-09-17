@@ -1,69 +1,334 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import React, { useState } from "react";
+import { GlassNav } from "@/components/navigation/GlassNav";
+import { TelemetryTicker } from "@/components/navigation/TelemetryTicker";
+import { Footer } from "@/components/navigation/Footer";
+import { DigitalTwinMap } from "@/components/gis/DigitalTwinMap";
+import { ScoreHero } from "@/components/ui/ScoreHero";
+import { StatCard } from "@/components/ui/StatCard";
+import { PillTabs } from "@/components/ui/PillTabs";
+import { GlassCard } from "@/components/ui/GlassCard";
+import { Button } from "@/components/ui/Button";
+import { Badge } from "@/components/ui/Badge";
+import { PILOT_GRID_CELLS } from "@/lib/data/pilotRegionData";
+import { INITIAL_ALERTS } from "@/lib/data/alertsData";
+import { runSimulationScenario } from "@/lib/simulationEngine";
+import { SimulationScenarioResult } from "@/lib/types";
+
+// Section Components
+import { GlobalClimateSection } from "@/components/sections/GlobalClimateSection";
+import { RainfallNowcastSection } from "@/components/sections/RainfallNowcastSection";
+import { WaterTwinSection } from "@/components/sections/WaterTwinSection";
+import { VulnerabilitySection } from "@/components/sections/VulnerabilitySection";
+import { SimulationSection } from "@/components/sections/SimulationSection";
+import { AlertsSection } from "@/components/sections/AlertsSection";
+import { ModelLabSection } from "@/components/sections/ModelLabSection";
+
+import {
+  CloudRain,
+  Waves,
+  Activity,
+  AlertTriangle,
+  PlaySquare,
+  Globe2,
+  ShieldAlert,
+  Bell,
+  Cpu,
+  LayoutDashboard,
+  ArrowRight,
+  Hospital,
+  Droplets,
+} from "lucide-react";
+
+export default function JalNetraApp() {
+  const [activeScreen, setActiveScreen] = useState<string>("cockpit");
+  const [activeSimulationResult, setActiveSimulationResult] = useState<SimulationScenarioResult | null>(null);
+  const [selectedWardForDrawer, setSelectedWardForDrawer] = useState<number | null>(null);
+
+  const tabs = [
+    { id: "cockpit", label: "Executive Cockpit", icon: <LayoutDashboard className="w-3.5 h-3.5" /> },
+    { id: "global", label: "Global Climate", icon: <Globe2 className="w-3.5 h-3.5" /> },
+    { id: "rainfall", label: "Rainfall Intelligence", icon: <CloudRain className="w-3.5 h-3.5" /> },
+    { id: "water-twin", label: "Water Twin", icon: <Waves className="w-3.5 h-3.5" /> },
+    { id: "vulnerability", label: "Vulnerability Matrix", icon: <ShieldAlert className="w-3.5 h-3.5" /> },
+    { id: "simulation", label: "What-If Simulator", icon: <PlaySquare className="w-3.5 h-3.5" /> },
+    { id: "alerts", label: "Alerts & Triage", icon: <Bell className="w-3.5 h-3.5" />, badge: "2" },
+    { id: "models", label: "Model Lab", icon: <Cpu className="w-3.5 h-3.5" /> },
+  ];
+
+  // Top 4 critical wards sorted by risk score
+  const topCriticalWards = [...PILOT_GRID_CELLS]
+    .sort((a, b) => b.riskScore - a.riskScore)
+    .slice(0, 4);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <div className="min-h-screen bg-[#030712] text-slate-100 flex flex-col selection:bg-cyan-500/30 selection:text-cyan-200">
+      {/* Real-time Telemetry Stream Ticker */}
+      <TelemetryTicker />
+
+      {/* Main Glass Navigation Header */}
+      <GlassNav
+        activeScreen={activeScreen}
+        onSelectScreen={setActiveScreen}
+        onTriggerSimulation={() => setActiveScreen("simulation")}
+      />
+
+      {/* Sub-Header Screen Switcher Pill Tabs */}
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 pt-4">
+        <PillTabs
+          tabs={tabs}
+          activeTab={activeScreen}
+          onChange={setActiveScreen}
+          className="mb-2"
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+      </div>
+
+      {/* Main View Area */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-4 space-y-6">
+        {/* VIEW 1: EXECUTIVE COCKPIT */}
+        {activeScreen === "cockpit" && (
+          <div className="space-y-6">
+            {/* Top Telemetry StatCards & ScoreHero Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+              {/* Regional Composite Risk Index Hero */}
+              <div className="lg:col-span-1">
+                <ScoreHero
+                  score={0.74}
+                  title="KMC PILOT BASIN VULNERABILITY"
+                  subtitle="Greater Kolkata & Hooghly Delta Basin"
+                  statusLabel="Critical Inundation Risk"
+                  deltaText="+18% vs Antecedent Norm"
+                />
+              </div>
+
+              {/* 4 StatCards in 2x2 Grid */}
+              <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <StatCard
+                  label="Multi-Horizon Nowcast (3h Window)"
+                  value="64.0"
+                  unit="mm (P50 Median)"
+                  icon={<CloudRain className="w-5 h-5" />}
+                  status="critical"
+                  trend={{ direction: "up", label: "88% PoP Heavy", isPositive: false }}
+                  onClick={() => setActiveScreen("rainfall")}
+                />
+
+                <StatCard
+                  label="Hooghly Tidal Stage (Outram Ghat)"
+                  value="5.42"
+                  unit="meters MSL"
+                  icon={<Waves className="w-5 h-5" />}
+                  status="warn"
+                  trend={{ direction: "up", label: "High Tide in 2h 40m", isPositive: false }}
+                  onClick={() => setActiveScreen("water-twin")}
+                />
+
+                <StatCard
+                  label="IoT Monitoring Node Fleet"
+                  value="8 / 8"
+                  unit="Active Sensors"
+                  icon={<Activity className="w-5 h-5" />}
+                  status="ok"
+                  trend={{ direction: "neutral", label: "18m GPM Latency", isPositive: true }}
+                  onClick={() => setActiveScreen("water-twin")}
+                />
+
+                <StatCard
+                  label="Active Early Warning Alerts"
+                  value="2 Crit"
+                  unit="/ 2 High Priority"
+                  icon={<AlertTriangle className="w-5 h-5 text-rose-400" />}
+                  status="critical"
+                  trend={{ direction: "up", label: "W-66 & W-131 Imminent", isPositive: false }}
+                  onClick={() => setActiveScreen("alerts")}
+                />
+              </div>
+            </div>
+
+            {/* Central Dual-Column Operational Workspace */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              {/* Left Column: Interactive GIS Twin (7/12 width) */}
+              <div className="lg:col-span-8 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-100 font-sans flex items-center gap-2">
+                      <LayoutDashboard className="w-4 h-4 text-cyan-400" />
+                      Spatial Digital Twin & Ward Inundation Canvas
+                    </h3>
+                    <p className="text-xs font-mono text-slate-400">
+                      Real-time fusion of GPM satellite precipitation, DEM elevation & IoT drainage sumps
+                    </p>
+                  </div>
+                  <Button
+                    variant="glass"
+                    size="sm"
+                    onClick={() => setActiveScreen("simulation")}
+                    icon={<PlaySquare className="w-3 h-3" />}
+                  >
+                    Simulate Interventions
+                  </Button>
+                </div>
+
+                <DigitalTwinMap
+                  onSelectWard={(wardNo) => setSelectedWardForDrawer(wardNo)}
+                />
+              </div>
+
+              {/* Right Column: Triage & Priority Alerts Rail (4/12 width) */}
+              <div className="lg:col-span-4 space-y-5">
+                {/* Active Alerts Fast Triage */}
+                <GlassCard tone="standard" className="p-5 space-y-3">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                    <h4 className="text-xs font-mono font-bold uppercase text-slate-200 flex items-center gap-1.5">
+                      <Bell className="w-4 h-4 text-rose-400" />
+                      Priority Incident Triage
+                    </h4>
+                    <button
+                      onClick={() => setActiveScreen("alerts")}
+                      className="text-[11px] font-mono text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
+                    >
+                      All ({INITIAL_ALERTS.length}) <ArrowRight className="w-3 h-3" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    {INITIAL_ALERTS.slice(0, 2).map((alert) => (
+                      <div
+                        key={alert.id}
+                        className="p-3 rounded-xl bg-slate-900/80 border border-rose-500/30 space-y-1.5"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-mono font-bold text-rose-400">
+                            {alert.alertCode}
+                          </span>
+                          <span className="text-[10px] font-mono text-slate-500">
+                            {alert.issuedAt.split("(")[0]}
+                          </span>
+                        </div>
+                        <h5 className="text-xs font-bold text-slate-100">{alert.title}</h5>
+                        <p className="text-[11px] text-slate-300 font-mono leading-tight">
+                          {alert.affectedInfrastructure[0]}
+                        </p>
+                        <div className="pt-1 flex items-center justify-between">
+                          <span className="text-[10px] font-mono text-cyan-400">
+                            Conf: {(alert.confidenceScore * 100).toFixed(0)}%
+                          </span>
+                          <button
+                            onClick={() => setActiveScreen("alerts")}
+                            className="text-[10px] font-mono text-cyan-300 hover:underline"
+                          >
+                            Dispatch Action →
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </GlassCard>
+
+                {/* Top Critical Wards Quick Access */}
+                <GlassCard tone="standard" className="p-5 space-y-3">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                    <h4 className="text-xs font-mono font-bold uppercase text-slate-200 flex items-center gap-1.5">
+                      <ShieldAlert className="w-4 h-4 text-amber-400" />
+                      Highest Inundation Hotspots
+                    </h4>
+                    <button
+                      onClick={() => setActiveScreen("vulnerability")}
+                      className="text-[11px] font-mono text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
+                    >
+                      Matrix <ArrowRight className="w-3 h-3" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-2 font-mono text-xs">
+                    {topCriticalWards.map((ward) => (
+                      <div
+                        key={ward.id}
+                        className="p-2.5 rounded-lg bg-slate-900/60 border border-slate-800/80 hover:border-cyan-500/40 transition-colors flex items-center justify-between cursor-pointer"
+                        onClick={() => setSelectedWardForDrawer(ward.wardNumber)}
+                      >
+                        <div>
+                          <div className="font-bold text-slate-200">
+                            Ward {ward.wardNumber}: {ward.wardName.split("/")[0]}
+                          </div>
+                          <div className="text-[10px] text-slate-400">
+                            Ponding: {ward.waterloggingDepthCm}cm • Elev: {ward.elevation}m
+                          </div>
+                        </div>
+
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-xs font-bold border ${
+                            ward.riskScore >= 0.75
+                              ? "bg-rose-500/20 text-rose-300 border-rose-500/40"
+                              : "bg-amber-500/20 text-amber-300 border-amber-500/40"
+                          }`}
+                        >
+                          {ward.riskScore.toFixed(2)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </GlassCard>
+
+                {/* Quick Simulation Banner */}
+                <div className="p-5 rounded-2xl bg-gradient-to-br from-cyan-950/50 via-slate-900 to-blue-950/40 border border-cyan-500/30 p-5 space-y-2">
+                  <span className="text-[10px] font-mono font-bold text-cyan-400 uppercase tracking-wider block">
+                    SCENARIO ENGINE READY
+                  </span>
+                  <h4 className="text-sm font-bold text-slate-100">
+                    Test Extreme Rainfall & Sluice Lock Scenarios
+                  </h4>
+                  <p className="text-xs text-slate-300 leading-relaxed font-mono">
+                    Compute flood extent delta, avoided loss, and spared population under emergency pumping.
+                  </p>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="w-full mt-2"
+                    onClick={() => setActiveScreen("simulation")}
+                    icon={<PlaySquare className="w-3.5 h-3.5" />}
+                  >
+                    Open Simulator Cockpit
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* VIEW 2: GLOBAL CLIMATE */}
+        {activeScreen === "global" && <GlobalClimateSection />}
+
+        {/* VIEW 3: RAINFALL INTELLIGENCE */}
+        {activeScreen === "rainfall" && <RainfallNowcastSection />}
+
+        {/* VIEW 4: WATER TWIN & SENSORS */}
+        {activeScreen === "water-twin" && <WaterTwinSection />}
+
+        {/* VIEW 5: VULNERABILITY MATRIX */}
+        {activeScreen === "vulnerability" && (
+          <VulnerabilitySection
+            onSelectWard={(wardNo) => setSelectedWardForDrawer(wardNo)}
+          />
+        )}
+
+        {/* VIEW 6: WHAT-IF SIMULATOR */}
+        {activeScreen === "simulation" && (
+          <SimulationSection
+            onApplyScenarioToMap={(scen) => setActiveSimulationResult(scen)}
+          />
+        )}
+
+        {/* VIEW 7: ALERTS & DECISION TRIAGE */}
+        {activeScreen === "alerts" && <AlertsSection />}
+
+        {/* VIEW 8: MODEL LAB & MLOPS */}
+        {activeScreen === "models" && <ModelLabSection />}
       </main>
+
+      {/* Global Footer */}
+      <Footer />
     </div>
   );
 }
