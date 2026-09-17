@@ -7,7 +7,6 @@ import { Footer } from "@/components/navigation/Footer";
 import { DigitalTwinMap } from "@/components/gis/DigitalTwinMap";
 import { ScoreHero } from "@/components/ui/ScoreHero";
 import { StatCard } from "@/components/ui/StatCard";
-import { PillTabs } from "@/components/ui/PillTabs";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -33,14 +32,11 @@ import {
   Activity,
   AlertTriangle,
   PlaySquare,
-  Globe2,
   ShieldAlert,
   Bell,
   Cpu,
   LayoutDashboard,
   ArrowRight,
-  Hospital,
-  Droplets,
 } from "lucide-react";
 
 export default function JalNetraApp() {
@@ -48,17 +44,6 @@ export default function JalNetraApp() {
   const [cockpitMode, setCockpitMode] = useState<"tactical" | "executive">("tactical");
   const [activeSimulationResult, setActiveSimulationResult] = useState<SimulationScenarioResult | null>(null);
   const [selectedWardForDrawer, setSelectedWardForDrawer] = useState<number | null>(null);
-
-  const tabs = [
-    { id: "cockpit", label: "Executive Cockpit", icon: <LayoutDashboard className="w-3.5 h-3.5" /> },
-    { id: "global", label: "Global Climate", icon: <Globe2 className="w-3.5 h-3.5" /> },
-    { id: "rainfall", label: "Rainfall Intelligence", icon: <CloudRain className="w-3.5 h-3.5" /> },
-    { id: "water-twin", label: "Water Twin", icon: <Waves className="w-3.5 h-3.5" /> },
-    { id: "vulnerability", label: "Vulnerability Matrix", icon: <ShieldAlert className="w-3.5 h-3.5" /> },
-    { id: "simulation", label: "What-If Simulator", icon: <PlaySquare className="w-3.5 h-3.5" /> },
-    { id: "alerts", label: "Alerts & Triage", icon: <Bell className="w-3.5 h-3.5" />, badge: "2" },
-    { id: "models", label: "Model Lab", icon: <Cpu className="w-3.5 h-3.5" /> },
-  ];
 
   // Selected cell for slide-out telemetry drawer
   const selectedCell = selectedWardForDrawer
@@ -81,16 +66,6 @@ export default function JalNetraApp() {
         onSelectScreen={setActiveScreen}
         onTriggerSimulation={() => setActiveScreen("simulation")}
       />
-
-      {/* Sub-Header Screen Switcher Pill Tabs */}
-      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 pt-4">
-        <PillTabs
-          tabs={tabs}
-          activeTab={activeScreen}
-          onChange={setActiveScreen}
-          className="mb-2"
-        />
-      </div>
 
       {/* Main View Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-4 space-y-6">

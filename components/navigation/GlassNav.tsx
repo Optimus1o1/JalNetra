@@ -36,12 +36,12 @@ export const GlassNav: React.FC<GlassNavProps> = ({
 
   const navItems = [
     { id: "cockpit", label: "Cockpit", icon: LayoutDashboard, href: "/" },
-    { id: "global", label: "Global Climate", icon: Globe2, href: "/#global" },
-    { id: "rainfall", label: "Rainfall Intelligence", icon: CloudRain, href: "/#rainfall" },
+    { id: "global", label: "Global Climate 3D", icon: Globe2, href: "/#global" },
+    { id: "rainfall", label: "Rainfall Radar", icon: CloudRain, href: "/#rainfall" },
     { id: "water-twin", label: "Water Twin", icon: Waves, href: "/#water-twin" },
     { id: "vulnerability", label: "Vulnerability", icon: ShieldAlert, href: "/#vulnerability" },
-    { id: "simulation", label: "What-If Simulator", icon: PlaySquare, href: "/#simulation" },
-    { id: "alerts", label: "Alerts", icon: Bell, href: "/#alerts", badge: "2" },
+    { id: "simulation", label: "Simulation Engine", icon: PlaySquare, href: "/#simulation" },
+    { id: "alerts", label: "Active Alerts", icon: Bell, href: "/#alerts", badge: "3" },
     { id: "models", label: "Model Lab", icon: Cpu, href: "/#models" },
   ];
 
@@ -83,7 +83,7 @@ export const GlassNav: React.FC<GlassNavProps> = ({
         </div>
 
         {/* Desktop Navigation */}
-        <nav className="hidden xl:flex items-center gap-0.5 bg-[#090d16] p-0.5 rounded border border-[#1c2638]">
+        <nav className="hidden lg:flex items-center gap-0.5 bg-[#090d16] p-0.5 rounded border border-[#1c2638]">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeScreen === item.id;
@@ -112,26 +112,11 @@ export const GlassNav: React.FC<GlassNavProps> = ({
 
         {/* Right Status & Actions */}
         <div className="flex items-center gap-2.5">
-          <div className="hidden lg:flex items-center gap-2 px-2 py-0.5 rounded bg-[#0b101a] border border-[#1c2638] text-[10px] font-mono text-slate-300">
+          <div className="hidden sm:flex items-center gap-2 px-2 py-0.5 rounded bg-[#0b101a] border border-[#1c2638] text-[10px] font-mono text-slate-300">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             <span className="text-slate-400">RADAR:</span>
             <span className="text-emerald-400 font-semibold">SWEEP ACTIVE</span>
           </div>
-
-          <Button
-            size="sm"
-            variant="primary"
-            icon={<PlaySquare className="w-3.5 h-3.5" />}
-            onClick={() => {
-              if (onTriggerSimulation) {
-                onTriggerSimulation();
-              } else if (onSelectScreen) {
-                onSelectScreen("simulation");
-              }
-            }}
-          >
-            <span className="hidden sm:inline">SIMULATE</span> DISPATCH
-          </Button>
 
           <Link
             href="/login"
@@ -145,7 +130,7 @@ export const GlassNav: React.FC<GlassNavProps> = ({
           {/* Mobile Menu Button */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="xl:hidden p-1.5 rounded bg-[#0e1422] border border-[#1c2638] text-slate-300 hover:text-white cursor-pointer"
+            className="lg:hidden p-1.5 rounded bg-[#0e1422] border border-[#1c2638] text-slate-300 hover:text-white cursor-pointer"
             aria-label="Toggle navigation menu"
           >
             {mobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
@@ -155,7 +140,7 @@ export const GlassNav: React.FC<GlassNavProps> = ({
 
       {/* Mobile Drawer Menu */}
       {mobileMenuOpen && (
-        <div className="xl:hidden mt-3 pt-3 border-t border-slate-800 grid grid-cols-2 gap-2 pb-2">
+        <div className="lg:hidden mt-3 pt-3 border-t border-slate-800 grid grid-cols-2 gap-2 pb-2">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeScreen === item.id;
@@ -172,6 +157,11 @@ export const GlassNav: React.FC<GlassNavProps> = ({
               >
                 <Icon className="w-4 h-4 text-cyan-400" />
                 <span className="truncate">{item.label}</span>
+                {item.badge && (
+                  <span className="ml-auto px-1.5 py-0.2 rounded text-[9px] font-mono bg-rose-500/20 text-rose-300 border border-rose-500/40">
+                    {item.badge}
+                  </span>
+                )}
               </button>
             );
           })}
