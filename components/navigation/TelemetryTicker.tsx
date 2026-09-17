@@ -23,56 +23,48 @@ export const TelemetryTicker: React.FC = () => {
   }, []);
 
   return (
-    <div className="w-full bg-[#06090f] border-b border-[#151d2c] py-1 px-4 text-xs">
+    <div className="w-full bg-[#050811]/90 backdrop-blur-md border-b border-slate-800/60 py-1.5 px-4 text-xs z-40">
       <div className="flex items-center justify-between gap-4 max-w-7xl mx-auto">
-        <div className="flex items-center gap-2 text-sky-400 shrink-0 font-mono text-[10px]">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="font-bold tracking-widest uppercase">TELEMETRY // FEED-ACTIVE</span>
+        <div className="flex items-center gap-2 shrink-0 font-mono text-[11px]">
+          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="font-semibold tracking-wider text-slate-300 uppercase">TELEMETRY FEED</span>
+          <span className="text-slate-600 hidden sm:inline">/</span>
+          <span className="text-cyan-400 font-medium hidden sm:inline">LIVE NRT</span>
         </div>
 
-        {/* Ticker items */}
-        <div className="hidden lg:flex items-center gap-5 text-slate-300 font-mono text-[10px] overflow-x-auto no-scrollbar">
+        {/* Streamlined Ticker Indicators */}
+        <div className="hidden md:flex items-center gap-6 text-slate-400 font-mono text-[11px]">
           <div className="flex items-center gap-1.5 shrink-0">
-            <Satellite className="w-3 h-3 text-sky-400" />
-            <span className="text-slate-400">GPM IMERG:</span>
-            <span className="text-sky-300 font-medium">0.1° NRT [SYNCED]</span>
+            <Satellite className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="text-slate-500">GPM IMERG:</span>
+            <span className="text-slate-200 font-medium">0.1° NRT [SYNCED]</span>
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
-            <Waves className="w-3 h-3 text-sky-400" />
-            <span className="text-slate-400">ENSO 3.4:</span>
-            <span className="text-slate-200 font-medium">+{enso.nino34AnomalyC.toFixed(2)}°C ({enso.phase})</span>
+            <Waves className="w-3.5 h-3.5 text-sky-400" />
+            <span className="text-slate-500">ENSO:</span>
+            <span className="text-slate-200 font-medium">+{enso.nino34AnomalyC.toFixed(2)}°C</span>
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
-            <Activity className="w-3 h-3 text-emerald-400" />
-            <span className="text-slate-400">IOD DMI:</span>
-            <span className="text-emerald-300 font-medium">+{iod.dmiAnomalyC.toFixed(2)}°C ({iod.phase})</span>
+            <Activity className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="text-slate-500">IOD:</span>
+            <span className="text-emerald-400 font-medium">+{iod.dmiAnomalyC.toFixed(2)}°C</span>
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
-            <Radio className="w-3 h-3 text-amber-400" />
-            <span className="text-slate-400">MJO:</span>
-            <span className="text-amber-300 font-medium">PH-{mjo.phase} (A={mjo.amplitude})</span>
-          </div>
-
-          <div className="flex items-center gap-1.5 shrink-0">
-            <AlertTriangle className="w-3 h-3 text-rose-400" />
-            <span className="text-slate-400">THREAT:</span>
-            <span className="text-rose-400 font-bold">2 BREACH ADVISORIES</span>
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+            <span className="text-slate-500">STATUS:</span>
+            <span className="text-amber-400 font-semibold">2 ADVISORIES</span>
           </div>
         </div>
 
-        {/* Clocks & Coordinates */}
-        <div className="flex items-center gap-3 text-[10px] font-mono text-slate-400 shrink-0">
-          <div className="flex items-center gap-1.5 text-slate-300">
-            <Clock className="w-3 h-3 text-slate-500" />
-            <span className="tabular-nums font-semibold text-slate-200">{istTime}</span>
-            <span className="text-slate-600">|</span>
-            <span className="tabular-nums text-slate-400">{utcTime}</span>
-          </div>
-          <span className="text-slate-600 hidden sm:inline">|</span>
-          <span className="text-slate-400 hidden sm:inline">22.5726°N 88.3639°E</span>
+        {/* Live Synchronized Clocks */}
+        <div className="flex items-center gap-3 text-[11px] font-mono text-slate-400 shrink-0">
+          <Clock className="w-3.5 h-3.5 text-slate-500" />
+          <span className="tabular-nums font-semibold text-slate-200">{istTime}</span>
+          <span className="text-slate-700">/</span>
+          <span className="tabular-nums text-slate-400 hidden sm:inline">{utcTime}</span>
         </div>
       </div>
     </div>

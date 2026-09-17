@@ -16,7 +16,8 @@ import { runSimulationScenario } from "@/lib/simulationEngine";
 import { SimulationScenarioResult } from "@/lib/types";
 
 // Section Components
-import { MissionControlCockpit } from "@/components/cockpit/MissionControlCockpit";
+import { CockpitHydrographPanel } from "@/components/cockpit/CockpitHydrographPanel";
+import { CockpitTacticalDispatch } from "@/components/cockpit/CockpitTacticalDispatch";
 import { CellDetailDrawer } from "@/components/gis/CellDetailDrawer";
 import { GlobalClimateSection } from "@/components/sections/GlobalClimateSection";
 import { RainfallNowcastSection } from "@/components/sections/RainfallNowcastSection";
@@ -41,7 +42,6 @@ import {
 
 export default function JalNetraApp() {
   const [activeScreen, setActiveScreen] = useState<string>("cockpit");
-  const [cockpitMode, setCockpitMode] = useState<"tactical" | "executive">("tactical");
   const [activeSimulationResult, setActiveSimulationResult] = useState<SimulationScenarioResult | null>(null);
   const [selectedWardForDrawer, setSelectedWardForDrawer] = useState<number | null>(null);
 
@@ -69,56 +69,41 @@ export default function JalNetraApp() {
 
       {/* Main View Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-4 space-y-6">
-        {/* VIEW 1: MISSION OPERATIONS & EXECUTIVE COCKPIT */}
+        {/* VIEW 1: UNIFIED MISSION OPERATIONS COCKPIT */}
         {activeScreen === "cockpit" && (
-          <div className="space-y-4">
-            {/* View Mode Switcher Header */}
-            <div className="flex flex-wrap items-center justify-between gap-3 bg-[#080d1a] border border-[#1c2638] px-3.5 py-2 rounded">
-              <div className="flex items-center gap-2.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-[11px] font-mono font-bold tracking-widest text-slate-200 uppercase">
-                  DELTA TWIN FLIGHT DECK • HOOGHLY-KOLKATA BASIN
-                </span>
-                <span className="hidden sm:inline-block text-[10px] font-mono text-cyan-400 bg-cyan-950/60 border border-cyan-800/40 px-2 py-0.5 rounded">
-                  DEFENSE-GRADE MISSION INTERFACE
-                </span>
+          <div className="space-y-8">
+            {/* Section Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
+              <div>
+                <div className="flex items-center gap-2.5">
+                  <LayoutDashboard className="w-5 h-5 text-cyan-400" />
+                  <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white font-sans">
+                    Hooghly-Kolkata Basin Mission Cockpit
+                  </h2>
+                  <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-emerald-950/60 text-emerald-400 border border-emerald-500/30">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    OPERATIONAL // 144 WARDS
+                  </span>
+                </div>
+                <p className="text-xs sm:text-sm text-slate-400 font-mono mt-1">
+                  Unified spatial digital twin, real-time hydrodynamic telemetry & tactical dispatch deck
+                </p>
               </div>
-              <div className="flex items-center gap-1 bg-[#050811] border border-[#1c2638] p-0.5 rounded text-[11px] font-mono">
-                <button
-                  type="button"
-                  onClick={() => setCockpitMode("tactical")}
-                  className={`px-3 py-1 rounded transition-all font-bold cursor-pointer ${
-                    cockpitMode === "tactical"
-                      ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 shadow-[0_0_8px_rgba(6,182,212,0.25)]"
-                      : "text-slate-400 hover:text-slate-200"
-                  }`}
+
+              <div className="flex items-center gap-2 font-mono text-xs text-slate-400">
+                <Button
+                  variant="glass"
+                  size="sm"
+                  onClick={() => setActiveScreen("simulation")}
+                  icon={<PlaySquare className="w-3.5 h-3.5" />}
                 >
-                  TACTICAL OPERATIONS
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCockpitMode("executive")}
-                  className={`px-3 py-1 rounded transition-all font-bold cursor-pointer ${
-                    cockpitMode === "executive"
-                      ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 shadow-[0_0_8px_rgba(6,182,212,0.25)]"
-                      : "text-slate-400 hover:text-slate-200"
-                  }`}
-                >
-                  EXECUTIVE SUMMARY
-                </button>
+                  Full Simulation Lab
+                </Button>
               </div>
             </div>
 
-            {cockpitMode === "tactical" ? (
-              <MissionControlCockpit
-                onSelectWard={(w) => setSelectedWardForDrawer(w)}
-                onNavigateToSection={(s) => setActiveScreen(s)}
-              />
-            ) : (
-              <div className="space-y-6">
-                {/* Top Telemetry StatCards & ScoreHero Grid */}
+            {/* Tier 1: Regional Risk Hero & 4 Primary Telemetry StatCards */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-              {/* Regional Composite Risk Index Hero */}
               <div className="lg:col-span-1">
                 <ScoreHero
                   score={0.74}
@@ -129,7 +114,6 @@ export default function JalNetraApp() {
                 />
               </div>
 
-              {/* 4 StatCards in 2x2 Grid */}
               <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <StatCard
                   label="Multi-Horizon Nowcast (3h Window)"
@@ -173,13 +157,13 @@ export default function JalNetraApp() {
               </div>
             </div>
 
-            {/* Central Dual-Column Operational Workspace */}
+            {/* Tier 2: Spatial Digital Twin & Priority Incident Hotspots Rail */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-              {/* Left Column: Interactive GIS Twin (7/12 width) */}
+              {/* Left Column: Interactive GIS Twin Canvas (8/12) */}
               <div className="lg:col-span-8 space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-lg font-bold text-slate-100 font-sans flex items-center gap-2">
+                    <h3 className="text-base font-bold text-slate-100 font-sans flex items-center gap-2">
                       <LayoutDashboard className="w-4 h-4 text-cyan-400" />
                       Spatial Digital Twin & Ward Inundation Canvas
                     </h3>
@@ -202,18 +186,18 @@ export default function JalNetraApp() {
                 />
               </div>
 
-              {/* Right Column: Triage & Priority Alerts Rail (4/12 width) */}
+              {/* Right Column: Triage & Priority Alerts Rail (4/12) */}
               <div className="lg:col-span-4 space-y-4">
                 {/* Active Alerts Fast Triage */}
                 <GlassCard tone="standard" className="p-4 space-y-3">
-                  <div className="flex items-center justify-between border-b border-[#1c2638] pb-2">
+                  <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
                     <h4 className="text-[11px] font-mono font-bold uppercase text-slate-200 flex items-center gap-1.5 tracking-wider">
                       <Bell className="w-3.5 h-3.5 text-rose-400" />
                       Priority Incident Triage
                     </h4>
                     <button
                       onClick={() => setActiveScreen("alerts")}
-                      className="text-[10px] font-mono text-sky-400 hover:text-sky-300 flex items-center gap-1 cursor-pointer"
+                      className="text-[10px] font-mono text-cyan-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer"
                     >
                       All ({INITIAL_ALERTS.length}) <ArrowRight className="w-3 h-3" />
                     </button>
@@ -223,7 +207,7 @@ export default function JalNetraApp() {
                     {INITIAL_ALERTS.slice(0, 2).map((alert) => (
                       <div
                         key={alert.id}
-                        className="p-2.5 rounded-sm bg-[#0e1422] border border-rose-500/30 space-y-1"
+                        className="p-3 rounded-lg bg-[#0a0f1d] border border-rose-500/30 space-y-1.5"
                       >
                         <div className="flex items-center justify-between">
                           <span className="text-[10px] font-mono font-bold text-rose-400">
@@ -234,16 +218,16 @@ export default function JalNetraApp() {
                           </span>
                         </div>
                         <h5 className="text-xs font-bold text-slate-100">{alert.title}</h5>
-                        <p className="text-[10px] text-slate-300 font-mono leading-tight">
+                        <p className="text-[11px] text-slate-300 font-mono leading-tight">
                           {alert.affectedInfrastructure[0]}
                         </p>
-                        <div className="pt-1 flex items-center justify-between border-t border-[#1a2334] mt-1">
-                          <span className="text-[10px] font-mono text-sky-400">
+                        <div className="pt-1.5 flex items-center justify-between border-t border-slate-800/60 mt-1">
+                          <span className="text-[10px] font-mono text-cyan-400">
                             CONFIDENCE: {(alert.confidenceScore * 100).toFixed(0)}%
                           </span>
                           <button
                             onClick={() => setActiveScreen("alerts")}
-                            className="text-[10px] font-mono text-sky-300 hover:underline cursor-pointer"
+                            className="text-[10px] font-mono text-cyan-300 hover:underline cursor-pointer"
                           >
                             DISPATCH ACTION →
                           </button>
@@ -255,24 +239,24 @@ export default function JalNetraApp() {
 
                 {/* Top Critical Wards Quick Access */}
                 <GlassCard tone="standard" className="p-4 space-y-3">
-                  <div className="flex items-center justify-between border-b border-[#1c2638] pb-2">
+                  <div className="flex items-center justify-between border-b border-slate-800/80 pb-2">
                     <h4 className="text-[11px] font-mono font-bold uppercase text-slate-200 flex items-center gap-1.5 tracking-wider">
                       <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
                       Highest Inundation Hotspots
                     </h4>
                     <button
                       onClick={() => setActiveScreen("vulnerability")}
-                      className="text-[10px] font-mono text-sky-400 hover:text-sky-300 flex items-center gap-1 cursor-pointer"
+                      className="text-[10px] font-mono text-cyan-400 hover:text-cyan-300 flex items-center gap-1 cursor-pointer"
                     >
                       Matrix <ArrowRight className="w-3 h-3" />
                     </button>
                   </div>
 
-                  <div className="space-y-1.5 font-mono text-xs">
+                  <div className="space-y-2 font-mono text-xs">
                     {topCriticalWards.map((ward) => (
                       <div
                         key={ward.id}
-                        className="p-2 rounded-sm bg-[#0e1422] border border-[#1c2638] hover:border-sky-500/40 transition-colors flex items-center justify-between cursor-pointer"
+                        className="p-2.5 rounded-lg bg-[#0a0f1d] border border-slate-800 hover:border-cyan-500/40 transition-colors flex items-center justify-between cursor-pointer"
                         onClick={() => setSelectedWardForDrawer(ward.wardNumber)}
                       >
                         <div>
@@ -285,7 +269,7 @@ export default function JalNetraApp() {
                         </div>
 
                         <span
-                          className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border tabular-nums ${
+                          className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border tabular-nums ${
                             ward.riskScore >= 0.75
                               ? "bg-rose-500/10 text-rose-300 border-rose-500/30"
                               : "bg-amber-500/10 text-amber-300 border-amber-500/30"
@@ -297,34 +281,16 @@ export default function JalNetraApp() {
                     ))}
                   </div>
                 </GlassCard>
-
-                {/* Quick Simulation Banner */}
-                <div className="p-4 rounded border border-[#1c2638] bg-[#0d131f] space-y-2 corner-bracket">
-                  <span className="text-[10px] font-mono font-bold text-sky-400 uppercase tracking-widest block">
-                    [DISPATCH // SIMULATION_ENGINE]
-                  </span>
-                  <h4 className="text-xs font-bold text-slate-100 uppercase tracking-wide">
-                    Precipitation & Tidal Surge Simulator
-                  </h4>
-                  <p className="text-[11px] text-slate-300 leading-relaxed font-mono">
-                    Compute flood extent delta, avoided loss, and spared population under emergency pumping.
-                  </p>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    className="w-full mt-2"
-                    onClick={() => setActiveScreen("simulation")}
-                    icon={<PlaySquare className="w-3 h-3" />}
-                  >
-                    Open Simulator Cockpit
-                  </Button>
-                </div>
               </div>
             </div>
+
+            {/* Tier 3: 24-Hour Nowcast Hydrograph & 3D Radar Scrubber */}
+            <CockpitHydrographPanel />
+
+            {/* Tier 4: Tactical Runoff Dispatch Engine & Hydraulic Relief Solver */}
+            <CockpitTacticalDispatch onNavigateToSimulation={() => setActiveScreen("simulation")} />
           </div>
         )}
-      </div>
-    )}
 
         {/* VIEW 2: GLOBAL CLIMATE */}
         {activeScreen === "global" && <GlobalClimateSection />}
