@@ -16,6 +16,7 @@ import {
   Menu,
   X,
   Radio,
+  Shield,
 } from "lucide-react";
 import { Button } from "../ui/Button";
 
@@ -131,6 +132,15 @@ export const GlassNav: React.FC<GlassNavProps> = ({
           >
             <span className="hidden sm:inline">SIMULATE</span> DISPATCH
           </Button>
+
+          <Link
+            href="/login"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-[#0e1422] hover:bg-[#141e30] border border-[#1c2638] hover:border-sky-500/40 text-[10px] font-mono text-slate-300 hover:text-sky-300 transition-colors cursor-pointer"
+            title="Operator Security Clearance Access"
+          >
+            <Shield className="w-3 h-3 text-emerald-400" />
+            <span className="hidden sm:inline">AUTH /</span> LOGIN
+          </Link>
 
           {/* Mobile Menu Button */}
           <button
