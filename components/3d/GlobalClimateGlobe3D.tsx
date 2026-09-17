@@ -98,15 +98,13 @@ function generateFallbackDayTexture(): THREE.CanvasTexture {
   if (!ctx) return new THREE.CanvasTexture(canvas);
 
   const grad = ctx.createLinearGradient(0, 0, 0, h);
-  grad.addColorStop(0, "#012a66");
-  grad.addColorStop(0.3, "#0077b6");
-  grad.addColorStop(0.5, "#0284c7");
-  grad.addColorStop(0.7, "#0077b6");
-  grad.addColorStop(1, "#012a66");
+  grad.addColorStop(0, "#081d36");
+  grad.addColorStop(0.5, "#0b2e59");
+  grad.addColorStop(1, "#081d36");
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, w, h);
 
-  ctx.fillStyle = "#166534";
+  ctx.fillStyle = "#264e2e";
   // Rough India / Eurasia
   ctx.fillRect(w * 0.65, h * 0.35, w * 0.12, h * 0.2);
   // Americas
@@ -168,7 +166,6 @@ export const GlobalClimateGlobe3D: React.FC = () => {
     vaporStream: true,
     beacons: true,
     specularGlint: true,
-    oceanBoost: true,
   });
 
   const [simTelemetry, setSimTelemetry] = useState<{
@@ -243,7 +240,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
     const fallbackDay = generateFallbackDayTexture();
     const fallbackNight = generateFallbackNightTexture();
 
-    // Enhanced NASA Satellite Shader Material with Rich Bluish Oceans & Rayleigh Scattering
+    // Photorealistic NASA Satellite Shader Material (Real Earth View)
     const earthCustomShader = {
       uniforms: {
         dayMap: { value: fallbackDay },
@@ -252,7 +249,6 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         sunDirection: { value: new THREE.Vector3(1, 0, 0) },
         useTerminator: { value: 1.0 },
         useSpecular: { value: 1.0 },
-        useOceanBoost: { value: 1.0 },
       },
       vertexShader: `
         varying vec2 vUv;
@@ -274,7 +270,6 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         uniform vec3 sunDirection;
         uniform float useTerminator;
         uniform float useSpecular;
-        uniform float useOceanBoost;
 
         varying vec2 vUv;
         varying vec3 vNormal;
@@ -286,50 +281,43 @@ export const GlobalClimateGlobe3D: React.FC = () => {
           vec3 v = normalize(-vWorldPosition);
 
           float sunDot = dot(n, s);
-          // Twilight transition band
-          float dayFactor = smoothstep(-0.20, 0.20, sunDot);
+          // Realistic day/night twilight transition
+          float dayFactor = smoothstep(-0.06, 0.12, sunDot);
 
+          // Authentic NASA Blue Marble true-color daytime satellite photography
           vec4 dayColor = texture2D(dayMap, vUv);
+          // Authentic NASA Black Marble nocturnal city lights
           vec4 nightColor = texture2D(nightMap, vUv);
+          // Ocean mask (water = 1.0, land = 0.0)
           float specMask = texture2D(specularMap, vUv).r;
 
-          // RADIANT CELESTIAL BLUE OCEANS:
-          // In NASA specular mask: water = 1.0, land = 0.0
-          // Deep oceanic sapphire blue
-          vec3 deepOceanBlue = vec3(0.015, 0.28, 0.82); 
-          // Vibrant shallow / coastal cyan-turquoise (shelf bathymetry)
-          vec3 coastalCyan = vec3(0.04, 0.65, 0.94); 
-          // Gradient between deep oceanic trench and sunlit coastal shelf waters
-          vec3 vibrantWater = mix(coastalCyan, deepOceanBlue, clamp(specMask * 1.1, 0.0, 1.0));
+          // Natural Photorealistic Satellite Imagery:
+          // Preserve genuine continental vegetation, deserts, and snow topography
+          vec3 dayRgb = dayColor.rgb;
 
-          vec3 baseDay = dayColor.rgb;
-          if (useOceanBoost > 0.5 && specMask > 0.04) {
-            // Transform dark satellite ocean water into glowing sapphire blue
-            // Combine natural satellite cloud reflections/water texture with radiant ocean blue
-            vec3 tintedWater = vibrantWater + dayColor.rgb * 0.45;
-            baseDay = mix(baseDay, tintedWater, 0.84);
-          } else {
-            // Subtle crisp contrast enhancement on landmasses
-            baseDay = baseDay * 1.12;
+          // Subtle realistic marine depth for ocean waters
+          if (specMask > 0.05) {
+            dayRgb = mix(dayRgb, vec3(dayRgb.r * 0.7, dayRgb.g * 0.9, dayRgb.b * 1.22), 0.45);
           }
 
-          // Oceanic Specular Sun Glint (bright celestial sun reflection over water)
+          // Photorealistic oceanic sun glint (bright celestial specular reflection over water)
           vec3 r = reflect(-s, n);
-          float spec = pow(max(0.0, dot(r, v)), 36.0) * specMask * useSpecular * 3.2;
-          vec3 specularColor = vec3(0.92, 0.96, 1.0) * spec * max(0.0, sunDot);
+          float spec = pow(max(0.0, dot(r, v)), 38.0) * specMask * useSpecular * 2.8;
+          vec3 sunGlint = vec3(1.0, 0.98, 0.92) * spec * max(0.0, sunDot);
 
-          // Atmospheric Rayleigh scattering limb fresnel (Iconic radiant blue Earth halo)
-          float fresnel = pow(1.0 - max(0.0, dot(v, n)), 2.6);
-          vec3 atmosGlow = vec3(0.12, 0.68, 1.0) * fresnel * 0.95;
+          // Razor-thin authentic atmospheric horizon limb (visible only at the silhouette against space)
+          float fresnel = pow(1.0 - max(0.0, dot(v, n)), 5.0);
+          vec3 atmosRim = vec3(0.28, 0.65, 1.0) * fresnel * 0.65 * clamp(sunDot + 0.2, 0.0, 1.0);
+
+          // Authentic Black Marble nocturnal city lights
+          vec3 nightLit = nightColor.rgb * 2.4;
+          vec3 dayLit = (dayRgb + sunGlint) + atmosRim;
 
           if (useTerminator > 0.5) {
-            // Authentic Black Marble city light illumination
-            vec3 nightLit = nightColor.rgb * 2.0;
-            vec3 dayLit = baseDay + specularColor;
             vec3 blended = mix(nightLit, dayLit, dayFactor);
-            gl_FragColor = vec4(blended + (dayFactor * atmosGlow), 1.0);
+            gl_FragColor = vec4(blended, 1.0);
           } else {
-            gl_FragColor = vec4(baseDay + specularColor + atmosGlow, 1.0);
+            gl_FragColor = vec4(dayLit, 1.0);
           }
         }
       `,
@@ -381,11 +369,11 @@ export const GlobalClimateGlobe3D: React.FC = () => {
       }
     );
 
-    // 5. Authentic Atmospheric Cloud Layer (NASA Cloud Photography with subtle cyan tint)
-    const cloudsGeo = new THREE.SphereGeometry(GLOBE_RADIUS * 1.015, 48, 48);
+    // 5. Authentic Atmospheric Cloud Layer (NASA Cloud Photography hugging troposphere)
+    const cloudsGeo = new THREE.SphereGeometry(GLOBE_RADIUS * 1.006, 64, 64);
     const cloudsMat = new THREE.MeshBasicMaterial({
       transparent: true,
-      opacity: 0.38,
+      opacity: 0.55,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
       color: 0xffffff,
@@ -404,32 +392,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
       }
     );
 
-    // 6. Atmospheric Rayleigh Haze Shell (Concentric outer blue scattering)
-    const rayleighGeo = new THREE.SphereGeometry(GLOBE_RADIUS * 1.012, 64, 64);
-    const rayleighMat = new THREE.MeshBasicMaterial({
-      color: 0x38bdf8, // Sky Cyan-Blue
-      transparent: true,
-      opacity: 0.22,
-      blending: THREE.AdditiveBlending,
-      side: THREE.FrontSide,
-      depthWrite: false,
-    });
-    const rayleighMesh = new THREE.Mesh(rayleighGeo, rayleighMat);
-    globeGroup.add(rayleighMesh);
-
-    // 7. Outer Atmospheric Glowing Corona (Vibrant Oceanic Blue Limb)
-    const coronaGeo = new THREE.SphereGeometry(GLOBE_RADIUS * 1.14, 48, 48);
-    const coronaMat = new THREE.MeshBasicMaterial({
-      color: 0x0284c7, // Vibrant Oceanic Blue
-      transparent: true,
-      opacity: 0.35,
-      side: THREE.BackSide,
-      blending: THREE.AdditiveBlending,
-    });
-    const coronaMesh = new THREE.Mesh(coronaGeo, coronaMat);
-    globeGroup.add(coronaMesh);
-
-    // 8. 3D Animated Monsoonal Moisture Jet Stream (Somali Jet -> Bay of Bengal -> Kolkata)
+    // 6. 3D Animated Monsoonal Moisture Jet Stream (Somali Jet -> Bay of Bengal -> Kolkata)
     const moistureSpline = new THREE.CatmullRomCurve3([
       latLonToVector3(-15, 60, GLOBE_RADIUS * 1.03), // Southern Ocean
       latLonToVector3(-2, 52, GLOBE_RADIUS * 1.035), // Equatorial Somali Jet
@@ -706,7 +669,6 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         earthShaderMatRef.current.uniforms.sunDirection.value.copy(sunVec);
         earthShaderMatRef.current.uniforms.useTerminator.value = layers.terminator ? 1.0 : 0.0;
         earthShaderMatRef.current.uniforms.useSpecular.value = layers.specularGlint ? 1.0 : 0.0;
-        earthShaderMatRef.current.uniforms.useOceanBoost.value = layers.oceanBoost ? 1.0 : 0.0;
       }
 
       // Atmospheric Cloud Drift
@@ -809,10 +771,6 @@ export const GlobalClimateGlobe3D: React.FC = () => {
       earthShaderMat.dispose();
       cloudsGeo.dispose();
       cloudsMat.dispose();
-      rayleighGeo.dispose();
-      rayleighMat.dispose();
-      coronaGeo.dispose();
-      coronaMat.dispose();
       moistureLineGeo.dispose();
       moistureLineMat.dispose();
       particleGeo.dispose();
@@ -829,7 +787,6 @@ export const GlobalClimateGlobe3D: React.FC = () => {
     layers.vaporStream,
     layers.beacons,
     layers.specularGlint,
-    layers.oceanBoost,
   ]);
 
   const handleZoom = (direction: "in" | "out") => {
@@ -1001,16 +958,6 @@ export const GlobalClimateGlobe3D: React.FC = () => {
             <Layers className="w-3.5 h-3.5 text-cyan-400" />
             SATELLITE LAYERS:
           </span>
-          <button
-            onClick={() => toggleLayer("oceanBoost")}
-            className={`px-2 py-0.5 rounded-xs border cursor-pointer ${
-              layers.oceanBoost
-                ? "bg-sky-950/40 text-sky-300 border-sky-500/50 font-bold"
-                : "bg-slate-900 text-slate-500 border-slate-800"
-            }`}
-          >
-            OCEAN BLUE TONE
-          </button>
           <button
             onClick={() => toggleLayer("terminator")}
             className={`px-2 py-0.5 rounded-xs border cursor-pointer ${
