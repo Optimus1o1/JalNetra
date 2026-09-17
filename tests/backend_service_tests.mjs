@@ -193,4 +193,53 @@ describe("JalNetra Global v2.0 — Production Backend Services & APIs", () => {
       assert.ok(data.status === "success" || data.status === "operational_memory_active");
     });
   });
+
+  // ==========================================
+  // 7. CUSTOM COLAB MODEL & LIVE INFERENCE
+  // ==========================================
+  describe("7. Custom Colab Model Ingestion & Live Inference", () => {
+    it("GET /api/v1/models/custom returns model metadata and benchmark inference", async () => {
+      const res = await fetch(`${BASE_URL}/api/v1/models/custom`);
+      assert.equal(res.status, 200);
+      const data = await res.json();
+      assert.equal(data.status, "success");
+      assert.ok(data.model);
+      assert.equal(data.model.format, "jalnetra_custom_model_v1");
+      assert.ok(typeof data.benchmarkInference?.predictedDepthCm === "number");
+    });
+
+    it("POST /api/v1/models/custom executes live hydraulic inference", async () => {
+      const res = await fetch(`${BASE_URL}/api/v1/models/custom`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "infer",
+          inputs: {
+            rainfall_rate_mmh: 90,
+            elevation_m: 2.8,
+            tidal_stage_m: 4.4,
+            canal_silt_pct: 70,
+            active_turbines: 2,
+          },
+        }),
+      });
+      assert.equal(res.status, 200);
+      const data = await res.json();
+      assert.equal(data.status, "success");
+      assert.ok(data.result.predictedDepthCm > 0);
+      assert.ok(["LOW", "MODERATE", "HIGH", "CRITICAL"].includes(data.result.riskCategory));
+      assert.ok(data.result.crpsConfidenceBand);
+    });
+
+    it("POST /api/v1/models/custom rejects invalid model format with HTTP 422", async () => {
+      const res = await fetch(`${BASE_URL}/api/v1/models/custom`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          format: "invalid_unsupported_format",
+        }),
+      });
+      assert.equal(res.status, 422);
+    });
+  });
 });

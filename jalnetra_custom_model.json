@@ -1,0 +1,71 @@
+{
+  "format": "jalnetra_custom_model_v1",
+  "exportedAt": "2026-09-17T19:45:07Z",
+  "modelMetadata": {
+    "id": "custom-colab-1789674307",
+    "name": "Custom Colab Physics-Informed Hydrological Model",
+    "version": "v1.0-colab",
+    "type": "custom_trained_pinn",
+    "status": "active_production",
+    "description": "Custom model trained in Google Colab using Kaggle & OpenAccess satellite precipitation and urban drainage telemetry.",
+    "author": "Google Colab Operator",
+    "trainingPlatform": "Google Colab Python 3.10"
+  },
+  "metrics": {
+    "crpsScore": 1.0845,
+    "brierScore": 0.0723,
+    "spatialIoU": 0.949,
+    "rmse": 3.82,
+    "mae": 3.04,
+    "r2Score": 0.9776,
+    "falseAlertRate": 0.058,
+    "latencyMs": 0
+  },
+  "features": [
+    "rainfall_rate_mmh",
+    "elevation_m",
+    "tidal_stage_m",
+    "canal_silt_pct",
+    "active_turbines",
+    "impervious_surface_pct",
+    "freeboard_margin_m",
+    "pump_relief_factor"
+  ],
+  "scaler": {
+    "mean": [
+      57.319674999999854,
+      3.967187499999993,
+      3.4433549999999955,
+      52.05419999999997,
+      6.531,
+      70.58367499999981,
+      0.5238325000000004,
+      3.3517739999999954
+    ],
+    "scale": [
+      27.550483396745967,
+      1.2564581229964469,
+      1.1284836702296601,
+      20.96787846588201,
+      3.4151923811111757,
+      14.458938792123579,
+      1.7185092338837593,
+      1.9292161065894105
+    ]
+  },
+  "treeShapAttributions": {
+    "rainfallInflow": 15.600000381469727,
+    "tidalBackflow": 6.199999809265137,
+    "canalSiltResistance": 2.0999999046325684,
+    "elevationFreeboard": 32.0,
+    "pumpCapacity": 17.200000762939453
+  },
+  "inferenceWeights": {
+    "baseInundationOffset": 8.5,
+    "rainfallMultiplier": 0.42,
+    "tidalSurgeMultiplier": 12.4,
+    "elevationReliefMultiplier": -7.8,
+    "siltFrictionMultiplier": 0.28,
+    "turbineReliefMultiplier": -4.2
+  }
+}
