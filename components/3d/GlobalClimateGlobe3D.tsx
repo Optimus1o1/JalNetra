@@ -413,6 +413,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         cloudMap: { value: fallbackDay },
         sunDirection: { value: new THREE.Vector3(1, 0, 0) },
         uCloudTime: { value: 0.0 },
+        uCloudRotation: { value: 0.0 },
         useTerminator: { value: 1.0 },
         useSpecular: { value: 1.0 },
         useCloudShadows: { value: 1.0 },
@@ -438,6 +439,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         uniform sampler2D cloudMap;
         uniform vec3 sunDirection;
         uniform float uCloudTime;
+        uniform float uCloudRotation;
         uniform float useTerminator;
         uniform float useSpecular;
         uniform float useCloudShadows;
@@ -464,13 +466,12 @@ export const GlobalClimateGlobe3D: React.FC = () => {
           // Water specular mask (oceans = 1.0, continents = 0.0)
           float specMask = texture2D(specularMap, vUv).r;
 
-          // Realistic differential wind advection matching the cloud layer exactly
-          float latWind = (vUv.y - 0.5) * 2.0;
-          float windSpeed = (abs(latWind) < 0.35) ? 0.015 : -0.010;
-          vec2 cloudUv = vec2(
-            vUv.x + uCloudTime * windSpeed,
-            vUv.y + sin(vUv.x * 6.28318 + uCloudTime * 0.025) * 0.003
-          );
+          // -----------------------------------------------------------------
+          // ONE UNIFIED SEAMLESS CLOUD SHADOW SIMULATION
+          // In 100% lockstep with the rotating cloud sphere (NO 3-section tearing)
+          // -----------------------------------------------------------------
+          float cloudU = fract(vUv.x - uCloudRotation / 6.2831853);
+          vec2 cloudUv = vec2(cloudU, vUv.y);
           vec4 cloudSample = texture2D(cloudMap, cloudUv);
           // Authentic NASA Satellite Cloud Optical Depth from greyscale reflectance (.r)
           float cloudDensity = cloudSample.r;
@@ -479,7 +480,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
           // REAL-TIME NATURAL CLOUD SHADOWS (32% AMBIENT DARKENING)
           // -----------------------------------------------------------------
           if (useCloudShadows > 0.5) {
-            vec2 shadowOffset = -normalize(s.xy + vec2(0.0001)) * 0.0045;
+            vec2 shadowOffset = -normalize(s.xy + vec2(0.0001)) * 0.0040;
             float cShadow = texture2D(cloudMap, cloudUv + shadowOffset).r;
             // Soft realistic shadow darkening (32% light reduction under dense clouds)
             float shadowFactor = smoothstep(0.18, 0.58, cShadow) * 0.32;
@@ -573,17 +574,10 @@ export const GlobalClimateGlobe3D: React.FC = () => {
           vec3 v = normalize(cameraPosition - vWorldPosition);
 
           // ---------------------------------------------------------------
-          // DYNAMIC VISIBLE ATMOSPHERIC DRIFT:
-          // Tropical easterlies drift westward; mid-latitude westerlies drift eastward!
+          // ONE UNIFIED SEAMLESS CLOUD SPHERE SIMULATION (NO 3-SECTION TEARING)
+          // Rotates smoothly as one continuous global atmospheric layer
           // ---------------------------------------------------------------
-          float latWind = (vUv.y - 0.5) * 2.0;
-          float windSpeed = (abs(latWind) < 0.35) ? 0.015 : -0.010;
-          vec2 cloudUv = vec2(
-            vUv.x + uCloudTime * windSpeed,
-            vUv.y + sin(vUv.x * 6.28318 + uCloudTime * 0.025) * 0.003
-          );
-
-          vec4 cloudSample = texture2D(cloudMap, cloudUv);
+          vec4 cloudSample = texture2D(cloudMap, vUv);
           // Authentic NASA Satellite Cloud Optical Depth from greyscale reflectance (.r)
           float cloudDensity = cloudSample.r;
 
@@ -956,11 +950,9 @@ export const GlobalClimateGlobe3D: React.FC = () => {
       const u = (cLon + 180) / 360;
       const v = (cLat + 90) / 180;
 
-      // Match shader dynamic wind advection
-      const latWind = (v - 0.5) * 2.0;
-      const windSpeed = Math.abs(latWind) < 0.35 ? 0.015 : -0.010;
-      const cloudU = ((u + cloudTimeRef.current * windSpeed) % 1.0 + 1.0) % 1.0;
-      const cloudV = Math.max(0, Math.min(1, v + Math.sin(u * 6.28318 + cloudTimeRef.current * 0.025) * 0.003));
+      // Direct unified sphere sampling (cloudsMesh.worldToLocal already handles rotation)
+      const cloudU = ((u % 1.0) + 1.0) % 1.0;
+      const cloudV = Math.max(0, Math.min(1, v));
 
       // Sample optical depth
       let density = 0.0;
@@ -1082,7 +1074,9 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         timestamp: Date.now(),
       };
 
-      setCloudInspection(inspection);
+      if (lockSelection) {
+        setCloudInspection(inspection);
+      }
       return inspection;
     };
 
@@ -1120,17 +1114,13 @@ export const GlobalClimateGlobe3D: React.FC = () => {
     const handlePointerMove = (e: MouseEvent) => {
       checkBeaconHover(e.clientX, e.clientY);
 
-      // Perform real-time hover cloud inspection when not dragging
-      if (!isDragging) {
-        inspectCloudAtPoint(e.clientX, e.clientY, false);
-      }
-
       if (!isDragging || !globeGroupRef.current) return;
       const deltaX = e.clientX - prevMouseX;
       const deltaY = e.clientY - prevMouseY;
 
       globeGroupRef.current.rotation.y += deltaX * 0.0055;
-      globeGroupRef.current.rotation.x += deltaY * 0.0055;
+      const nextX = globeGroupRef.current.rotation.x + deltaY * 0.0055;
+      globeGroupRef.current.rotation.x = Math.max(-1.15, Math.min(1.15, nextX));
 
       dragVelocityRef.current = {
         vx: deltaX * 0.0055,
@@ -1147,8 +1137,8 @@ export const GlobalClimateGlobe3D: React.FC = () => {
       container.style.cursor = "grab";
 
       const distMoved = Math.hypot(e.clientX - pointerStartX, e.clientY - pointerStartY);
-      // Click detected (negligible drag)
-      if (distMoved < 6 && cameraRef.current) {
+      // Click detected (negligible drag: < 8px)
+      if (distMoved < 8 && cameraRef.current) {
         updateMouseCoord(e.clientX, e.clientY);
         raycaster.setFromCamera(mouseCoord, cameraRef.current);
 
@@ -1163,20 +1153,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
           }
         }
 
-        // Check click on Earth surface
-        const earthIntersects = raycaster.intersectObject(earthMesh);
-        if (earthIntersects.length > 0) {
-          const p = earthIntersects[0].point;
-          const targetRotY = -Math.atan2(p.x, p.z);
-          const targetRotX = Math.asin(p.y / GLOBE_RADIUS);
-          targetRotationRef.current = {
-            x: targetRotX,
-            y: targetRotY,
-            active: true,
-          };
-        }
-
-        // Inspect cloud/ground at click position
+        // Inspect cloud/ground at click position (stable: zero camera jerking or snapping)
         inspectCloudAtPoint(e.clientX, e.clientY, true);
       }
     };
@@ -1208,8 +1185,6 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         prevMouseY = e.touches[0].clientY;
         dragVelocityRef.current = { vx: 0, vy: 0 };
         targetRotationRef.current.active = false;
-        // Preview cloud inspection on touch
-        inspectCloudAtPoint(e.touches[0].clientX, e.touches[0].clientY, false);
       } else if (e.touches.length === 2) {
         isDragging = false;
         initialPinchDistance = getPinchDistance(e.touches);
@@ -1225,7 +1200,8 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         const deltaY = clientY - prevMouseY;
 
         globeGroupRef.current.rotation.y += deltaX * 0.0055;
-        globeGroupRef.current.rotation.x += deltaY * 0.0055;
+        const nextX = globeGroupRef.current.rotation.x + deltaY * 0.0055;
+        globeGroupRef.current.rotation.x = Math.max(-1.15, Math.min(1.15, nextX));
 
         dragVelocityRef.current = {
           vx: deltaX * 0.0055,
@@ -1252,7 +1228,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         isDragging = false;
         initialPinchDistance = null;
         const distMoved = Math.hypot(prevMouseX - pointerStartX, prevMouseY - pointerStartY);
-        if (distMoved < 6 && cameraRef.current) {
+        if (distMoved < 10 && cameraRef.current) {
           updateMouseCoord(prevMouseX, prevMouseY);
           raycaster.setFromCamera(mouseCoord, cameraRef.current);
           const interactiveObjects = beaconMeshes.flatMap((b) => [b.mesh, b.ring]);
@@ -1264,7 +1240,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
               return;
             }
           }
-          // Mobile tap cloud and rain inspection
+          // Mobile tap cloud and rain inspection (smooth, zero camera jerk)
           inspectCloudAtPoint(prevMouseX, prevMouseY, true);
         }
       }
@@ -1413,6 +1389,9 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         earthShaderMatRef.current.uniforms.useTerminator.value = currentLayers.terminator ? 1.0 : 0.0;
         earthShaderMatRef.current.uniforms.useSpecular.value = currentLayers.specularGlint ? 1.0 : 0.0;
         earthShaderMatRef.current.uniforms.useCloudShadows.value = currentLayers.cloudShadows ? 1.0 : 0.0;
+        if (cloudsMeshRef.current) {
+          earthShaderMatRef.current.uniforms.uCloudRotation.value = cloudsMeshRef.current.rotation.y;
+        }
       }
 
       // Update Real-Time Cloud Shader
@@ -1493,7 +1472,8 @@ export const GlobalClimateGlobe3D: React.FC = () => {
           // Momentum damping
           if (Math.abs(dragVelocityRef.current.vx) > 0.0001 || Math.abs(dragVelocityRef.current.vy) > 0.0001) {
             globeGroupRef.current.rotation.y += dragVelocityRef.current.vx;
-            globeGroupRef.current.rotation.x += dragVelocityRef.current.vy;
+            const nextX = globeGroupRef.current.rotation.x + dragVelocityRef.current.vy;
+            globeGroupRef.current.rotation.x = Math.max(-1.15, Math.min(1.15, nextX));
             dragVelocityRef.current.vx *= 0.92;
             dragVelocityRef.current.vy *= 0.92;
           } else if (autoRotateRef.current) {
