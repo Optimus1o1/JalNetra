@@ -13,6 +13,7 @@ import {
   Layers,
   Sparkles,
   Satellite,
+  Wind,
 } from "lucide-react";
 
 interface Hotspot {
@@ -105,7 +106,7 @@ function generateFallbackDayTexture(): THREE.CanvasTexture {
   ctx.fillRect(0, 0, w, h);
 
   ctx.fillStyle = "#264e2e";
-  // Rough India / Eurasia
+  // Eurasia / India
   ctx.fillRect(w * 0.65, h * 0.35, w * 0.12, h * 0.2);
   // Americas
   ctx.fillRect(w * 0.2, h * 0.25, w * 0.15, h * 0.35);
@@ -161,11 +162,13 @@ export const GlobalClimateGlobe3D: React.FC = () => {
   const [simSpeed, setSimSpeed] = useState<"1x" | "60x" | "1440x">("1x");
   const [layers, setLayers] = useState({
     clouds: true,
+    cloudShadows: true,
     terminator: true,
+    atmosphereGlow: true,
+    specularGlint: true,
     sstAnomalies: true,
     vaporStream: true,
     beacons: true,
-    specularGlint: true,
   });
 
   const [simTelemetry, setSimTelemetry] = useState<{
@@ -174,19 +177,22 @@ export const GlobalClimateGlobe3D: React.FC = () => {
     subsolarLat: string;
     kolkataSolarAngle: string;
     isKolkataDay: boolean;
+    cloudDriftStatus: string;
   }>({
     utcTime: "12:00:00 UTC",
     subsolarLon: "0.0°",
     subsolarLat: "+12.4°",
     kolkataSolarAngle: "78° Solar Noon",
     isKolkataDay: true,
+    cloudDriftStatus: "Tropical Trade Wind & Jet Stream Advection Active",
   });
 
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const globeGroupRef = useRef<THREE.Group | null>(null);
-  const cloudsMeshRef = useRef<THREE.Mesh | null>(null);
   const earthShaderMatRef = useRef<THREE.ShaderMaterial | null>(null);
+  const cloudsShaderMatRef = useRef<THREE.ShaderMaterial | null>(null);
+  const atmosphereShaderMatRef = useRef<THREE.ShaderMaterial | null>(null);
 
   const simTimeOffsetRef = useRef<number>(0);
 
@@ -209,13 +215,13 @@ export const GlobalClimateGlobe3D: React.FC = () => {
     // 1. Scene & Camera
     const scene = new THREE.Scene();
     sceneRef.current = scene;
-    scene.background = new THREE.Color(0x030712); // Deep obsidian
+    scene.background = new THREE.Color(0x02040a); // Deep cosmic void
 
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
     camera.position.z = 210;
     cameraRef.current = camera;
 
-    // 2. High-Performance Renderer
+    // 2. High-Performance WebGL Renderer
     const renderer = new THREE.WebGLRenderer({
       antialias: true,
       powerPreference: "high-performance",
@@ -223,32 +229,37 @@ export const GlobalClimateGlobe3D: React.FC = () => {
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.45;
+    renderer.toneMappingExposure = 1.35;
     container.innerHTML = "";
     container.appendChild(renderer.domElement);
 
-    // 3. Globe Master Group
+    // 3. Master Globe Group
     const globeGroup = new THREE.Group();
     globeGroupRef.current = globeGroup;
     scene.add(globeGroup);
 
     const GLOBE_RADIUS = 60;
 
-    // 4. Load Real NASA Satellite Imagery Textures
+    // 4. Texture Loader & Textures Initialization
     const textureLoader = new THREE.TextureLoader();
 
     const fallbackDay = generateFallbackDayTexture();
     const fallbackNight = generateFallbackNightTexture();
 
-    // Photorealistic NASA Satellite Shader Material (Real Earth View)
+    // =========================================================================
+    // SHADER 1: PHOTOREALISTIC EARTH SURFACE WITH REAL-TIME CLOUD SHADOWS
+    // =========================================================================
     const earthCustomShader = {
       uniforms: {
         dayMap: { value: fallbackDay },
         nightMap: { value: fallbackNight },
         specularMap: { value: fallbackDay },
+        cloudMap: { value: fallbackDay },
         sunDirection: { value: new THREE.Vector3(1, 0, 0) },
+        uTime: { value: 0.0 },
         useTerminator: { value: 1.0 },
         useSpecular: { value: 1.0 },
+        useCloudShadows: { value: 1.0 },
       },
       vertexShader: `
         varying vec2 vUv;
@@ -267,9 +278,12 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         uniform sampler2D dayMap;
         uniform sampler2D nightMap;
         uniform sampler2D specularMap;
+        uniform sampler2D cloudMap;
         uniform vec3 sunDirection;
+        uniform float uTime;
         uniform float useTerminator;
         uniform float useSpecular;
+        uniform float useCloudShadows;
 
         varying vec2 vUv;
         varying vec3 vNormal;
@@ -291,27 +305,45 @@ export const GlobalClimateGlobe3D: React.FC = () => {
           // Ocean mask (water = 1.0, land = 0.0)
           float specMask = texture2D(specularMap, vUv).r;
 
-          // Natural Photorealistic Satellite Imagery:
-          // Preserve genuine continental vegetation, deserts, and snow topography
           vec3 dayRgb = dayColor.rgb;
 
-          // Subtle realistic marine depth for ocean waters
+          // Deep rich marine depth for oceans
           if (specMask > 0.05) {
-            dayRgb = mix(dayRgb, vec3(dayRgb.r * 0.7, dayRgb.g * 0.9, dayRgb.b * 1.22), 0.45);
+            dayRgb = mix(dayRgb, vec3(dayRgb.r * 0.72, dayRgb.g * 0.9, dayRgb.b * 1.25), 0.42);
           }
 
-          // Photorealistic oceanic sun glint (bright celestial specular reflection over water)
+          // -----------------------------------------------------------------
+          // REAL-TIME CLOUD SHADOW PROJECTION ONTO EARTH SURFACE
+          // -----------------------------------------------------------------
+          if (useCloudShadows > 0.5) {
+            // Dual-wind advection matching the cloud shader
+            vec2 cUv1 = vec2(
+              vUv.x + uTime * 0.0016,
+              vUv.y + sin(vUv.x * 6.28318 + uTime * 0.012) * 0.002
+            );
+            vec2 cUv2 = vec2(
+              vUv.x - uTime * 0.0024,
+              vUv.y + cos(vUv.x * 7.5398 - uTime * 0.018) * 0.003
+            );
+
+            // Shift shadow slightly away from the sun direction
+            vec2 shadowOffset = -normalize(s.xy + vec2(0.001)) * 0.0045;
+            float cShadow1 = texture2D(cloudMap, cUv1 + shadowOffset).r;
+            float cShadow2 = texture2D(cloudMap, cUv2 + shadowOffset).r;
+            float cloudShadow = max(cShadow1 * 0.8, cShadow2 * 0.7);
+
+            // Cast soft realistic cloud shadow on daytime continents & oceans
+            dayRgb *= (1.0 - cloudShadow * 0.48);
+          }
+
+          // Photorealistic oceanic sun glint (bright celestial reflection over water)
           vec3 r = reflect(-s, n);
           float spec = pow(max(0.0, dot(r, v)), 38.0) * specMask * useSpecular * 2.8;
           vec3 sunGlint = vec3(1.0, 0.98, 0.92) * spec * max(0.0, sunDot);
 
-          // Razor-thin authentic atmospheric horizon limb (visible only at the silhouette against space)
-          float fresnel = pow(1.0 - max(0.0, dot(v, n)), 5.0);
-          vec3 atmosRim = vec3(0.28, 0.65, 1.0) * fresnel * 0.65 * clamp(sunDot + 0.2, 0.0, 1.0);
-
           // Authentic Black Marble nocturnal city lights
           vec3 nightLit = nightColor.rgb * 2.4;
-          vec3 dayLit = (dayRgb + sunGlint) + atmosRim;
+          vec3 dayLit = dayRgb + sunGlint;
 
           if (useTerminator > 0.5) {
             vec3 blended = mix(nightLit, dayLit, dayFactor);
@@ -334,7 +366,178 @@ export const GlobalClimateGlobe3D: React.FC = () => {
     const earthMesh = new THREE.Mesh(sphereGeo, earthShaderMat);
     globeGroup.add(earthMesh);
 
-    // Asynchronously load real NASA satellite imagery textures
+    // =========================================================================
+    // SHADER 2: DYNAMIC FLUID ATMOSPHERIC CLOUDS WITH CORIOLIS MOVEMENT
+    // =========================================================================
+    const cloudsCustomShader = {
+      uniforms: {
+        cloudMap: { value: fallbackDay },
+        sunDirection: { value: new THREE.Vector3(1, 0, 0) },
+        uTime: { value: 0.0 },
+        cloudOpacity: { value: 0.88 },
+        visible: { value: 1.0 },
+      },
+      vertexShader: `
+        varying vec2 vUv;
+        varying vec3 vNormal;
+        varying vec3 vWorldPosition;
+
+        void main() {
+          vUv = uv;
+          vNormal = normalize(normalMatrix * normal);
+          vec4 worldPos = modelMatrix * vec4(position, 1.0);
+          vWorldPosition = worldPos.xyz;
+          gl_Position = projectionMatrix * viewMatrix * worldPos;
+        }
+      `,
+      fragmentShader: `
+        uniform sampler2D cloudMap;
+        uniform vec3 sunDirection;
+        uniform float uTime;
+        uniform float cloudOpacity;
+        uniform float visible;
+
+        varying vec2 vUv;
+        varying vec3 vNormal;
+        varying vec3 vWorldPosition;
+
+        void main() {
+          if (visible < 0.5) discard;
+
+          vec3 n = normalize(vNormal);
+          vec3 s = normalize(sunDirection);
+          vec3 v = normalize(-vWorldPosition);
+
+          // ---------------------------------------------------------------
+          // DUAL-SPEED ATMOSPHERIC ADVECTION & SWIRLING CLOUD MOTION
+          // ---------------------------------------------------------------
+          // Flow 1: Tropical Easterly Trade Winds & Monsoonal Drift
+          vec2 uv1 = vec2(
+            vUv.x + uTime * 0.0016,
+            vUv.y + sin(vUv.x * 6.28318 + uTime * 0.012) * 0.002
+          );
+
+          // Flow 2: Mid-Latitude Westerlies & Jet Stream Vortices
+          vec2 uv2 = vec2(
+            vUv.x - uTime * 0.0024,
+            vUv.y + cos(vUv.x * 7.5398 - uTime * 0.018) * 0.003
+          );
+
+          float c1 = texture2D(cloudMap, uv1).r;
+          float c2 = texture2D(cloudMap, uv2).r;
+
+          // Blend multiple atmospheric wind regimes with fluid curl interference
+          float cloudDensity = max(c1 * 0.88, c2 * 0.74) + (c1 * c2 * 0.32);
+
+          // Soft volumetric density falloff
+          float alpha = smoothstep(0.14, 0.78, cloudDensity) * cloudOpacity;
+          if (alpha < 0.015) discard;
+
+          // Solar Lighting & Rayleigh Twilight Scattering on Clouds
+          float sunDot = dot(n, s);
+          float dayFactor = smoothstep(-0.08, 0.16, sunDot);
+
+          // Forward Mie scattering (silver lining when looking towards the sun rim)
+          float forwardScatter = pow(max(0.0, dot(v, s)), 4.5) * 0.42;
+
+          // Sunset / Sunrise warm golden twilight tint on the terminator
+          float terminatorScatter = exp(-pow((sunDot - 0.02) / 0.12, 2.0));
+          vec3 twilightTint = vec3(1.0, 0.64, 0.36) * terminatorScatter * 0.9;
+
+          // Day-lit cloud tops
+          vec3 dayCloudRgb = vec3(0.98, 0.99, 1.0) * (0.86 + forwardScatter) + twilightTint;
+
+          // Night-side clouds (realistic dark charcoal, absorbing light)
+          vec3 nightCloudRgb = vec3(0.02, 0.025, 0.04);
+
+          vec3 finalCloudRgb = mix(nightCloudRgb, dayCloudRgb, dayFactor);
+
+          gl_FragColor = vec4(finalCloudRgb, alpha);
+        }
+      `,
+    };
+
+    const cloudsShaderMat = new THREE.ShaderMaterial({
+      uniforms: cloudsCustomShader.uniforms,
+      vertexShader: cloudsCustomShader.vertexShader,
+      fragmentShader: cloudsCustomShader.fragmentShader,
+      transparent: true,
+      depthWrite: false,
+    });
+    cloudsShaderMatRef.current = cloudsShaderMat;
+
+    const cloudsGeo = new THREE.SphereGeometry(GLOBE_RADIUS * 1.007, 64, 64);
+    const cloudsMesh = new THREE.Mesh(cloudsGeo, cloudsShaderMat);
+    globeGroup.add(cloudsMesh);
+
+    // =========================================================================
+    // SHADER 3: PHOTOREALISTIC RAYLEIGH ATMOSPHERIC HORIZON CORONA
+    // =========================================================================
+    const atmosphereShader = {
+      uniforms: {
+        sunDirection: { value: new THREE.Vector3(1, 0, 0) },
+        visible: { value: 1.0 },
+      },
+      vertexShader: `
+        varying vec3 vNormal;
+        varying vec3 vWorldPosition;
+
+        void main() {
+          vNormal = normalize(normalMatrix * normal);
+          vec4 worldPos = modelMatrix * vec4(position, 1.0);
+          vWorldPosition = worldPos.xyz;
+          gl_Position = projectionMatrix * viewMatrix * worldPos;
+        }
+      `,
+      fragmentShader: `
+        uniform vec3 sunDirection;
+        uniform float visible;
+
+        varying vec3 vNormal;
+        varying vec3 vWorldPosition;
+
+        void main() {
+          if (visible < 0.5) discard;
+
+          vec3 n = normalize(vNormal);
+          vec3 s = normalize(sunDirection);
+          vec3 v = normalize(-vWorldPosition);
+
+          // Razor-thin limb Fresnel against deep space
+          float fresnel = pow(1.0 - max(0.0, dot(v, n)), 3.8);
+          float sunDot = dot(n, s);
+          float dayFactor = smoothstep(-0.25, 0.35, sunDot);
+
+          // Sunset twilight reddening along terminator
+          float twilight = exp(-pow((sunDot + 0.05) / 0.22, 2.0));
+          vec3 twilightColor = vec3(0.9, 0.4, 0.14) * twilight * 0.7;
+
+          vec3 atmosBlue = vec3(0.18, 0.58, 1.0) * 1.5;
+          vec3 finalAtmos = (atmosBlue + twilightColor) * fresnel * (dayFactor * 0.95 + 0.05);
+
+          gl_FragColor = vec4(finalAtmos, fresnel * dayFactor * 0.85);
+        }
+      `,
+    };
+
+    const atmosphereShaderMat = new THREE.ShaderMaterial({
+      uniforms: atmosphereShader.uniforms,
+      vertexShader: atmosphereShader.vertexShader,
+      fragmentShader: atmosphereShader.fragmentShader,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      side: THREE.FrontSide,
+    });
+    atmosphereShaderMatRef.current = atmosphereShaderMat;
+
+    const atmosphereGeo = new THREE.SphereGeometry(GLOBE_RADIUS * 1.018, 64, 64);
+    const atmosphereMesh = new THREE.Mesh(atmosphereGeo, atmosphereShaderMat);
+    globeGroup.add(atmosphereMesh);
+
+    // =========================================================================
+    // ASYNCHRONOUS LOAD OF AUTHENTIC NASA SATELLITE TEXTURES
+    // =========================================================================
     textureLoader.load(
       "/textures/earth_day.jpg",
       (tex) => {
@@ -369,37 +572,24 @@ export const GlobalClimateGlobe3D: React.FC = () => {
       }
     );
 
-    // 5. Authentic Atmospheric Cloud Layer (NASA Cloud Photography hugging troposphere)
-    const cloudsGeo = new THREE.SphereGeometry(GLOBE_RADIUS * 1.006, 64, 64);
-    const cloudsMat = new THREE.MeshBasicMaterial({
-      transparent: true,
-      opacity: 0.55,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      color: 0xffffff,
-    });
-    const cloudsMesh = new THREE.Mesh(cloudsGeo, cloudsMat);
-    cloudsMeshRef.current = cloudsMesh;
-    globeGroup.add(cloudsMesh);
-
     textureLoader.load(
       "/textures/earth_clouds.jpg",
       (cloudTex) => {
         cloudTex.wrapS = THREE.RepeatWrapping;
         cloudTex.wrapT = THREE.ClampToEdgeWrapping;
-        cloudsMat.map = cloudTex;
-        cloudsMat.needsUpdate = true;
+        cloudsShaderMat.uniforms.cloudMap.value = cloudTex;
+        earthShaderMat.uniforms.cloudMap.value = cloudTex;
       }
     );
 
-    // 6. 3D Animated Monsoonal Moisture Jet Stream (Somali Jet -> Bay of Bengal -> Kolkata)
+    // 6. Monsoonal Moisture Jet Stream (Somali Jet -> Bay of Bengal -> Kolkata)
     const moistureSpline = new THREE.CatmullRomCurve3([
-      latLonToVector3(-15, 60, GLOBE_RADIUS * 1.03), // Southern Ocean
-      latLonToVector3(-2, 52, GLOBE_RADIUS * 1.035), // Equatorial Somali Jet
-      latLonToVector3(8, 62, GLOBE_RADIUS * 1.04), // Arabian Sea Cross-Equatorial Surge
-      latLonToVector3(14, 75, GLOBE_RADIUS * 1.04), // Southern India Gateway
-      latLonToVector3(17, 88, GLOBE_RADIUS * 1.035), // Bay of Bengal Moisture Pool
-      latLonToVector3(22.57, 88.36, GLOBE_RADIUS * 1.025), // Kolkata Confluence Delta
+      latLonToVector3(-15, 60, GLOBE_RADIUS * 1.03),
+      latLonToVector3(-2, 52, GLOBE_RADIUS * 1.035),
+      latLonToVector3(8, 62, GLOBE_RADIUS * 1.04),
+      latLonToVector3(14, 75, GLOBE_RADIUS * 1.04),
+      latLonToVector3(17, 88, GLOBE_RADIUS * 1.035),
+      latLonToVector3(22.57, 88.36, GLOBE_RADIUS * 1.025),
     ]);
 
     const moisturePoints = moistureSpline.getPoints(80);
@@ -429,7 +619,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
     particleGeo.setAttribute("position", new THREE.BufferAttribute(particlePositions, 3));
 
     const particleMat = new THREE.PointsMaterial({
-      color: 0x06b6d4, // Electric Cyan
+      color: 0x06b6d4,
       size: 3.4,
       transparent: true,
       opacity: 0.9,
@@ -438,12 +628,12 @@ export const GlobalClimateGlobe3D: React.FC = () => {
     const moistureParticles = new THREE.Points(particleGeo, particleMat);
     globeGroup.add(moistureParticles);
 
-    // 9. Sea Surface Temperature (SST) Thermal Anomaly Convective Plumes
+    // 7. Sea Surface Temperature (SST) Thermal Anomaly Convective Plumes
     const sstGroup = new THREE.Group();
     const sstPlumes = [
-      { lat: 0.0, lon: -140.0, color: 0x8b5cf6, r: 8, label: "Niño 3.4" }, // Quantum Purple
-      { lat: 16.0, lon: 89.0, color: 0xf59e0b, r: 7, label: "Bay of Bengal" }, // Photon Amber
-      { lat: -5.0, lon: 55.0, color: 0x10b981, r: 6, label: "IOD West" }, // Hyper Emerald
+      { lat: 0.0, lon: -140.0, color: 0x8b5cf6, r: 8, label: "Niño 3.4" },
+      { lat: 16.0, lon: 89.0, color: 0xf59e0b, r: 7, label: "Bay of Bengal" },
+      { lat: -5.0, lon: 55.0, color: 0x10b981, r: 6, label: "IOD West" },
     ];
 
     const sstMeshes: THREE.Mesh[] = [];
@@ -465,7 +655,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
     });
     globeGroup.add(sstGroup);
 
-    // 10. Telemetry Hotspots & Beacons
+    // 8. Telemetry Hotspots & Beacons
     const beaconMeshes: { mesh: THREE.Mesh; ring: THREE.Mesh; hotspot: Hotspot }[] = [];
     const beaconsGroup = new THREE.Group();
 
@@ -499,12 +689,11 @@ export const GlobalClimateGlobe3D: React.FC = () => {
     globeGroup.rotation.y = -Math.PI * 0.45;
     globeGroup.rotation.x = 0.22;
 
-    // 11. Interactive Mouse & Touch Drag Controls (WITH ISOLATED WHEEL & PINCH ZOOM)
+    // 9. Interactive Drag & Zoom Controls
     let isDragging = false;
     let prevMouseX = 0;
     let prevMouseY = 0;
 
-    // Pinch-to-zoom state for mobile / trackpads
     let initialPinchDistance: number | null = null;
     let startPinchCameraZ = 210;
 
@@ -537,21 +726,16 @@ export const GlobalClimateGlobe3D: React.FC = () => {
       isDragging = false;
     };
 
-    // CRITICAL ZOOM FIX: Dedicated non-passive wheel handler preventing browser page zoom and page scroll
     const handleWheel = (e: WheelEvent) => {
-      // Stop browser page zoom (Ctrl+Wheel / trackpad pinch) and document scroll
       e.preventDefault();
       e.stopPropagation();
 
       let delta = e.deltaY;
       if (e.ctrlKey) {
-        // Trackpad pinch gesture on Windows / Mac (fires with ctrlKey=true)
         delta = e.deltaY * 0.85;
       } else if (Math.abs(delta) > 50) {
-        // Discrete mouse wheel notch
         delta = Math.sign(delta) * 20;
       } else {
-        // Continuous smooth trackpad scroll
         delta = delta * 0.35;
       }
 
@@ -560,7 +744,6 @@ export const GlobalClimateGlobe3D: React.FC = () => {
       setZoomLevel(currentZoom);
     };
 
-    // Touch controls for single finger rotation and two-finger pinch zoom
     const handleTouchStart = (e: TouchEvent) => {
       if (e.touches.length === 1) {
         isDragging = true;
@@ -584,7 +767,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         prevMouseX = clientX;
         prevMouseY = clientY;
       } else if (e.touches.length === 2 && initialPinchDistance !== null) {
-        e.preventDefault(); // Stop native mobile page pinch-to-zoom!
+        e.preventDefault();
         e.stopPropagation();
         const currentDistance = getPinchDistance(e.touches);
         if (currentDistance > 0) {
@@ -601,14 +784,12 @@ export const GlobalClimateGlobe3D: React.FC = () => {
       initialPinchDistance = null;
     };
 
-    // Style canvas to prevent browser gestures and fill viewport
     const domElement = renderer.domElement;
     domElement.style.touchAction = "none";
     domElement.style.display = "block";
     domElement.style.width = "100%";
     domElement.style.height = "100%";
 
-    // Attach interaction listeners directly to container AND domElement
     container.addEventListener("mousedown", handlePointerDown);
     container.addEventListener("wheel", handleWheel, { passive: false });
     container.addEventListener("touchstart", handleTouchStart, { passive: false });
@@ -623,7 +804,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
     window.addEventListener("touchmove", handleTouchMove, { passive: false });
     window.addEventListener("touchend", handleTouchEnd);
 
-    // 12. Main Real-Time Animation Loop (Using high-precision timestamp without deprecated THREE.Clock)
+    // 10. Main High-Precision Real-Time Animation Loop
     let animationFrameId: number;
     let lastTime = performance.now();
     let elapsedSimSeconds = 0;
@@ -635,7 +816,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
       lastTime = nowMs;
       elapsedSimSeconds += delta;
 
-      // Smooth camera zoom interpolation toward targetCameraZRef
+      // Smooth camera zoom interpolation
       if (cameraRef.current) {
         cameraRef.current.position.z += (targetCameraZRef.current - cameraRef.current.position.z) * 0.18;
         cameraRef.current.lookAt(0, 0, 0);
@@ -647,17 +828,15 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         }
       }
 
-      // Update simulation time offset
+      // Simulation time progression
       const speedMultiplier = simSpeed === "1440x" ? 1440 : simSpeed === "60x" ? 60 : 1;
       simTimeOffsetRef.current += delta * speedMultiplier;
 
-      // Real-time astronomical subsolar point calculation
+      // Real-time astronomical subsolar calculation
       const now = new Date(Date.now() + simTimeOffsetRef.current * 1000);
       const utcHours = now.getUTCHours() + now.getUTCMinutes() / 60 + now.getUTCSeconds() / 3600;
 
-      // Subsolar Longitude
       const subsolarLonDeg = -(utcHours - 12) * 15;
-      // Solar Declination
       const dayOfYear = Math.floor(
         (now.getTime() - new Date(now.getUTCFullYear(), 0, 0).getTime()) / 86400000
       );
@@ -665,16 +844,26 @@ export const GlobalClimateGlobe3D: React.FC = () => {
 
       const sunVec = latLonToVector3(subsolarLatDeg, subsolarLonDeg, 1.0).normalize();
 
+      // Update Earth Shader Uniforms
       if (earthShaderMatRef.current) {
         earthShaderMatRef.current.uniforms.sunDirection.value.copy(sunVec);
+        earthShaderMatRef.current.uniforms.uTime.value = elapsedSimSeconds;
         earthShaderMatRef.current.uniforms.useTerminator.value = layers.terminator ? 1.0 : 0.0;
         earthShaderMatRef.current.uniforms.useSpecular.value = layers.specularGlint ? 1.0 : 0.0;
+        earthShaderMatRef.current.uniforms.useCloudShadows.value = layers.cloudShadows ? 1.0 : 0.0;
       }
 
-      // Atmospheric Cloud Drift
-      if (cloudsMeshRef.current) {
-        cloudsMeshRef.current.visible = layers.clouds;
-        cloudsMeshRef.current.rotation.y += delta * 0.022;
+      // Update Real-Time Fluid Cloud Shader
+      if (cloudsShaderMatRef.current) {
+        cloudsShaderMatRef.current.uniforms.sunDirection.value.copy(sunVec);
+        cloudsShaderMatRef.current.uniforms.uTime.value = elapsedSimSeconds;
+        cloudsShaderMatRef.current.uniforms.visible.value = layers.clouds ? 1.0 : 0.0;
+      }
+
+      // Update Atmospheric Rayleigh Halo
+      if (atmosphereShaderMatRef.current) {
+        atmosphereShaderMatRef.current.uniforms.sunDirection.value.copy(sunVec);
+        atmosphereShaderMatRef.current.uniforms.visible.value = layers.atmosphereGlow ? 1.0 : 0.0;
       }
 
       // Monsoonal Stream Particle Movement
@@ -711,14 +900,14 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         });
       }
 
-      // Planetary Auto-Rotation
+      // Planetary Orbital Rotation
       if (autoRotate && !isDragging && globeGroupRef.current) {
         globeGroupRef.current.rotation.y += 0.0016;
       }
 
       renderer.render(scene, camera);
 
-      // Periodically update telemetry state
+      // Telemetry update
       if (Math.floor(elapsedSimSeconds * 10) % 6 === 0) {
         const kolkataVec = latLonToVector3(22.57, 88.36, 1.0).normalize();
         const kolkataSunDot = kolkataVec.dot(sunVec);
@@ -730,13 +919,13 @@ export const GlobalClimateGlobe3D: React.FC = () => {
           subsolarLat: `${subsolarLatDeg >= 0 ? "+" : ""}${subsolarLatDeg.toFixed(1)}°`,
           kolkataSolarAngle: `${solarZenithDeg.toFixed(0)}° ${kolkataSunDot > 0 ? "Zenith" : "Nadir"}`,
           isKolkataDay: kolkataSunDot > -0.1,
+          cloudDriftStatus: "Tropical Trade Wind & Jet Stream Advection Active",
         });
       }
     };
 
     animate();
 
-    // 13. Responsive ResizeObserver
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const newW = entry.contentRect.width;
@@ -750,7 +939,6 @@ export const GlobalClimateGlobe3D: React.FC = () => {
     });
     resizeObserver.observe(container);
 
-    // 14. Cleanup
     return () => {
       cancelAnimationFrame(animationFrameId);
       container.removeEventListener("mousedown", handlePointerDown);
@@ -770,7 +958,9 @@ export const GlobalClimateGlobe3D: React.FC = () => {
       sphereGeo.dispose();
       earthShaderMat.dispose();
       cloudsGeo.dispose();
-      cloudsMat.dispose();
+      cloudsShaderMat.dispose();
+      atmosphereGeo.dispose();
+      atmosphereShaderMat.dispose();
       moistureLineGeo.dispose();
       moistureLineMat.dispose();
       particleGeo.dispose();
@@ -782,11 +972,13 @@ export const GlobalClimateGlobe3D: React.FC = () => {
     autoRotate,
     simSpeed,
     layers.clouds,
+    layers.cloudShadows,
     layers.terminator,
+    layers.atmosphereGlow,
+    layers.specularGlint,
     layers.sstAnomalies,
     layers.vaporStream,
     layers.beacons,
-    layers.specularGlint,
   ]);
 
   const handleZoom = (direction: "in" | "out") => {
@@ -821,7 +1013,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
   };
 
   return (
-    <div className="relative w-full rounded-xl bg-[#030712] border border-cyan-500/25 overflow-hidden shadow-2xl backdrop-blur-xl transition-all duration-300">
+    <div className="relative w-full rounded-2xl bg-[#02040a] border border-cyan-500/25 overflow-hidden shadow-2xl backdrop-blur-xl transition-all duration-300">
       {/* Top Operations Telemetry HUD */}
       <div className="flex flex-wrap items-center justify-between p-3.5 border-b border-slate-800/80 bg-[#070d1e]/90 gap-2 text-xs font-mono">
         <div className="flex items-center gap-2.5">
@@ -829,10 +1021,10 @@ export const GlobalClimateGlobe3D: React.FC = () => {
           <div className="flex flex-col">
             <span className="font-bold text-slate-100 tracking-wider uppercase flex items-center gap-1.5 font-sans text-sm">
               <Satellite className="w-4 h-4 text-cyan-400" />
-              NASA Satellite Earth Twin
+              Photorealistic Earth & Real-Time Fluid Cloud Dynamics
             </span>
             <span className="text-[10px] text-cyan-400 font-mono">
-              BLUE MARBLE DAYLIGHT • BLACK MARBLE NIGHT LIGHTS • REAL-TIME SUN TERMINATOR
+              BLUE MARBLE SATELLITE • ATMOSPHERIC CLOUD CIRCULATION • SHADOW PROJECTION • RAYLEIGH LIMB
             </span>
           </div>
         </div>
@@ -840,9 +1032,9 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         {/* Live Simulation Speed Selector & Camera Controls */}
         <div className="flex items-center gap-2">
           {satelliteSourceLoaded && (
-            <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-xs bg-emerald-950/60 border border-emerald-500/40 text-[10px] font-mono text-emerald-400 font-bold">
+            <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-500/40 text-[10px] font-mono text-emerald-400 font-bold">
               <Sparkles className="w-2.5 h-2.5" />
-              NASA 2K SATELLITE FEED ACTIVE
+              NASA SATELLITE FEED
             </span>
           )}
 
@@ -852,12 +1044,12 @@ export const GlobalClimateGlobe3D: React.FC = () => {
               <button
                 key={speed}
                 onClick={() => setSimSpeed(speed)}
-                className={`px-2 py-0.5 rounded-xs transition-all cursor-pointer ${
+                className={`px-2 py-0.5 rounded transition-all cursor-pointer ${
                   simSpeed === speed
                     ? "bg-cyan-500/25 text-cyan-300 border border-cyan-500/40 font-bold shadow-[0_0_8px_rgba(6,182,212,0.3)]"
                     : "text-slate-400 hover:text-slate-200"
                 }`}
-                title={speed === "1x" ? "Real-Time 1:1" : `${speed} Accelerated Diurnal Cycle`}
+                title={speed === "1x" ? "Real-Time 1:1 Cloud Motion" : `${speed} Accelerated Weather System Drift`}
               >
                 {speed === "1x" ? "1x (LIVE)" : speed}
               </button>
@@ -906,12 +1098,12 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         </div>
       </div>
 
-      {/* Real-time Astronomical Telemetry Strip */}
+      {/* Real-time Astronomical & Cloud Telemetry Strip */}
       <div className="px-3.5 py-1.5 bg-[#050a14] border-b border-slate-800/70 flex flex-wrap items-center justify-between text-[10px] font-mono text-slate-300 gap-2">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
             <Clock className="w-3 h-3 text-cyan-400" />
-            <span className="text-slate-400">UTC CLOCK:</span>
+            <span className="text-slate-400">UTC:</span>
             <span className="text-white font-bold">{simTelemetry.utcTime}</span>
           </div>
           <span className="text-slate-700">•</span>
@@ -922,11 +1114,16 @@ export const GlobalClimateGlobe3D: React.FC = () => {
               {simTelemetry.subsolarLat}, {simTelemetry.subsolarLon}
             </span>
           </div>
+          <span className="text-slate-700 hidden md:inline">•</span>
+          <div className="hidden md:flex items-center gap-1.5 text-cyan-300">
+            <Wind className="w-3 h-3 text-cyan-400" />
+            <span>CLOUD CIRCULATION: ACTIVE</span>
+          </div>
         </div>
 
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
-            <span className="text-slate-400">KOLKATA SUN:</span>
+            <span className="text-slate-400">KOLKATA:</span>
             <span
               className={`px-1.5 py-0.2 rounded font-bold ${
                 simTelemetry.isKolkataDay
@@ -934,21 +1131,21 @@ export const GlobalClimateGlobe3D: React.FC = () => {
                   : "bg-indigo-950/60 text-indigo-300 border border-indigo-500/40"
               }`}
             >
-              {simTelemetry.isKolkataDay ? "DAYLIGHT (SOLAR FLUX)" : "NIGHT (BLACK MARBLE GRID)"}
+              {simTelemetry.isKolkataDay ? "DAYLIGHT (SOLAR FLUX)" : "NIGHT (CITY LIGHTS)"}
             </span>
           </div>
           <span className="text-slate-700">•</span>
           <div className="text-slate-400">
-            SOLAR ZENITH: <span className="text-sky-300 font-bold">{simTelemetry.kolkataSolarAngle}</span>
+            ZENITH: <span className="text-sky-300 font-bold">{simTelemetry.kolkataSolarAngle}</span>
           </div>
         </div>
       </div>
 
-      {/* 3D WebGL Canvas Viewport with TOUCH-ACTION: NONE to prevent browser page zoom */}
+      {/* 3D WebGL Canvas Viewport */}
       <div
         ref={containerRef}
         style={{ touchAction: "none" }}
-        className="w-full h-[400px] sm:h-[480px] cursor-grab active:cursor-grabbing relative overflow-hidden select-none"
+        className="w-full h-[420px] sm:h-[500px] cursor-grab active:cursor-grabbing relative overflow-hidden select-none"
       />
 
       {/* Live Simulation Layer Filters */}
@@ -956,51 +1153,71 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-mono">
           <span className="text-slate-400 mr-1 uppercase flex items-center gap-1 font-bold">
             <Layers className="w-3.5 h-3.5 text-cyan-400" />
-            SATELLITE LAYERS:
+            LAYERS:
           </span>
           <button
+            onClick={() => toggleLayer("clouds")}
+            className={`px-2 py-0.5 rounded border cursor-pointer transition ${
+              layers.clouds
+                ? "bg-cyan-950/60 text-cyan-300 border-cyan-500/50 font-bold"
+                : "bg-slate-900 text-slate-500 border-slate-800"
+            }`}
+          >
+            FLUID CLOUDS
+          </button>
+          <button
+            onClick={() => toggleLayer("cloudShadows")}
+            className={`px-2 py-0.5 rounded border cursor-pointer transition ${
+              layers.cloudShadows
+                ? "bg-sky-950/60 text-sky-300 border-sky-500/50 font-bold"
+                : "bg-slate-900 text-slate-500 border-slate-800"
+            }`}
+          >
+            CLOUD SHADOWS
+          </button>
+          <button
+            onClick={() => toggleLayer("atmosphereGlow")}
+            className={`px-2 py-0.5 rounded border cursor-pointer transition ${
+              layers.atmosphereGlow
+                ? "bg-blue-950/60 text-blue-300 border-blue-500/50 font-bold"
+                : "bg-slate-900 text-slate-500 border-slate-800"
+            }`}
+          >
+            RAYLEIGH LIMB
+          </button>
+          <button
             onClick={() => toggleLayer("terminator")}
-            className={`px-2 py-0.5 rounded-xs border cursor-pointer ${
+            className={`px-2 py-0.5 rounded border cursor-pointer transition ${
               layers.terminator
                 ? "bg-cyan-950/40 text-cyan-300 border-cyan-500/50 font-bold"
                 : "bg-slate-900 text-slate-500 border-slate-800"
             }`}
           >
-            SOLAR TERMINATOR
+            DAY / NIGHT
           </button>
           <button
             onClick={() => toggleLayer("specularGlint")}
-            className={`px-2 py-0.5 rounded-xs border cursor-pointer ${
+            className={`px-2 py-0.5 rounded border cursor-pointer transition ${
               layers.specularGlint
                 ? "bg-sky-950/40 text-sky-300 border-sky-500/50 font-bold"
                 : "bg-slate-900 text-slate-500 border-slate-800"
             }`}
           >
-            OCEAN SPECULAR GLINT
-          </button>
-          <button
-            onClick={() => toggleLayer("clouds")}
-            className={`px-2 py-0.5 rounded-xs border cursor-pointer ${
-              layers.clouds
-                ? "bg-slate-800 text-slate-200 border-slate-600 font-bold"
-                : "bg-slate-900 text-slate-500 border-slate-800"
-            }`}
-          >
-            ATMOSPHERIC CLOUDS
+            OCEAN GLINT
           </button>
           <button
             onClick={() => toggleLayer("vaporStream")}
-            className={`px-2 py-0.5 rounded-xs border cursor-pointer ${
+            className={`px-2 py-0.5 rounded border cursor-pointer transition ${
               layers.vaporStream
                 ? "bg-emerald-950/40 text-emerald-300 border-emerald-500/50 font-bold"
                 : "bg-slate-900 text-slate-500 border-slate-800"
             }`}
           >
-            MONSOON VAPOR JETS
+            MONSOON JETS
           </button>
           <button
             onClick={() => toggleLayer("sstAnomalies")}
-            className={`px-2 py-0.5 rounded-xs border cursor-pointer ${
+            className={`px-2 py-0.5 rounded border cursor-pointer transition ${
               layers.sstAnomalies
                 ? "bg-amber-950/40 text-amber-300 border-amber-500/50 font-bold"
                 : "bg-slate-900 text-slate-500 border-slate-800"
@@ -1011,7 +1228,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         </div>
 
         <div className="text-[10px] font-mono text-slate-400">
-          Zoom: <span className="text-cyan-400 font-bold">{zoomLevel}x</span> | Scroll Wheel / Pinch to Zoom (3D Model Only)
+          Zoom: <span className="text-cyan-400 font-bold">{zoomLevel}x</span> | Mouse Wheel / Pinch to Zoom (3D View Only)
         </div>
       </div>
 
@@ -1038,7 +1255,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         </div>
 
         <div className="text-[10px] font-mono text-slate-400">
-          Focus: <span className="text-cyan-300 font-bold">{activeHotspot.name.split(":")[0]}</span>
+          Target: <span className="text-cyan-300 font-bold">{activeHotspot.name.split(":")[0]}</span>
         </div>
       </div>
 
