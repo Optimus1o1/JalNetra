@@ -445,7 +445,8 @@ export const GlobalClimateGlobe3D: React.FC = () => {
             vUv.y + sin(vUv.x * 6.28318 + uCloudTime * 0.025) * 0.003
           );
           vec4 cloudSample = texture2D(cloudMap, cloudUv);
-          float cloudDensity = max(cloudSample.r, cloudSample.a);
+          // Authentic NASA Satellite Cloud Optical Depth from greyscale reflectance (.r)
+          float cloudDensity = cloudSample.r;
 
           // -----------------------------------------------------------------
           // REAL-TIME HIGH-CONTRAST DARK CLOUD SHADOWS (LOCKSTEP WITH CLOUDS)
@@ -454,7 +455,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
             vec2 shadowOffset = -normalize(s.xy + vec2(0.0001)) * 0.0055;
             float cShadow = texture2D(cloudMap, cloudUv + shadowOffset).r;
             // Distinct deep shadow darkening (85% light reduction under dense clouds)
-            float shadowFactor = smoothstep(0.18, 0.60, cShadow) * 0.85;
+            float shadowFactor = smoothstep(0.15, 0.55, cShadow) * 0.85;
             dayRgb *= (1.0 - shadowFactor * dayFactor);
           }
 
@@ -554,12 +555,13 @@ export const GlobalClimateGlobe3D: React.FC = () => {
           );
 
           vec4 cloudSample = texture2D(cloudMap, cloudUv);
-          float cloudDensity = max(cloudSample.r, cloudSample.a);
+          // Authentic NASA Satellite Cloud Optical Depth from greyscale reflectance (.r)
+          float cloudDensity = cloudSample.r;
 
           // ---------------------------------------------------------------
-          // CRISP SATELLITE THRESHOLD: CLEAR SKIES ARE 100% CRYSTAL CLEAR!
+          // AUTHENTIC SATELLITE THRESHOLD: CLEAR SKIES ARE 100% CRYSTAL CLEAR!
           // ---------------------------------------------------------------
-          float alpha = smoothstep(0.16, 0.58, cloudDensity) * cloudOpacity;
+          float alpha = smoothstep(0.12, 0.52, cloudDensity) * cloudOpacity;
           if (alpha < 0.02) discard; // ZERO HAZE OVER CLEAR CONTINENTS AND SEAS
 
           float sunDot = dot(n, s);
