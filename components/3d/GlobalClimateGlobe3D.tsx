@@ -16,6 +16,9 @@ import {
   Wind,
   MousePointerClick,
   Eye,
+  Sunset,
+  Moon,
+  Sliders,
 } from "lucide-react";
 
 export type DeviceTier = "checking" | "full" | "lite" | "off";
@@ -126,7 +129,7 @@ function geoToCanvas(lon: number, lat: number, w: number, h: number) {
 }
 
 /* ========================================================= */
-/* Procedural Fallback Textures (Ensures zero black screen)   */
+/* Procedural Fallback Textures (Clean & Neutral Contrast)   */
 /* ========================================================= */
 function generateFallbackDayTexture(): THREE.CanvasTexture {
   const w = 512;
@@ -137,18 +140,15 @@ function generateFallbackDayTexture(): THREE.CanvasTexture {
   const ctx = canvas.getContext("2d");
   if (!ctx) return new THREE.CanvasTexture(canvas);
 
-  const grad = ctx.createLinearGradient(0, 0, 0, h);
-  grad.addColorStop(0, "#081d36");
-  grad.addColorStop(0.5, "#0b2e59");
-  grad.addColorStop(1, "#081d36");
-  ctx.fillStyle = grad;
+  // Natural deep ocean
+  ctx.fillStyle = "#0c1f38";
   ctx.fillRect(0, 0, w, h);
 
-  ctx.fillStyle = "#264e2e";
-  // Eurasia / India
-  ctx.fillRect(w * 0.65, h * 0.35, w * 0.12, h * 0.2);
-  // Americas
-  ctx.fillRect(w * 0.2, h * 0.25, w * 0.15, h * 0.35);
+  // Natural continental green/browns
+  ctx.fillStyle = "#2e5934";
+  ctx.fillRect(w * 0.62, h * 0.32, w * 0.15, h * 0.22); // Eurasia / India
+  ctx.fillRect(w * 0.18, h * 0.24, w * 0.16, h * 0.38); // Americas
+  ctx.fillRect(w * 0.48, h * 0.42, w * 0.10, h * 0.25); // Africa
 
   const tex = new THREE.CanvasTexture(canvas);
   tex.wrapS = THREE.RepeatWrapping;
@@ -182,6 +182,8 @@ function generateFallbackNightTexture(): THREE.CanvasTexture {
   return tex;
 }
 
+export type SolarMode = "live" | "noon" | "sunset" | "night" | "manual";
+
 export const GlobalClimateGlobe3D: React.FC = () => {
   const deviceTier = useDeviceTier();
 
@@ -191,6 +193,10 @@ export const GlobalClimateGlobe3D: React.FC = () => {
   const [autoRotate, setAutoRotate] = useState<boolean>(true);
   const [zoomLevel, setZoomLevel] = useState<number>(1);
   const [satelliteSourceLoaded, setSatelliteSourceLoaded] = useState<boolean>(false);
+
+  // Day/Night Solar Lighting Mode
+  const [solarMode, setSolarMode] = useState<SolarMode>("noon");
+  const [solarLongitude, setSolarLongitude] = useState<number>(88.36); // Default noon over Kolkata
 
   // Simulation Controls & Telemetry State
   const [simSpeed, setSimSpeed] = useState<"1x" | "60x" | "1440x">("1x");
@@ -214,11 +220,11 @@ export const GlobalClimateGlobe3D: React.FC = () => {
     cloudDriftStatus: string;
   }>({
     utcTime: "12:00:00 UTC",
-    subsolarLon: "0.0°",
-    subsolarLat: "+12.4°",
-    kolkataSolarAngle: "78° Solar Noon",
+    subsolarLon: "88.4° E",
+    subsolarLat: "+18.2° N",
+    kolkataSolarAngle: "84° Solar Noon",
     isKolkataDay: true,
-    cloudDriftStatus: "Tropical Trade Wind & Jet Stream Advection Active",
+    cloudDriftStatus: "Authentic NASA Satellite Cloud Systems Active",
   });
 
   // Mutable refs for zero-re-render Three.js animation loop (/3d-design rule)
@@ -230,6 +236,12 @@ export const GlobalClimateGlobe3D: React.FC = () => {
 
   const autoRotateRef = useRef(autoRotate);
   autoRotateRef.current = autoRotate;
+
+  const solarModeRef = useRef<SolarMode>(solarMode);
+  solarModeRef.current = solarMode;
+
+  const solarLongitudeRef = useRef<number>(solarLongitude);
+  solarLongitudeRef.current = solarLongitude;
 
   const isVisibleRef = useRef<boolean>(true);
   const targetCameraZRef = useRef<number>(210);
@@ -252,6 +264,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
   const earthShaderMatRef = useRef<THREE.ShaderMaterial | null>(null);
   const cloudsShaderMatRef = useRef<THREE.ShaderMaterial | null>(null);
   const atmosphereShaderMatRef = useRef<THREE.ShaderMaterial | null>(null);
+  const cloudsMeshRef = useRef<THREE.Mesh | null>(null);
 
   const toggleLayer = (k: keyof typeof layers) => {
     setLayers((prev) => {
@@ -275,6 +288,29 @@ export const GlobalClimateGlobe3D: React.FC = () => {
     }
   };
 
+  // Day / Night Preset Controls
+  const setSolarPreset = (mode: SolarMode) => {
+    setSolarMode(mode);
+    solarModeRef.current = mode;
+    if (mode === "noon") {
+      setSolarLongitude(88.36); // Solar noon over Kolkata
+      solarLongitudeRef.current = 88.36;
+    } else if (mode === "sunset") {
+      setSolarLongitude(88.36 - 90); // Terminator directly bisecting Kolkata
+      solarLongitudeRef.current = 88.36 - 90;
+    } else if (mode === "night") {
+      setSolarLongitude(88.36 - 180); // Midnight over Kolkata (night city lights)
+      solarLongitudeRef.current = 88.36 - 180;
+    }
+  };
+
+  const handleSolarScrub = (val: number) => {
+    setSolarMode("manual");
+    solarModeRef.current = "manual";
+    setSolarLongitude(val);
+    solarLongitudeRef.current = val;
+  };
+
   /* ========================================================= */
   /* Main Single WebGL Canvas Lifecycle Hook                   */
   /* ========================================================= */
@@ -285,12 +321,12 @@ export const GlobalClimateGlobe3D: React.FC = () => {
     if (!container) return;
 
     const width = container.clientWidth || 600;
-    const height = container.clientHeight || 460;
+    const height = container.clientHeight || 480;
 
     // 1. Scene & Perspective Camera
     const scene = new THREE.Scene();
     sceneRef.current = scene;
-    scene.background = new THREE.Color(0x020409); // Deep cosmic void
+    scene.background = new THREE.Color(0x010206); // Deep inky cosmic space (NO wash)
 
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
     camera.position.z = targetCameraZRef.current;
@@ -306,7 +342,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
     renderer.setSize(width, height);
     renderer.setPixelRatio(isFullTier ? Math.min(window.devicePixelRatio, 2) : 1);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.35;
+    renderer.toneMappingExposure = 1.08; // Natural, un-clipped satellite contrast
 
     container.innerHTML = "";
     container.appendChild(renderer.domElement);
@@ -324,7 +360,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
     const fallbackNight = generateFallbackNightTexture();
 
     // =========================================================================
-    // SHADER 1: PHOTOREALISTIC NASA BLUE MARBLE SURFACE + LIVE CLOUD SHADOWS
+    // SHADER 1: PHOTOREALISTIC TRUE-COLOR EARTH SURFACE (CRISP SATELLITE VIEW)
     // =========================================================================
     const earthCustomShader = {
       uniforms: {
@@ -340,12 +376,13 @@ export const GlobalClimateGlobe3D: React.FC = () => {
       },
       vertexShader: `
         varying vec2 vUv;
-        varying vec3 vNormal;
+        varying vec3 vWorldNormal;
         varying vec3 vWorldPosition;
 
         void main() {
           vUv = uv;
-          vNormal = normalize(normalMatrix * normal);
+          // Transform normal to true WORLD space for accurate day/night lighting
+          vWorldNormal = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
           vec4 worldPos = modelMatrix * vec4(position, 1.0);
           vWorldPosition = worldPos.xyz;
           gl_Position = projectionMatrix * viewMatrix * worldPos;
@@ -363,68 +400,64 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         uniform float useCloudShadows;
 
         varying vec2 vUv;
-        varying vec3 vNormal;
+        varying vec3 vWorldNormal;
         varying vec3 vWorldPosition;
 
         void main() {
-          vec3 n = normalize(vNormal);
+          vec3 n = normalize(vWorldNormal);
           vec3 s = normalize(sunDirection);
-          vec3 v = normalize(-vWorldPosition);
+          vec3 v = normalize(cameraPosition - vWorldPosition);
 
+          // World-space solar dot product: positive = daylight, negative = night
           float sunDot = dot(n, s);
-          // Realistic day/night twilight transition
-          float dayFactor = smoothstep(-0.06, 0.14, sunDot);
 
-          // Authentic NASA Blue Marble true-color daytime satellite photography
+          // Clean, unmistakable day/night terminator twilight transition
+          float dayFactor = smoothstep(-0.06, 0.06, sunDot);
+
+          // Authentic NASA Blue Marble true-color satellite photography (NO BLUE WASH)
           vec4 dayColor = texture2D(dayMap, vUv);
-          // Authentic NASA Black Marble nocturnal city lights
-          vec4 nightColor = texture2D(nightMap, vUv);
-          // Ocean mask (water = 1.0, land = 0.0)
+          // Crisp, natural true-color satellite surface
+          vec3 dayRgb = dayColor.rgb * 1.15;
+
+          // Water specular mask (oceans = 1.0, continents = 0.0)
           float specMask = texture2D(specularMap, vUv).r;
 
-          vec3 dayRgb = dayColor.rgb;
-
-          // Deep rich marine depth for oceans
-          if (specMask > 0.05) {
-            dayRgb = mix(dayRgb, vec3(dayRgb.r * 0.72, dayRgb.g * 0.88, dayRgb.b * 1.25), 0.42);
-          }
+          // Realistic cloud drift coordinates matching the cloud layer
+          vec2 cloudUv = vec2(vUv.x + uTime * 0.0008, vUv.y);
+          vec4 cloudSample = texture2D(cloudMap, cloudUv);
+          float cloudDensity = max(cloudSample.r, cloudSample.a);
 
           // -----------------------------------------------------------------
-          // REAL-TIME CLOUD SHADOW PROJECTION ONTO EARTH CONTINENTS & OCEANS
+          // REAL-TIME SHARP CLOUD SHADOWS (ONLY DIRECTLY UNDER CLOUDS)
           // -----------------------------------------------------------------
           if (useCloudShadows > 0.5) {
-            float absLat = abs(vUv.y - 0.5) * 2.0;
-            float tradeSpeed = (absLat < 0.4) ? 0.0022 : -0.003;
-            vec2 cUv1 = vec2(vUv.x + uTime * tradeSpeed, vUv.y + sin(vUv.x * 12.566 + uTime * 0.02) * 0.0025);
-            vec2 cUv2 = vec2(vUv.x - uTime * 0.0018, vUv.y + cos(vUv.x * 9.424 - uTime * 0.025) * 0.003);
-
-            // Shift shadow slightly opposite the solar vector for authentic physical altitude offset
-            vec2 shadowOffset = -normalize(s.xy + vec2(0.0001)) * 0.005;
-            float cShadow1 = texture2D(cloudMap, cUv1 + shadowOffset).r;
-            float cShadow2 = texture2D(cloudMap, cUv2 + shadowOffset).r;
-            float cloudShadow = max(cShadow1 * 0.88, cShadow2 * 0.74);
-
-            // Cast soft realistic cloud shadow on daytime continents & oceans
-            dayRgb *= (1.0 - cloudShadow * 0.52);
+            vec2 shadowOffset = -normalize(s.xy + vec2(0.0001)) * 0.0035;
+            float cShadow = texture2D(cloudMap, cloudUv + shadowOffset).r;
+            float shadowFactor = smoothstep(0.28, 0.72, cShadow) * 0.42;
+            dayRgb *= (1.0 - shadowFactor * dayFactor);
           }
 
           // Photorealistic oceanic sun glint (bright celestial reflection over water)
           vec3 r = reflect(-s, n);
-          float spec = pow(max(0.0, dot(r, v)), 38.0) * specMask * useSpecular * 3.2;
-          vec3 sunGlint = vec3(1.0, 0.98, 0.92) * spec * max(0.0, sunDot);
+          float spec = pow(max(0.0, dot(r, v)), 32.0) * specMask * useSpecular * 3.0;
+          vec3 sunGlint = vec3(1.0, 0.96, 0.90) * spec * max(0.0, sunDot);
+          dayRgb += sunGlint;
 
-          // Authentic Black Marble nocturnal city lights
-          vec3 nightLit = nightColor.rgb * 2.6;
-          // Dim nocturnal city lights under heavy storm cloud formations
-          float nightCloud = texture2D(cloudMap, vUv).r;
-          nightLit *= (1.0 - nightCloud * 0.75);
+          // Sunset / Sunrise golden-crimson twilight glow along the terminator line
+          float twilight = exp(-pow(sunDot / 0.07, 2.0));
+          vec3 sunsetGlow = vec3(1.0, 0.45, 0.15) * twilight * 0.55;
+          vec3 dayLit = dayRgb + sunsetGlow;
 
-          // Warm terminator twilight tint
-          float terminator = exp(-pow(sunDot / 0.12, 2.0));
-          vec3 terminatorTint = vec3(0.9, 0.45, 0.18) * terminator * 0.25;
+          // -----------------------------------------------------------------
+          // HIGH-CONTRAST NOCTURNAL NIGHT SIDE WITH SPARKLING CITY LIGHTS
+          // -----------------------------------------------------------------
+          vec3 nightBase = vec3(0.005, 0.008, 0.015); // Deep dark space terrestrial navy
+          vec3 cityLights = texture2D(nightMap, vUv).rgb * 4.2; // Brilliant NASA Black Marble cities
+          // Clouds realistically obscure city lights from space
+          cityLights *= (1.0 - cloudDensity * 0.75);
+          vec3 nightLit = nightBase + cityLights;
 
-          vec3 dayLit = dayRgb + sunGlint + terminatorTint;
-
+          // Final Day / Night Blending
           if (useTerminator > 0.5) {
             vec3 blended = mix(nightLit, dayLit, dayFactor);
             gl_FragColor = vec4(blended, 1.0);
@@ -447,24 +480,24 @@ export const GlobalClimateGlobe3D: React.FC = () => {
     globeGroup.add(earthMesh);
 
     // =========================================================================
-    // SHADER 2: DYNAMIC FLUID ATMOSPHERIC CLOUDS WITH CORIOLIS MOVEMENT
+    // SHADER 2: AUTHENTIC CRISP SATELLITE CLOUDS (ZERO MILK HAZE)
     // =========================================================================
     const cloudsCustomShader = {
       uniforms: {
         cloudMap: { value: fallbackDay },
         sunDirection: { value: new THREE.Vector3(1, 0, 0) },
         uTime: { value: 0.0 },
-        cloudOpacity: { value: 0.9 },
+        cloudOpacity: { value: 0.92 },
         visible: { value: 1.0 },
       },
       vertexShader: `
         varying vec2 vUv;
-        varying vec3 vNormal;
+        varying vec3 vWorldNormal;
         varying vec3 vWorldPosition;
 
         void main() {
           vUv = uv;
-          vNormal = normalize(normalMatrix * normal);
+          vWorldNormal = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
           vec4 worldPos = modelMatrix * vec4(position, 1.0);
           vWorldPosition = worldPos.xyz;
           gl_Position = projectionMatrix * viewMatrix * worldPos;
@@ -478,57 +511,47 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         uniform float visible;
 
         varying vec2 vUv;
-        varying vec3 vNormal;
+        varying vec3 vWorldNormal;
         varying vec3 vWorldPosition;
 
         void main() {
           if (visible < 0.5) discard;
 
-          vec3 n = normalize(vNormal);
+          vec3 n = normalize(vWorldNormal);
           vec3 s = normalize(sunDirection);
-          vec3 v = normalize(-vWorldPosition);
+          vec3 v = normalize(cameraPosition - vWorldPosition);
+
+          // Smooth longitudinal drift of real NASA satellite cloud formations
+          vec2 cloudUv = vec2(vUv.x + uTime * 0.0008, vUv.y);
+          vec4 cloudSample = texture2D(cloudMap, cloudUv);
+          float cloudDensity = max(cloudSample.r, cloudSample.a);
 
           // ---------------------------------------------------------------
-          // DUAL-SPEED LATITUDE-DEPENDENT ATMOSPHERIC ADVECTION
+          // CRISP SATELLITE THRESHOLD: CLEAR SKIES ARE 100% CRYSTAL CLEAR!
           // ---------------------------------------------------------------
-          float absLat = abs(vUv.y - 0.5) * 2.0;
-          // Flow 1: Equatorial Easterlies / Trade Winds vs Mid-Latitude Westerlies
-          float windSpeed1 = (absLat < 0.4) ? 0.0022 : -0.003;
-          float windSpeed2 = (absLat < 0.4) ? -0.0018 : 0.0024;
+          float alpha = smoothstep(0.24, 0.70, cloudDensity) * cloudOpacity;
+          if (alpha < 0.02) discard; // ZERO HAZE OVER CLEAR CONTINENTS AND SEAS
 
-          vec2 uv1 = vec2(vUv.x + uTime * windSpeed1, vUv.y + sin(vUv.x * 12.566 + uTime * 0.02) * 0.0025);
-          vec2 uv2 = vec2(vUv.x + uTime * windSpeed2, vUv.y + cos(vUv.x * 9.424 - uTime * 0.025) * 0.003);
-
-          float c1 = texture2D(cloudMap, uv1).r;
-          float c2 = texture2D(cloudMap, uv2).r;
-
-          // Blend multiple atmospheric wind regimes with fluid curl interference
-          float cloudDensity = max(c1 * 0.9, c2 * 0.76) + (c1 * c2 * 0.35);
-
-          // Soft volumetric density falloff
-          float alpha = smoothstep(0.12, 0.82, cloudDensity) * cloudOpacity;
-          if (alpha < 0.015) discard;
-
-          // Solar Lighting & Rayleigh Twilight Scattering on Clouds
           float sunDot = dot(n, s);
-          float dayFactor = smoothstep(-0.08, 0.16, sunDot);
+          float dayFactor = smoothstep(-0.06, 0.08, sunDot);
 
-          // Forward Mie scattering (silver lining when looking towards the sun rim)
-          float forwardScatter = pow(max(0.0, dot(v, s)), 5.0) * 0.48;
+          // Day: Brilliant, crisp sunlit cloud tops with subtle solar shading
+          vec3 dayCloudColor = vec3(0.98, 0.99, 1.0) * (0.88 + 0.32 * max(0.0, sunDot));
 
-          // Sunset / Sunrise warm golden twilight tint on the terminator
-          float terminatorScatter = exp(-pow((sunDot - 0.02) / 0.12, 2.0));
-          vec3 twilightTint = vec3(1.0, 0.62, 0.32) * terminatorScatter * 0.95;
+          // Forward Mie scattering on the sunlit rim
+          float mie = pow(max(0.0, dot(v, s)), 4.0) * 0.35;
+          dayCloudColor += vec3(1.0, 1.0, 1.0) * mie;
 
-          // Day-lit cloud tops
-          vec3 dayCloudRgb = vec3(0.98, 0.99, 1.0) * (0.86 + forwardScatter) + twilightTint;
+          // Sunset twilight golden-amber scattering along the terminator
+          float twilight = exp(-pow(sunDot / 0.10, 2.0));
+          dayCloudColor = mix(dayCloudColor, vec3(1.0, 0.62, 0.28), twilight * 0.9);
 
-          // Night-side clouds (realistic dark charcoal, absorbing light)
-          vec3 nightCloudRgb = vec3(0.015, 0.02, 0.035);
+          // Night side: dark silhouette charcoal absorbing light (blocking ground lights)
+          vec3 nightCloudColor = vec3(0.012, 0.015, 0.022);
 
-          vec3 finalCloudRgb = mix(nightCloudRgb, dayCloudRgb, dayFactor);
+          vec3 finalCloudColor = mix(nightCloudColor, dayCloudColor, dayFactor);
 
-          gl_FragColor = vec4(finalCloudRgb, alpha);
+          gl_FragColor = vec4(finalCloudColor, alpha * (dayFactor * 0.65 + 0.35));
         }
       `,
     };
@@ -542,12 +565,13 @@ export const GlobalClimateGlobe3D: React.FC = () => {
     });
     cloudsShaderMatRef.current = cloudsShaderMat;
 
-    const cloudsGeo = new THREE.SphereGeometry(GLOBE_RADIUS * 1.008, isFullTier ? 64 : 48, isFullTier ? 64 : 48);
+    const cloudsGeo = new THREE.SphereGeometry(GLOBE_RADIUS * 1.006, isFullTier ? 64 : 48, isFullTier ? 64 : 48);
     const cloudsMesh = new THREE.Mesh(cloudsGeo, cloudsShaderMat);
+    cloudsMeshRef.current = cloudsMesh;
     globeGroup.add(cloudsMesh);
 
     // =========================================================================
-    // SHADER 3: PHOTOREALISTIC RAYLEIGH ATMOSPHERIC HORIZON CORONA
+    // SHADER 3: RAZOR-THIN LIMB ATMOSPHERE HALO (BACKSIDE - ZERO SURFACE HAZE)
     // =========================================================================
     const atmosphereShader = {
       uniforms: {
@@ -555,11 +579,11 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         visible: { value: 1.0 },
       },
       vertexShader: `
-        varying vec3 vNormal;
+        varying vec3 vWorldNormal;
         varying vec3 vWorldPosition;
 
         void main() {
-          vNormal = normalize(normalMatrix * normal);
+          vWorldNormal = normalize((modelMatrix * vec4(normal, 0.0)).xyz);
           vec4 worldPos = modelMatrix * vec4(position, 1.0);
           vWorldPosition = worldPos.xyz;
           gl_Position = projectionMatrix * viewMatrix * worldPos;
@@ -569,29 +593,34 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         uniform vec3 sunDirection;
         uniform float visible;
 
-        varying vec3 vNormal;
+        varying vec3 vWorldNormal;
         varying vec3 vWorldPosition;
 
         void main() {
           if (visible < 0.5) discard;
 
-          vec3 n = normalize(vNormal);
+          vec3 n = normalize(vWorldNormal);
           vec3 s = normalize(sunDirection);
-          vec3 v = normalize(-vWorldPosition);
+          vec3 v = normalize(cameraPosition - vWorldPosition);
 
-          // Razor-thin limb Fresnel against deep space
-          float fresnel = pow(1.0 - max(0.0, dot(v, n)), 3.8);
-          float sunDot = dot(n, s);
-          float dayFactor = smoothstep(-0.25, 0.35, sunDot);
+          // BackSide rendering: Earth sphere in front occludes center.
+          // Only the razor-thin outer limb protruding past the planet is drawn!
+          float rim = pow(max(0.0, dot(v, -n)), 3.0);
 
-          // Sunset twilight reddening along terminator
-          float twilight = exp(-pow((sunDot + 0.05) / 0.22, 2.0));
-          vec3 twilightColor = vec3(0.92, 0.42, 0.16) * twilight * 0.75;
+          // Sunlit hemisphere facing factor
+          float sunFacing = dot(normalize(vWorldPosition), s);
+          float dayFactor = smoothstep(-0.25, 0.4, sunFacing);
 
-          vec3 atmosBlue = vec3(0.18, 0.58, 1.0) * 1.5;
-          vec3 finalAtmos = (atmosBlue + twilightColor) * fresnel * (dayFactor * 0.95 + 0.05);
+          // Electric cyan-blue Rayleigh glow on day rim
+          vec3 blueColor = vec3(0.22, 0.62, 1.0) * 1.8;
+          // Sunset twilight reddening on terminator rim
+          float sunset = exp(-pow(sunFacing / 0.22, 2.0));
+          vec3 sunsetColor = vec3(1.0, 0.48, 0.18) * sunset * 1.5;
 
-          gl_FragColor = vec4(finalAtmos, fresnel * dayFactor * 0.85);
+          vec3 atmosColor = (blueColor + sunsetColor) * rim;
+          float alpha = rim * (dayFactor * 0.92 + 0.08);
+
+          gl_FragColor = vec4(atmosColor, alpha);
         }
       `,
     };
@@ -603,21 +632,27 @@ export const GlobalClimateGlobe3D: React.FC = () => {
       transparent: true,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
-      side: THREE.FrontSide,
+      side: THREE.BackSide, // CRUCIAL: Eliminates all front-surface blue wash!
     });
     atmosphereShaderMatRef.current = atmosphereShaderMat;
 
-    const atmosphereGeo = new THREE.SphereGeometry(GLOBE_RADIUS * 1.018, isFullTier ? 64 : 48, isFullTier ? 64 : 48);
+    const atmosphereGeo = new THREE.SphereGeometry(GLOBE_RADIUS * 1.025, isFullTier ? 64 : 48, isFullTier ? 64 : 48);
     const atmosphereMesh = new THREE.Mesh(atmosphereGeo, atmosphereShaderMat);
     globeGroup.add(atmosphereMesh);
 
     // =========================================================================
     // ASYNCHRONOUS LOAD OF AUTHENTIC NASA SATELLITE TEXTURES
     // =========================================================================
+    const maxAnisotropy = renderer.capabilities.getMaxAnisotropy();
+
     textureLoader.load("/textures/earth_day.jpg", (tex) => {
       tex.wrapS = THREE.RepeatWrapping;
       tex.wrapT = THREE.ClampToEdgeWrapping;
       tex.colorSpace = THREE.SRGBColorSpace;
+      tex.generateMipmaps = true;
+      tex.minFilter = THREE.LinearMipmapLinearFilter;
+      tex.magFilter = THREE.LinearFilter;
+      tex.anisotropy = maxAnisotropy;
       earthShaderMat.uniforms.dayMap.value = tex;
       setSatelliteSourceLoaded(true);
     });
@@ -626,30 +661,41 @@ export const GlobalClimateGlobe3D: React.FC = () => {
       tex.wrapS = THREE.RepeatWrapping;
       tex.wrapT = THREE.ClampToEdgeWrapping;
       tex.colorSpace = THREE.SRGBColorSpace;
+      tex.generateMipmaps = true;
+      tex.minFilter = THREE.LinearMipmapLinearFilter;
+      tex.magFilter = THREE.LinearFilter;
+      tex.anisotropy = maxAnisotropy;
       earthShaderMat.uniforms.nightMap.value = tex;
     });
 
     textureLoader.load("/textures/earth_specular.jpg", (tex) => {
       tex.wrapS = THREE.RepeatWrapping;
       tex.wrapT = THREE.ClampToEdgeWrapping;
+      tex.generateMipmaps = true;
+      tex.minFilter = THREE.LinearMipmapLinearFilter;
+      tex.magFilter = THREE.LinearFilter;
       earthShaderMat.uniforms.specularMap.value = tex;
     });
 
     textureLoader.load("/textures/earth_clouds.jpg", (cloudTex) => {
       cloudTex.wrapS = THREE.RepeatWrapping;
       cloudTex.wrapT = THREE.ClampToEdgeWrapping;
+      cloudTex.generateMipmaps = true;
+      cloudTex.minFilter = THREE.LinearMipmapLinearFilter;
+      cloudTex.magFilter = THREE.LinearFilter;
+      cloudTex.anisotropy = maxAnisotropy;
       cloudsShaderMat.uniforms.cloudMap.value = cloudTex;
       earthShaderMat.uniforms.cloudMap.value = cloudTex;
     });
 
     // 5. Monsoonal Moisture Jet Stream (Somali Jet -> Bay of Bengal -> Kolkata)
     const moistureSpline = new THREE.CatmullRomCurve3([
-      latLonToVector3(-15, 60, GLOBE_RADIUS * 1.03),
-      latLonToVector3(-2, 52, GLOBE_RADIUS * 1.035),
-      latLonToVector3(8, 62, GLOBE_RADIUS * 1.04),
-      latLonToVector3(14, 75, GLOBE_RADIUS * 1.04),
-      latLonToVector3(17, 88, GLOBE_RADIUS * 1.035),
-      latLonToVector3(22.57, 88.36, GLOBE_RADIUS * 1.025),
+      latLonToVector3(-15, 60, GLOBE_RADIUS * 1.025),
+      latLonToVector3(-2, 52, GLOBE_RADIUS * 1.03),
+      latLonToVector3(8, 62, GLOBE_RADIUS * 1.035),
+      latLonToVector3(14, 75, GLOBE_RADIUS * 1.035),
+      latLonToVector3(17, 88, GLOBE_RADIUS * 1.03),
+      latLonToVector3(22.57, 88.36, GLOBE_RADIUS * 1.02),
     ]);
 
     const moisturePoints = moistureSpline.getPoints(80);
@@ -657,7 +703,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
     const moistureLineMat = new THREE.LineBasicMaterial({
       color: 0x38bdf8,
       transparent: true,
-      opacity: 0.7,
+      opacity: 0.65,
     });
     const moistureTube = new THREE.Line(moistureLineGeo, moistureLineMat);
     globeGroup.add(moistureTube);
@@ -680,7 +726,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
 
     const particleMat = new THREE.PointsMaterial({
       color: 0x06b6d4,
-      size: 3.4,
+      size: 3.2,
       transparent: true,
       opacity: 0.9,
       blending: THREE.AdditiveBlending,
@@ -853,7 +899,6 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         const earthIntersects = raycaster.intersectObject(earthMesh);
         if (earthIntersects.length > 0) {
           const p = earthIntersects[0].point;
-          // Calculate target rotation to bring clicked point directly facing camera
           const targetRotY = -Math.atan2(p.x, p.z);
           const targetRotX = Math.asin(p.y / GLOBE_RADIUS);
           targetRotationRef.current = {
@@ -1021,15 +1066,28 @@ export const GlobalClimateGlobe3D: React.FC = () => {
       const speedMultiplier = currentSpeed === "1440x" ? 1440 : currentSpeed === "60x" ? 60 : 1;
       simTimeOffsetRef.current += delta * speedMultiplier;
 
-      // Real-time astronomical subsolar calculation
+      // Calculate Astronomical Sun Vector in World Space
+      const mode = solarModeRef.current;
       const now = new Date(Date.now() + simTimeOffsetRef.current * 1000);
-      const utcHours = now.getUTCHours() + now.getUTCMinutes() / 60 + now.getUTCSeconds() / 3600;
+      let subsolarLonDeg: number;
+      let subsolarLatDeg: number;
 
-      const subsolarLonDeg = -(utcHours - 12) * 15;
-      const dayOfYear = Math.floor(
-        (now.getTime() - new Date(now.getUTCFullYear(), 0, 0).getTime()) / 86400000
-      );
-      const subsolarLatDeg = -23.44 * Math.cos(((2 * Math.PI) / 365) * (dayOfYear + 10));
+      if (mode === "live") {
+        const utcHours = now.getUTCHours() + now.getUTCMinutes() / 60 + now.getUTCSeconds() / 3600;
+        subsolarLonDeg = -(utcHours - 12) * 15;
+        const dayOfYear = Math.floor(
+          (now.getTime() - new Date(now.getUTCFullYear(), 0, 0).getTime()) / 86400000
+        );
+        subsolarLatDeg = -23.44 * Math.cos(((2 * Math.PI) / 365) * (dayOfYear + 10));
+      } else {
+        // Preset or Manual Solar Control
+        // If simulation speed is running, allow sun to drift continuously
+        const drift = (simTimeOffsetRef.current * speedMultiplier * 360) / 86400;
+        subsolarLonDeg = ((solarLongitudeRef.current + drift + 180) % 360) - 180;
+        subsolarLatDeg = 20.0; // Northern summer declination
+      }
+
+      // Sun Vector in WORLD space (directed from Sun toward Earth)
       const sunVec = latLonToVector3(subsolarLatDeg, subsolarLonDeg, 1.0).normalize();
 
       const currentLayers = layersRef.current;
@@ -1043,7 +1101,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         earthShaderMatRef.current.uniforms.useCloudShadows.value = currentLayers.cloudShadows ? 1.0 : 0.0;
       }
 
-      // Update Real-Time Fluid Cloud Shader
+      // Update Real-Time Cloud Shader
       if (cloudsShaderMatRef.current) {
         cloudsShaderMatRef.current.uniforms.sunDirection.value.copy(sunVec);
         cloudsShaderMatRef.current.uniforms.uTime.value = elapsedSimSeconds;
@@ -1078,7 +1136,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         });
       }
 
-      // Hotspot Beacons Pulsing & Hover State
+      // Hotspot Beacons Pulsing
       beaconsGroup.visible = currentLayers.beacons;
       if (currentLayers.beacons) {
         beaconMeshes.forEach(({ ring, hotspot }, idx) => {
@@ -1126,20 +1184,25 @@ export const GlobalClimateGlobe3D: React.FC = () => {
 
       renderer.render(scene, camera);
 
-      // Throttled Telemetry update (~2 Hz) to prevent React render churn
+      // Throttled Telemetry update (~2 Hz)
       if (elapsedSimSeconds - lastTelemetryUpdate > 0.45) {
         lastTelemetryUpdate = elapsedSimSeconds;
-        const kolkataVec = latLonToVector3(22.57, 88.36, 1.0).normalize();
-        const kolkataSunDot = kolkataVec.dot(sunVec);
+        // Kolkata surface normal in world coordinates
+        const kolkataLocal = latLonToVector3(22.57, 88.36, 1.0).normalize();
+        let kolkataSunDot = 0;
+        if (globeGroupRef.current) {
+          const kolkataWorld = kolkataLocal.clone().applyQuaternion(globeGroupRef.current.quaternion);
+          kolkataSunDot = kolkataWorld.dot(sunVec);
+        }
         const solarZenithDeg = (Math.acos(Math.max(-1, Math.min(1, kolkataSunDot))) * 180) / Math.PI;
 
         setSimTelemetry({
           utcTime: now.toISOString().slice(11, 19) + " UTC",
           subsolarLon: `${subsolarLonDeg.toFixed(1)}°`,
           subsolarLat: `${subsolarLatDeg >= 0 ? "+" : ""}${subsolarLatDeg.toFixed(1)}°`,
-          kolkataSolarAngle: `${solarZenithDeg.toFixed(0)}° ${kolkataSunDot > 0 ? "Zenith" : "Nadir"}`,
-          isKolkataDay: kolkataSunDot > -0.1,
-          cloudDriftStatus: "Tropical Trade Wind & Jet Stream Advection Active",
+          kolkataSolarAngle: `${solarZenithDeg.toFixed(0)}° ${kolkataSunDot > 0 ? "Daylight" : "Night"}`,
+          isKolkataDay: kolkataSunDot > -0.05,
+          cloudDriftStatus: "Authentic NASA Satellite Cloud Systems Active",
         });
       }
     };
@@ -1226,7 +1289,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
   // Fallback view for devices with prefers-reduced-motion or unsupported hardware
   if (deviceTier === "off") {
     return (
-      <div className="relative w-full rounded-2xl bg-[#02040a] border border-cyan-500/25 p-6 shadow-2xl backdrop-blur-xl">
+      <div className="relative w-full rounded-2xl bg-[#020409] border border-cyan-500/25 p-6 shadow-2xl backdrop-blur-xl">
         <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-4">
           <div className="flex items-center gap-2">
             <Satellite className="w-5 h-5 text-cyan-400" />
@@ -1269,18 +1332,18 @@ export const GlobalClimateGlobe3D: React.FC = () => {
   }
 
   return (
-    <div className="relative w-full rounded-2xl bg-[#020409] border border-cyan-500/25 overflow-hidden shadow-2xl backdrop-blur-xl transition-all duration-300">
+    <div className="relative w-full rounded-2xl bg-[#010309] border border-cyan-500/25 overflow-hidden shadow-2xl backdrop-blur-xl transition-all duration-300">
       {/* Top Operations Telemetry HUD */}
-      <div className="flex flex-wrap items-center justify-between p-3.5 border-b border-slate-800/80 bg-[#070d1e]/90 gap-2 text-xs font-mono">
+      <div className="flex flex-wrap items-center justify-between p-3.5 border-b border-slate-800/80 bg-[#060c1c]/95 gap-2 text-xs font-mono">
         <div className="flex items-center gap-2.5">
           <div className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_10px_rgba(6,182,212,0.8)]" />
           <div className="flex flex-col">
             <span className="font-bold text-slate-100 tracking-wider uppercase flex items-center gap-1.5 font-sans text-sm">
               <Satellite className="w-4 h-4 text-cyan-400" />
-              Photorealistic Earth & Real-Time Fluid Cloud Dynamics
+              Photorealistic Satellite Earth & Dynamic Day/Night Horizon
             </span>
             <span className="text-[10px] text-cyan-400 font-mono">
-              BLUE MARBLE SATELLITE • ATMOSPHERIC CIRCULATION • SHADOW PROJECTION • RAYLEIGH LIMB
+              TRUE-COLOR BLUE MARBLE • SATELLITE CLOUD COMPOSITE • SHADOW PROJECTION • BACKSIDE RAYLEIGH LIMB
             </span>
           </div>
         </div>
@@ -1295,7 +1358,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
           )}
 
           {/* Time Warp Speed Selector */}
-          <div className="flex items-center bg-[#050811] border border-[#1c2638] p-0.5 rounded text-[10px]">
+          <div className="flex items-center bg-[#040712] border border-[#1c2638] p-0.5 rounded text-[10px]">
             {(["1x", "60x", "1440x"] as const).map((speed) => (
               <button
                 key={speed}
@@ -1354,8 +1417,85 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         </div>
       </div>
 
+      {/* Solar Day/Night Scrubber & Mode Selector Bar */}
+      <div className="px-3.5 py-2 bg-[#040816] border-b border-slate-800/80 flex flex-wrap items-center justify-between text-xs font-mono gap-2">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-slate-400 uppercase font-bold text-[10px] flex items-center gap-1 mr-1">
+            <Sun className="w-3.5 h-3.5 text-amber-400" />
+            DAY/NIGHT LIGHTING:
+          </span>
+
+          <button
+            onClick={() => setSolarPreset("noon")}
+            className={`px-2 py-0.5 rounded border text-[10px] cursor-pointer transition flex items-center gap-1 ${
+              solarMode === "noon"
+                ? "bg-amber-950/60 text-amber-300 border-amber-500/60 font-bold shadow-[0_0_8px_rgba(245,158,11,0.3)]"
+                : "bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200"
+            }`}
+          >
+            <Sun className="w-3 h-3 text-amber-400" />
+            NOON (KOLKATA DAY)
+          </button>
+
+          <button
+            onClick={() => setSolarPreset("sunset")}
+            className={`px-2 py-0.5 rounded border text-[10px] cursor-pointer transition flex items-center gap-1 ${
+              solarMode === "sunset"
+                ? "bg-orange-950/60 text-orange-300 border-orange-500/60 font-bold shadow-[0_0_8px_rgba(249,115,22,0.3)]"
+                : "bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200"
+            }`}
+          >
+            <Sunset className="w-3 h-3 text-orange-400" />
+            DUSK (TERMINATOR)
+          </button>
+
+          <button
+            onClick={() => setSolarPreset("night")}
+            className={`px-2 py-0.5 rounded border text-[10px] cursor-pointer transition flex items-center gap-1 ${
+              solarMode === "night"
+                ? "bg-indigo-950/60 text-indigo-300 border-indigo-500/60 font-bold shadow-[0_0_8px_rgba(99,102,241,0.3)]"
+                : "bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200"
+            }`}
+          >
+            <Moon className="w-3 h-3 text-indigo-400" />
+            NIGHT (CITY LIGHTS)
+          </button>
+
+          <button
+            onClick={() => setSolarPreset("live")}
+            className={`px-2 py-0.5 rounded border text-[10px] cursor-pointer transition flex items-center gap-1 ${
+              solarMode === "live"
+                ? "bg-cyan-950/60 text-cyan-300 border-cyan-500/60 font-bold shadow-[0_0_8px_rgba(6,182,212,0.3)]"
+                : "bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200"
+            }`}
+          >
+            <Clock className="w-3 h-3 text-cyan-400" />
+            LIVE UTC SYNC
+          </button>
+        </div>
+
+        {/* Manual Solar Position Slider */}
+        <div className="flex items-center gap-2 text-[10px] text-slate-400">
+          <Sliders className="w-3 h-3 text-amber-400" />
+          <span className="hidden md:inline">SOLAR ANGLE:</span>
+          <input
+            type="range"
+            min="-180"
+            max="180"
+            step="2"
+            value={solarLongitude}
+            onChange={(e) => handleSolarScrub(parseFloat(e.target.value))}
+            className="w-24 sm:w-32 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-400"
+            title="Drag to manually rotate Day/Night solar position around Earth"
+          />
+          <span className="font-mono text-amber-300 w-12 text-right">
+            {solarLongitude > 0 ? `+${solarLongitude.toFixed(0)}°` : `${solarLongitude.toFixed(0)}°`}
+          </span>
+        </div>
+      </div>
+
       {/* Real-time Astronomical & Cloud Telemetry Strip */}
-      <div className="px-3.5 py-1.5 bg-[#050a14] border-b border-slate-800/70 flex flex-wrap items-center justify-between text-[10px] font-mono text-slate-300 gap-2">
+      <div className="px-3.5 py-1.5 bg-[#030610] border-b border-slate-800/70 flex flex-wrap items-center justify-between text-[10px] font-mono text-slate-300 gap-2">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
             <Clock className="w-3 h-3 text-cyan-400" />
@@ -1373,13 +1513,13 @@ export const GlobalClimateGlobe3D: React.FC = () => {
           <span className="text-slate-700 hidden md:inline">•</span>
           <div className="hidden md:flex items-center gap-1.5 text-cyan-300">
             <Wind className="w-3 h-3 text-cyan-400" />
-            <span>CLOUD CIRCULATION: ACTIVE</span>
+            <span>SATELLITE CLOUDS: CRISP</span>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
-            <span className="text-slate-400">KOLKATA:</span>
+            <span className="text-slate-400">KOLKATA DELTA:</span>
             <span
               className={`px-1.5 py-0.2 rounded font-bold ${
                 simTelemetry.isKolkataDay
@@ -1387,18 +1527,18 @@ export const GlobalClimateGlobe3D: React.FC = () => {
                   : "bg-indigo-950/60 text-indigo-300 border border-indigo-500/40"
               }`}
             >
-              {simTelemetry.isKolkataDay ? "DAYLIGHT (SOLAR FLUX)" : "NIGHT (CITY LIGHTS)"}
+              {simTelemetry.isKolkataDay ? "DAYLIGHT (TRUE COLOR)" : "NIGHT (CITY LIGHTS)"}
             </span>
           </div>
           <span className="text-slate-700">•</span>
           <div className="text-slate-400">
-            ZENITH: <span className="text-sky-300 font-bold">{simTelemetry.kolkataSolarAngle}</span>
+            SOLAR ANGLE: <span className="text-sky-300 font-bold">{simTelemetry.kolkataSolarAngle}</span>
           </div>
         </div>
       </div>
 
       {/* 3D WebGL Canvas Viewport with Raycasting Overlay */}
-      <div className="relative w-full h-[420px] sm:h-[500px] overflow-hidden">
+      <div className="relative w-full h-[440px] sm:h-[520px] overflow-hidden">
         <div
           ref={containerRef}
           style={{ touchAction: "none" }}
@@ -1407,7 +1547,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
 
         {/* Interactive Hover HUD Tooltip (Triggered by 3D Raycasting) */}
         {hoveredHotspot && (
-          <div className="absolute top-4 left-4 z-20 pointer-events-none flex items-center gap-2.5 px-3 py-2 rounded-xl bg-slate-950/85 border border-cyan-500/60 backdrop-blur-md shadow-2xl animate-fade-in">
+          <div className="absolute top-4 left-4 z-20 pointer-events-none flex items-center gap-2.5 px-3 py-2 rounded-xl bg-slate-950/90 border border-cyan-500/60 backdrop-blur-md shadow-2xl animate-fade-in">
             <div
               className="w-2.5 h-2.5 rounded-full animate-ping"
               style={{ backgroundColor: `#${hoveredHotspot.color.toString(16).padStart(6, "0")}` }}
@@ -1427,14 +1567,14 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         )}
 
         {/* Interaction Guide Badge */}
-        <div className="absolute bottom-3 right-3 z-10 pointer-events-none flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-950/70 border border-slate-800/80 text-[10px] font-mono text-slate-400 backdrop-blur-sm">
+        <div className="absolute bottom-3 right-3 z-10 pointer-events-none flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-950/80 border border-slate-800/80 text-[10px] font-mono text-slate-400 backdrop-blur-sm">
           <MousePointerClick className="w-3 h-3 text-cyan-400" />
           <span>Click 3D Hotspot or Drag with Momentum to Rotate</span>
         </div>
       </div>
 
       {/* Live Simulation Layer Filters (Zero Re-render Shader Uniform Updates) */}
-      <div className="p-3 bg-[#070d1e]/90 border-t border-slate-800/80 flex flex-wrap gap-2 items-center justify-between">
+      <div className="p-3 bg-[#060c1c]/95 border-t border-slate-800/80 flex flex-wrap gap-2 items-center justify-between">
         <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-mono">
           <span className="text-slate-400 mr-1 uppercase flex items-center gap-1 font-bold">
             <Layers className="w-3.5 h-3.5 text-cyan-400" />
@@ -1448,7 +1588,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
                 : "bg-slate-900 text-slate-500 border-slate-800"
             }`}
           >
-            FLUID CLOUDS
+            SATELLITE CLOUDS
           </button>
           <button
             onClick={() => toggleLayer("cloudShadows")}
@@ -1546,7 +1686,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
       </div>
 
       {/* Selected Hotspot Detailed Telemetry Drawer */}
-      <div className="p-3.5 bg-[#030712] border-t border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+      <div className="p-3.5 bg-[#02050f] border-t border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Info className="w-4 h-4 text-cyan-400 shrink-0" />
           <div>
