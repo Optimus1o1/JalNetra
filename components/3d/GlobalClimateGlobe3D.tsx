@@ -19,6 +19,8 @@ import {
   Sunset,
   Moon,
   Sliders,
+  Play,
+  FastForward,
 } from "lucide-react";
 
 export type DeviceTier = "checking" | "full" | "lite" | "off";
@@ -183,6 +185,7 @@ function generateFallbackNightTexture(): THREE.CanvasTexture {
 }
 
 export type SolarMode = "live" | "noon" | "sunset" | "night" | "manual";
+export type CloudDriftMode = "1x" | "2x" | "5x" | "10x";
 
 export const GlobalClimateGlobe3D: React.FC = () => {
   const deviceTier = useDeviceTier();
@@ -197,6 +200,9 @@ export const GlobalClimateGlobe3D: React.FC = () => {
   // Day/Night Solar Lighting Mode
   const [solarMode, setSolarMode] = useState<SolarMode>("noon");
   const [solarLongitude, setSolarLongitude] = useState<number>(88.36); // Default noon over Kolkata
+
+  // Cloud Drift Animation Speed (High visibility)
+  const [cloudDriftSpeed, setCloudDriftSpeed] = useState<CloudDriftMode>("2x");
 
   // Simulation Controls & Telemetry State
   const [simSpeed, setSimSpeed] = useState<"1x" | "60x" | "1440x">("1x");
@@ -224,7 +230,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
     subsolarLat: "+18.2° N",
     kolkataSolarAngle: "84° Solar Noon",
     isKolkataDay: true,
-    cloudDriftStatus: "Authentic NASA Satellite Cloud Systems Active",
+    cloudDriftStatus: "Authentic NASA Satellite Cloud Advection Active",
   });
 
   // Mutable refs for zero-re-render Three.js animation loop (/3d-design rule)
@@ -233,6 +239,9 @@ export const GlobalClimateGlobe3D: React.FC = () => {
 
   const simSpeedRef = useRef(simSpeed);
   simSpeedRef.current = simSpeed;
+
+  const cloudDriftSpeedRef = useRef<CloudDriftMode>(cloudDriftSpeed);
+  cloudDriftSpeedRef.current = cloudDriftSpeed;
 
   const autoRotateRef = useRef(autoRotate);
   autoRotateRef.current = autoRotate;
@@ -247,6 +256,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
   const targetCameraZRef = useRef<number>(210);
   const lastReportedZoomRef = useRef<number>(1);
   const simTimeOffsetRef = useRef<number>(0);
+  const cloudTimeRef = useRef<number>(0);
 
   // Smooth target camera rotation orientation
   const targetRotationRef = useRef<{ x: number; y: number; active: boolean }>({
@@ -277,6 +287,11 @@ export const GlobalClimateGlobe3D: React.FC = () => {
   const handleSimSpeedChange = (speed: "1x" | "60x" | "1440x") => {
     setSimSpeed(speed);
     simSpeedRef.current = speed;
+  };
+
+  const handleCloudSpeedChange = (speed: CloudDriftMode) => {
+    setCloudDriftSpeed(speed);
+    cloudDriftSpeedRef.current = speed;
   };
 
   const handleAutoRotateToggle = () => {
@@ -369,7 +384,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         specularMap: { value: fallbackDay },
         cloudMap: { value: fallbackDay },
         sunDirection: { value: new THREE.Vector3(1, 0, 0) },
-        uTime: { value: 0.0 },
+        uCloudTime: { value: 0.0 },
         useTerminator: { value: 1.0 },
         useSpecular: { value: 1.0 },
         useCloudShadows: { value: 1.0 },
@@ -394,7 +409,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         uniform sampler2D specularMap;
         uniform sampler2D cloudMap;
         uniform vec3 sunDirection;
-        uniform float uTime;
+        uniform float uCloudTime;
         uniform float useTerminator;
         uniform float useSpecular;
         uniform float useCloudShadows;
@@ -416,24 +431,28 @@ export const GlobalClimateGlobe3D: React.FC = () => {
 
           // Authentic NASA Blue Marble true-color satellite photography (NO BLUE WASH)
           vec4 dayColor = texture2D(dayMap, vUv);
-          // Crisp, natural true-color satellite surface
           vec3 dayRgb = dayColor.rgb * 1.15;
 
           // Water specular mask (oceans = 1.0, continents = 0.0)
           float specMask = texture2D(specularMap, vUv).r;
 
-          // Realistic cloud drift coordinates matching the cloud layer
-          vec2 cloudUv = vec2(vUv.x + uTime * 0.0008, vUv.y);
+          // Realistic differential wind advection matching the cloud layer exactly
+          float latWind = (vUv.y - 0.5) * 2.0;
+          float windSpeed = (abs(latWind) < 0.35) ? 0.015 : -0.010;
+          vec2 cloudUv = vec2(
+            vUv.x + uCloudTime * windSpeed,
+            vUv.y + sin(vUv.x * 6.28318 + uCloudTime * 0.025) * 0.003
+          );
           vec4 cloudSample = texture2D(cloudMap, cloudUv);
           float cloudDensity = max(cloudSample.r, cloudSample.a);
 
           // -----------------------------------------------------------------
-          // REAL-TIME SHARP CLOUD SHADOWS (ONLY DIRECTLY UNDER CLOUDS)
+          // REAL-TIME SHARP CLOUD SHADOWS (MOVING IN LOCKSTEP WITH CLOUDS)
           // -----------------------------------------------------------------
           if (useCloudShadows > 0.5) {
-            vec2 shadowOffset = -normalize(s.xy + vec2(0.0001)) * 0.0035;
+            vec2 shadowOffset = -normalize(s.xy + vec2(0.0001)) * 0.004;
             float cShadow = texture2D(cloudMap, cloudUv + shadowOffset).r;
-            float shadowFactor = smoothstep(0.28, 0.72, cShadow) * 0.42;
+            float shadowFactor = smoothstep(0.25, 0.70, cShadow) * 0.45;
             dayRgb *= (1.0 - shadowFactor * dayFactor);
           }
 
@@ -480,14 +499,14 @@ export const GlobalClimateGlobe3D: React.FC = () => {
     globeGroup.add(earthMesh);
 
     // =========================================================================
-    // SHADER 2: AUTHENTIC CRISP SATELLITE CLOUDS (ZERO MILK HAZE)
+    // SHADER 2: AUTHENTIC VISIBLE SATELLITE CLOUDS (CRISP DRIFT & ZERO HAZE)
     // =========================================================================
     const cloudsCustomShader = {
       uniforms: {
         cloudMap: { value: fallbackDay },
         sunDirection: { value: new THREE.Vector3(1, 0, 0) },
-        uTime: { value: 0.0 },
-        cloudOpacity: { value: 0.92 },
+        uCloudTime: { value: 0.0 },
+        cloudOpacity: { value: 0.94 },
         visible: { value: 1.0 },
       },
       vertexShader: `
@@ -506,7 +525,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
       fragmentShader: `
         uniform sampler2D cloudMap;
         uniform vec3 sunDirection;
-        uniform float uTime;
+        uniform float uCloudTime;
         uniform float cloudOpacity;
         uniform float visible;
 
@@ -521,15 +540,24 @@ export const GlobalClimateGlobe3D: React.FC = () => {
           vec3 s = normalize(sunDirection);
           vec3 v = normalize(cameraPosition - vWorldPosition);
 
-          // Smooth longitudinal drift of real NASA satellite cloud formations
-          vec2 cloudUv = vec2(vUv.x + uTime * 0.0008, vUv.y);
+          // ---------------------------------------------------------------
+          // DYNAMIC VISIBLE ATMOSPHERIC DRIFT:
+          // Tropical easterlies drift westward; mid-latitude westerlies drift eastward!
+          // ---------------------------------------------------------------
+          float latWind = (vUv.y - 0.5) * 2.0;
+          float windSpeed = (abs(latWind) < 0.35) ? 0.015 : -0.010;
+          vec2 cloudUv = vec2(
+            vUv.x + uCloudTime * windSpeed,
+            vUv.y + sin(vUv.x * 6.28318 + uCloudTime * 0.025) * 0.003
+          );
+
           vec4 cloudSample = texture2D(cloudMap, cloudUv);
           float cloudDensity = max(cloudSample.r, cloudSample.a);
 
           // ---------------------------------------------------------------
           // CRISP SATELLITE THRESHOLD: CLEAR SKIES ARE 100% CRYSTAL CLEAR!
           // ---------------------------------------------------------------
-          float alpha = smoothstep(0.24, 0.70, cloudDensity) * cloudOpacity;
+          float alpha = smoothstep(0.22, 0.68, cloudDensity) * cloudOpacity;
           if (alpha < 0.02) discard; // ZERO HAZE OVER CLEAR CONTINENTS AND SEAS
 
           float sunDot = dot(n, s);
@@ -565,7 +593,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
     });
     cloudsShaderMatRef.current = cloudsShaderMat;
 
-    const cloudsGeo = new THREE.SphereGeometry(GLOBE_RADIUS * 1.006, isFullTier ? 64 : 48, isFullTier ? 64 : 48);
+    const cloudsGeo = new THREE.SphereGeometry(GLOBE_RADIUS * 1.007, isFullTier ? 64 : 48, isFullTier ? 64 : 48);
     const cloudsMesh = new THREE.Mesh(cloudsGeo, cloudsShaderMat);
     cloudsMeshRef.current = cloudsMesh;
     globeGroup.add(cloudsMesh);
@@ -1035,7 +1063,6 @@ export const GlobalClimateGlobe3D: React.FC = () => {
     // 10. Main High-Precision Real-Time Animation Loop
     let animationFrameId: number;
     let lastTime = performance.now();
-    let elapsedSimSeconds = 0;
     let lastTelemetryUpdate = 0;
 
     const animate = () => {
@@ -1047,7 +1074,6 @@ export const GlobalClimateGlobe3D: React.FC = () => {
       const nowMs = performance.now();
       const delta = Math.min((nowMs - lastTime) / 1000, 0.1);
       lastTime = nowMs;
-      elapsedSimSeconds += delta;
 
       // Smooth camera zoom interpolation
       if (cameraRef.current) {
@@ -1066,6 +1092,21 @@ export const GlobalClimateGlobe3D: React.FC = () => {
       const speedMultiplier = currentSpeed === "1440x" ? 1440 : currentSpeed === "60x" ? 60 : 1;
       simTimeOffsetRef.current += delta * speedMultiplier;
 
+      // -----------------------------------------------------------------
+      // VISIBLE CLOUD ROTATION & ADVECTION (Clearly perceived at all times)
+      // -----------------------------------------------------------------
+      const cSpeedMode = cloudDriftSpeedRef.current;
+      const cMultiplier = cSpeedMode === "10x" ? 10 : cSpeedMode === "5x" ? 5 : cSpeedMode === "2x" ? 2 : 1;
+
+      // Advance cloud shader time
+      cloudTimeRef.current += delta * cMultiplier;
+
+      // Physically rotate the clouds sphere independently of Earth!
+      // This produces real physical parallax over continents and seas.
+      if (cloudsMeshRef.current) {
+        cloudsMeshRef.current.rotation.y += delta * 0.0022 * cMultiplier;
+      }
+
       // Calculate Astronomical Sun Vector in World Space
       const mode = solarModeRef.current;
       const now = new Date(Date.now() + simTimeOffsetRef.current * 1000);
@@ -1082,7 +1123,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
       } else {
         // Preset or Manual Solar Control
         // If simulation speed is running, allow sun to drift continuously
-        const drift = (simTimeOffsetRef.current * speedMultiplier * 360) / 86400;
+        const drift = (simTimeOffsetRef.current * 360) / 86400;
         subsolarLonDeg = ((solarLongitudeRef.current + drift + 180) % 360) - 180;
         subsolarLatDeg = 20.0; // Northern summer declination
       }
@@ -1095,7 +1136,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
       // Update Earth Shader Uniforms
       if (earthShaderMatRef.current) {
         earthShaderMatRef.current.uniforms.sunDirection.value.copy(sunVec);
-        earthShaderMatRef.current.uniforms.uTime.value = elapsedSimSeconds;
+        earthShaderMatRef.current.uniforms.uCloudTime.value = cloudTimeRef.current;
         earthShaderMatRef.current.uniforms.useTerminator.value = currentLayers.terminator ? 1.0 : 0.0;
         earthShaderMatRef.current.uniforms.useSpecular.value = currentLayers.specularGlint ? 1.0 : 0.0;
         earthShaderMatRef.current.uniforms.useCloudShadows.value = currentLayers.cloudShadows ? 1.0 : 0.0;
@@ -1104,7 +1145,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
       // Update Real-Time Cloud Shader
       if (cloudsShaderMatRef.current) {
         cloudsShaderMatRef.current.uniforms.sunDirection.value.copy(sunVec);
-        cloudsShaderMatRef.current.uniforms.uTime.value = elapsedSimSeconds;
+        cloudsShaderMatRef.current.uniforms.uCloudTime.value = cloudTimeRef.current;
         cloudsShaderMatRef.current.uniforms.visible.value = currentLayers.clouds ? 1.0 : 0.0;
       }
 
@@ -1131,7 +1172,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
       sstGroup.visible = currentLayers.sstAnomalies;
       if (currentLayers.sstAnomalies) {
         sstMeshes.forEach((mesh, idx) => {
-          const s = 1.0 + Math.sin(elapsedSimSeconds * 2.5 + idx * 1.5) * 0.2;
+          const s = 1.0 + Math.sin(cloudTimeRef.current * 2.5 + idx * 1.5) * 0.2;
           mesh.scale.set(s, s, s);
         });
       }
@@ -1141,7 +1182,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
       if (currentLayers.beacons) {
         beaconMeshes.forEach(({ ring, hotspot }, idx) => {
           const isHotspotActive = activeHotspot.id === hotspot.id;
-          const pulse = Math.sin(elapsedSimSeconds * 3.0 + idx) * 0.25;
+          const pulse = Math.sin(cloudTimeRef.current * 3.0 + idx) * 0.25;
           const baseScale = isHotspotActive ? 1.25 : 1.0;
           const s = baseScale + pulse;
           ring.scale.set(s, s, 1);
@@ -1185,8 +1226,8 @@ export const GlobalClimateGlobe3D: React.FC = () => {
       renderer.render(scene, camera);
 
       // Throttled Telemetry update (~2 Hz)
-      if (elapsedSimSeconds - lastTelemetryUpdate > 0.45) {
-        lastTelemetryUpdate = elapsedSimSeconds;
+      if (cloudTimeRef.current - lastTelemetryUpdate > 0.45) {
+        lastTelemetryUpdate = cloudTimeRef.current;
         // Kolkata surface normal in world coordinates
         const kolkataLocal = latLonToVector3(22.57, 88.36, 1.0).normalize();
         let kolkataSunDot = 0;
@@ -1202,7 +1243,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
           subsolarLat: `${subsolarLatDeg >= 0 ? "+" : ""}${subsolarLatDeg.toFixed(1)}°`,
           kolkataSolarAngle: `${solarZenithDeg.toFixed(0)}° ${kolkataSunDot > 0 ? "Daylight" : "Night"}`,
           isKolkataDay: kolkataSunDot > -0.05,
-          cloudDriftStatus: "Authentic NASA Satellite Cloud Systems Active",
+          cloudDriftStatus: `Live Cloud Advection (${cSpeedMode})`,
         });
       }
     };
@@ -1368,7 +1409,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
                     ? "bg-cyan-500/25 text-cyan-300 border border-cyan-500/40 font-bold shadow-[0_0_8px_rgba(6,182,212,0.3)]"
                     : "text-slate-400 hover:text-slate-200"
                 }`}
-                title={speed === "1x" ? "Real-Time 1:1 Cloud Motion" : `${speed} Accelerated Weather System Drift`}
+                title={speed === "1x" ? "Real-Time 1:1 Astronomical Time" : `${speed} Accelerated Diurnal Time Warp`}
               >
                 {speed === "1x" ? "1x (LIVE)" : speed}
               </button>
@@ -1417,12 +1458,12 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         </div>
       </div>
 
-      {/* Solar Day/Night Scrubber & Mode Selector Bar */}
+      {/* Solar Day/Night Scrubber & Cloud Dynamics Controller Bar */}
       <div className="px-3.5 py-2 bg-[#040816] border-b border-slate-800/80 flex flex-wrap items-center justify-between text-xs font-mono gap-2">
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-slate-400 uppercase font-bold text-[10px] flex items-center gap-1 mr-1">
             <Sun className="w-3.5 h-3.5 text-amber-400" />
-            DAY/NIGHT LIGHTING:
+            SOLAR LIGHTING:
           </span>
 
           <button
@@ -1474,23 +1515,26 @@ export const GlobalClimateGlobe3D: React.FC = () => {
           </button>
         </div>
 
-        {/* Manual Solar Position Slider */}
-        <div className="flex items-center gap-2 text-[10px] text-slate-400">
-          <Sliders className="w-3 h-3 text-amber-400" />
-          <span className="hidden md:inline">SOLAR ANGLE:</span>
-          <input
-            type="range"
-            min="-180"
-            max="180"
-            step="2"
-            value={solarLongitude}
-            onChange={(e) => handleSolarScrub(parseFloat(e.target.value))}
-            className="w-24 sm:w-32 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-400"
-            title="Drag to manually rotate Day/Night solar position around Earth"
-          />
-          <span className="font-mono text-amber-300 w-12 text-right">
-            {solarLongitude > 0 ? `+${solarLongitude.toFixed(0)}°` : `${solarLongitude.toFixed(0)}°`}
+        {/* Cloud Drift Speed Selector */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-slate-400 uppercase font-bold text-[10px] flex items-center gap-1">
+            <Wind className="w-3.5 h-3.5 text-cyan-400" />
+            CLOUD MOTION:
           </span>
+          {(["1x", "2x", "5x", "10x"] as const).map((speed) => (
+            <button
+              key={speed}
+              onClick={() => handleCloudSpeedChange(speed)}
+              className={`px-2 py-0.5 rounded border text-[10px] cursor-pointer transition ${
+                cloudDriftSpeed === speed
+                  ? "bg-cyan-950/80 text-cyan-300 border-cyan-400 font-bold shadow-[0_0_8px_rgba(6,182,212,0.3)]"
+                  : "bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200"
+              }`}
+              title={speed === "1x" ? "Gentle atmospheric drift" : speed === "2x" ? "Active noticeable circulation" : speed === "5x" ? "Storm front movement" : "High-speed radar time-lapse"}
+            >
+              {speed === "2x" ? "2x (ACTIVE)" : speed === "5x" ? "5x (STORM)" : speed}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -1512,8 +1556,8 @@ export const GlobalClimateGlobe3D: React.FC = () => {
           </div>
           <span className="text-slate-700 hidden md:inline">•</span>
           <div className="hidden md:flex items-center gap-1.5 text-cyan-300">
-            <Wind className="w-3 h-3 text-cyan-400" />
-            <span>SATELLITE CLOUDS: CRISP</span>
+            <Wind className="w-3 h-3 text-cyan-400 animate-pulse" />
+            <span className="font-bold text-cyan-300">{simTelemetry.cloudDriftStatus}</span>
           </div>
         </div>
 
@@ -1569,7 +1613,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         {/* Interaction Guide Badge */}
         <div className="absolute bottom-3 right-3 z-10 pointer-events-none flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-950/80 border border-slate-800/80 text-[10px] font-mono text-slate-400 backdrop-blur-sm">
           <MousePointerClick className="w-3 h-3 text-cyan-400" />
-          <span>Click 3D Hotspot or Drag with Momentum to Rotate</span>
+          <span>Click 3D Hotspot or Drag to Rotate • Real Satellite Clouds Moving Continuously</span>
         </div>
       </div>
 
