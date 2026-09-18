@@ -298,6 +298,37 @@ export const GlobalClimateGlobe3D: React.FC = () => {
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const globeGroupRef = useRef<THREE.Group | null>(null);
+
+  // Direct ref to the 3D touch reticle mesh to allow immediate removal
+  const touchReticleMeshRef = useRef<THREE.Mesh | null>(null);
+  const cloudInspectionRef = useRef<CloudInspectionData | null>(null);
+  cloudInspectionRef.current = cloudInspection;
+
+  // Fully remove pointer from globe and dismiss inspection state
+  const clearCloudInspection = React.useCallback(() => {
+    setCloudInspection(null);
+    if (touchReticleMeshRef.current) {
+      touchReticleMeshRef.current.visible = false;
+    }
+  }, []);
+
+  // Keyboard shortcut: Escape removes the pointer
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        clearCloudInspection();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [clearCloudInspection]);
+
+  // Synchronize 3D mesh visibility when cloudInspection is cleared
+  useEffect(() => {
+    if (!cloudInspection && touchReticleMeshRef.current) {
+      touchReticleMeshRef.current.visible = false;
+    }
+  }, [cloudInspection]);
   const earthShaderMatRef = useRef<THREE.ShaderMaterial | null>(null);
   const cloudsShaderMatRef = useRef<THREE.ShaderMaterial | null>(null);
   const atmosphereShaderMatRef = useRef<THREE.ShaderMaterial | null>(null);
@@ -879,6 +910,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
     touchReticleMesh.visible = false;
     touchReticleMesh.renderOrder = 999;
     globeGroup.add(touchReticleMesh);
+    touchReticleMeshRef.current = touchReticleMesh;
 
     // Orient India & Bay of Bengal toward camera by default in high-noon daylight
     globeGroup.rotation.y = -Math.PI * 0.98;
@@ -919,8 +951,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
       const intersects = raycaster.intersectObjects(targets);
       if (intersects.length === 0) {
         if (lockSelection) {
-          touchReticleMesh.visible = false;
-          setCloudInspection(null);
+          clearCloudInspection();
         }
         return null;
       }
@@ -928,17 +959,30 @@ export const GlobalClimateGlobe3D: React.FC = () => {
       const hit = intersects[0];
       const hitPoint = hit.point;
 
-      // Position touch reticle on sphere surface
-      touchReticleMesh.position.copy(hitPoint.clone().multiplyScalar(1.002));
-      touchReticleMesh.lookAt(new THREE.Vector3(0, 0, 0));
-      touchReticleMesh.visible = true;
-
       // Geographic coordinates on Earth
       const localPoint = earthMesh.worldToLocal(hitPoint.clone()).normalize();
       const lat = Math.asin(Math.max(-1, Math.min(1, localPoint.y))) * (180 / Math.PI);
       const theta = Math.atan2(localPoint.z, -localPoint.x);
       let lon = (theta * 180 / Math.PI) - 180;
       lon = ((lon + 180) % 360 + 360) % 360 - 180;
+
+      // Toggle off / remove pointer if clicking on or near the already active pin (within 6° lat/lon)
+      if (lockSelection && cloudInspectionRef.current) {
+        const activeLat = cloudInspectionRef.current.lat;
+        const activeLon = cloudInspectionRef.current.lon;
+        const dLat = Math.abs(lat - activeLat);
+        const dLonRaw = Math.abs(lon - activeLon);
+        const dLon = Math.min(dLonRaw, 360 - dLonRaw);
+        if (dLat < 6 && dLon < 6) {
+          clearCloudInspection();
+          return null;
+        }
+      }
+
+      // Position touch reticle on sphere surface
+      touchReticleMesh.position.copy(hitPoint.clone().multiplyScalar(1.002));
+      touchReticleMesh.lookAt(new THREE.Vector3(0, 0, 0));
+      touchReticleMesh.visible = true;
 
       // Sampling coordinates on cloudsMesh
       const cloudLocal = cloudsMesh.worldToLocal(hitPoint.clone()).normalize();
@@ -1545,6 +1589,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
       atmosphereShaderMat.dispose();
       touchReticleGeo.dispose();
       touchReticleMat.dispose();
+      touchReticleMeshRef.current = null;
       moistureLineGeo.dispose();
       moistureLineMat.dispose();
       particleGeo.dispose();
@@ -1716,6 +1761,18 @@ export const GlobalClimateGlobe3D: React.FC = () => {
           >
             <Compass className="w-3.5 h-3.5" />
           </button>
+
+          {/* Explicit Dismiss Button when Pointer is Placed */}
+          {cloudInspection && (
+            <button
+              onClick={clearCloudInspection}
+              title="Remove active pointer from globe (Esc)"
+              className="px-2 py-1 rounded bg-rose-950/80 border border-rose-500/60 text-rose-300 hover:bg-rose-900 text-[11px] font-mono font-bold flex items-center gap-1 transition-colors cursor-pointer shadow-[0_0_10px_rgba(244,63,94,0.3)] animate-pulse"
+            >
+              <X className="w-3.5 h-3.5" />
+              <span>CLEAR POINTER</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -1825,21 +1882,31 @@ export const GlobalClimateGlobe3D: React.FC = () => {
             <Crosshair className="w-3 h-3 text-cyan-400" />
             <span className="text-slate-400">TOUCH ANALYSIS:</span>
             {cloudInspection ? (
-              <span
-                className={`px-1.5 py-0.2 rounded font-bold ${
-                  cloudInspection.isRainCloud
-                    ? "bg-cyan-950/80 text-cyan-300 border border-cyan-500/50"
+              <div className="flex items-center gap-1.5">
+                <span
+                  className={`px-1.5 py-0.2 rounded font-bold ${
+                    cloudInspection.isRainCloud
+                      ? "bg-cyan-950/80 text-cyan-300 border border-cyan-500/50"
+                      : cloudInspection.isCloud
+                      ? "bg-amber-950/80 text-amber-300 border border-amber-500/50"
+                      : "bg-emerald-950/80 text-emerald-300 border border-emerald-500/50"
+                  }`}
+                >
+                  {cloudInspection.isRainCloud
+                    ? `🌧️ RAIN CLOUD (${cloudInspection.rainRate} mm/hr)`
                     : cloudInspection.isCloud
-                    ? "bg-amber-950/80 text-amber-300 border border-amber-500/50"
-                    : "bg-emerald-950/80 text-emerald-300 border border-emerald-500/50"
-                }`}
-              >
-                {cloudInspection.isRainCloud
-                  ? `🌧️ RAIN CLOUD (${cloudInspection.rainRate} mm/hr)`
-                  : cloudInspection.isCloud
-                  ? "⛅ NON-RAIN CLOUD (DRY)"
-                  : "☀️ CLEAR SKY"}
-              </span>
+                    ? "⛅ NON-RAIN CLOUD (DRY)"
+                    : "☀️ CLEAR SKY"}
+                </span>
+                <button
+                  onClick={clearCloudInspection}
+                  className="px-1.5 py-0.5 rounded bg-rose-950/80 hover:bg-rose-900 border border-rose-500/50 text-rose-300 text-[10px] font-mono font-bold flex items-center gap-0.5 transition cursor-pointer"
+                  title="Remove pointer from globe"
+                >
+                  <X className="w-3 h-3" />
+                  <span>CLEAR</span>
+                </button>
+              </div>
             ) : (
               <span className="text-slate-500 italic">Touch/Click cloud to inspect</span>
             )}
@@ -1923,9 +1990,9 @@ export const GlobalClimateGlobe3D: React.FC = () => {
                 </div>
               </div>
               <button
-                onClick={() => setCloudInspection(null)}
+                onClick={clearCloudInspection}
                 className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
-                title="Dismiss Inspector"
+                title="Remove pointer and close inspector (Esc)"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -2045,6 +2112,15 @@ export const GlobalClimateGlobe3D: React.FC = () => {
               </span>
               <span className="text-cyan-400 text-[9px] font-bold">NASA SATELLITE RADAR</span>
             </div>
+
+            {/* Explicit Remove Pointer Action Button */}
+            <button
+              onClick={clearCloudInspection}
+              className="mt-2.5 w-full py-1.5 px-3 rounded-lg bg-rose-950/60 hover:bg-rose-900/80 border border-rose-500/40 text-rose-200 text-xs font-mono font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-sm hover:shadow-[0_0_12px_rgba(244,63,94,0.3)]"
+            >
+              <X className="w-3.5 h-3.5 text-rose-400" />
+              <span>REMOVE POINTER FROM GLOBE</span>
+            </button>
           </div>
         )}
 

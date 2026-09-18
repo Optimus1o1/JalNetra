@@ -14,6 +14,9 @@ interface TacticalGlobeOverlay3DProps {
 export const TacticalGlobeOverlay3D: React.FC<TacticalGlobeOverlay3DProps> = ({ onSelectWard }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [hoveredCell, setHoveredCell] = useState<GridCell | null>(null);
+  const hoveredCellRef = useRef<GridCell | null>(null);
+  const onSelectWardRef = useRef(onSelectWard);
+  onSelectWardRef.current = onSelectWard;
 
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -201,7 +204,13 @@ export const TacticalGlobeOverlay3D: React.FC<TacticalGlobeOverlay3DProps> = ({ 
         const hit = wardMeshes.find((w) => w.mesh === intersects[0].object);
         if (hit) {
           setHoveredCell(hit.cell);
+          hoveredCellRef.current = hit.cell;
+          renderer.domElement.style.cursor = "pointer";
         }
+      } else {
+        setHoveredCell(null);
+        hoveredCellRef.current = null;
+        renderer.domElement.style.cursor = isDragging ? "grabbing" : "grab";
       }
     };
 
@@ -209,9 +218,23 @@ export const TacticalGlobeOverlay3D: React.FC<TacticalGlobeOverlay3DProps> = ({ 
       isDragging = false;
     };
 
-    const handleClick = () => {
-      if (hoveredCell && onSelectWard) {
-        onSelectWard(hoveredCell.wardNumber);
+    const handleClick = (e: MouseEvent) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      const clickMouse = new THREE.Vector2(
+        ((e.clientX - rect.left) / rect.width) * 2 - 1,
+        -((e.clientY - rect.top) / rect.height) * 2 + 1
+      );
+      raycaster.setFromCamera(clickMouse, camera);
+      const intersects = raycaster.intersectObjects(wardMeshes.map((w) => w.mesh));
+      if (intersects.length > 0) {
+        const hit = wardMeshes.find((w) => w.mesh === intersects[0].object);
+        if (hit && onSelectWardRef.current) {
+          onSelectWardRef.current(hit.cell.wardNumber);
+          return;
+        }
+      }
+      if (hoveredCellRef.current && onSelectWardRef.current) {
+        onSelectWardRef.current(hoveredCellRef.current.wardNumber);
       }
     };
 

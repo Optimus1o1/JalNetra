@@ -13,11 +13,13 @@ interface Hydrograph3DProps {
 
 export const Hydrograph3D: React.FC<Hydrograph3DProps> = ({
   scrubIndex = 4,
-  onSelectScrubIndex: _onSelectScrubIndex,
+  onSelectScrubIndex,
   isPlaying: _isPlaying = false,
   className = "",
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
+  const onSelectScrubIndexRef = useRef(onSelectScrubIndex);
+  onSelectScrubIndexRef.current = onSelectScrubIndex;
   const [autoRotate, setAutoRotate] = useState(false);
   const [activeCameraView, setActiveCameraView] = useState<"iso" | "front" | "top">("iso");
   const [hoveredData, setHoveredData] = useState<{
@@ -359,14 +361,64 @@ export const Hydrograph3D: React.FC<Hydrograph3DProps> = ({
       cameraRef.current.lookAt(0, 1.8, 0);
     };
 
+    let clickStartX = 0;
+    let clickStartY = 0;
+
+    const checkSliceClick = (clientX: number, clientY: number) => {
+      if (!cameraRef.current) return;
+      const rect = domEl.getBoundingClientRect();
+      const mouse = new THREE.Vector2(
+        ((clientX - rect.left) / rect.width) * 2 - 1,
+        -((clientY - rect.top) / rect.height) * 2 + 1
+      );
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(mouse, cameraRef.current);
+      const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+      const hit = new THREE.Vector3();
+      if (raycaster.ray.intersectPlane(plane, hit)) {
+        let closestIdx = 0;
+        let minDist = 999;
+        sliceXPositions.forEach((sx, idx) => {
+          const d = Math.abs(hit.x - sx);
+          if (d < minDist) {
+            minDist = d;
+            closestIdx = idx;
+          }
+        });
+        if (minDist < 2.2 && onSelectScrubIndexRef.current) {
+          onSelectScrubIndexRef.current(closestIdx);
+        }
+      }
+    };
+
     const handleMouseDown = (e: MouseEvent) => {
       isDragging = true;
+      clickStartX = e.clientX;
+      clickStartY = e.clientY;
       prevMouseX = e.clientX;
       prevMouseY = e.clientY;
     };
 
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isDragging) return;
+      if (!isDragging) {
+        if (cameraRef.current) {
+          const rect = domEl.getBoundingClientRect();
+          const mouse = new THREE.Vector2(
+            ((e.clientX - rect.left) / rect.width) * 2 - 1,
+            -((e.clientY - rect.top) / rect.height) * 2 + 1
+          );
+          const raycaster = new THREE.Raycaster();
+          raycaster.setFromCamera(mouse, cameraRef.current);
+          const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+          const hit = new THREE.Vector3();
+          if (raycaster.ray.intersectPlane(plane, hit)) {
+            const nearSlice = sliceXPositions.some((sx) => Math.abs(hit.x - sx) < 1.8);
+            domEl.style.cursor = nearSlice ? "pointer" : "grab";
+          }
+        }
+        return;
+      }
+      domEl.style.cursor = "grabbing";
       const deltaX = e.clientX - prevMouseX;
       const deltaY = e.clientY - prevMouseY;
       prevMouseX = e.clientX;
@@ -377,8 +429,15 @@ export const Hydrograph3D: React.FC<Hydrograph3DProps> = ({
       updateCameraPosition();
     };
 
-    const handleMouseUp = () => {
-      isDragging = false;
+    const handleMouseUp = (e: MouseEvent) => {
+      if (isDragging) {
+        isDragging = false;
+        domEl.style.cursor = "grab";
+        const distMoved = Math.hypot(e.clientX - clickStartX, e.clientY - clickStartY);
+        if (distMoved < 6) {
+          checkSliceClick(e.clientX, e.clientY);
+        }
+      }
     };
 
     const handleWheel = (e: WheelEvent) => {
