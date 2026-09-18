@@ -21,7 +21,32 @@ import {
   Sliders,
   Play,
   FastForward,
+  CloudRain,
+  CloudSun,
+  CloudDrizzle,
+  Droplets,
+  Crosshair,
+  X,
 } from "lucide-react";
+
+export interface CloudInspectionData {
+  isCloud: boolean;
+  isRainCloud: boolean;
+  rainSeverity: "none" | "light" | "moderate" | "heavy" | "extreme";
+  statusLabel: string;
+  cloudType: string;
+  opticalDensity: number; // 0..100 %
+  rainRate: number; // mm/hr
+  radarReflectivity: number; // dBZ
+  cloudTopTemp: number; // °C
+  precipProbability: number; // %
+  lat: number;
+  lon: number;
+  locationName: string;
+  screenX: number;
+  screenY: number;
+  timestamp: number;
+}
 
 export type DeviceTier = "checking" | "full" | "lite" | "off";
 
@@ -193,6 +218,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeHotspot, setActiveHotspot] = useState<Hotspot>(HOTSPOTS[0]);
   const [hoveredHotspot, setHoveredHotspot] = useState<Hotspot | null>(null);
+  const [cloudInspection, setCloudInspection] = useState<CloudInspectionData | null>(null);
   const [autoRotate, setAutoRotate] = useState<boolean>(true);
   const [zoomLevel, setZoomLevel] = useState<number>(1);
   const [satelliteSourceLoaded, setSatelliteSourceLoaded] = useState<boolean>(false);
@@ -257,11 +283,12 @@ export const GlobalClimateGlobe3D: React.FC = () => {
   const lastReportedZoomRef = useRef<number>(1);
   const simTimeOffsetRef = useRef<number>(0);
   const cloudTimeRef = useRef<number>(0);
+  const cloudPixelDataRef = useRef<Uint8ClampedArray | null>(null);
 
-  // Smooth target camera rotation orientation
+  // Smooth target camera rotation orientation (Default: Kolkata & Bay of Bengal facing camera in full daylight)
   const targetRotationRef = useRef<{ x: number; y: number; active: boolean }>({
-    x: 0.22,
-    y: -Math.PI * 0.45,
+    x: 0.20,
+    y: -Math.PI * 0.98,
     active: false,
   });
 
@@ -432,7 +459,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
 
           // Authentic NASA Blue Marble true-color satellite photography (NO BLUE WASH)
           vec4 dayColor = texture2D(dayMap, vUv);
-          vec3 dayRgb = dayColor.rgb * 1.15;
+          vec3 dayRgb = dayColor.rgb * 1.02;
 
           // Water specular mask (oceans = 1.0, continents = 0.0)
           float specMask = texture2D(specularMap, vUv).r;
@@ -449,20 +476,22 @@ export const GlobalClimateGlobe3D: React.FC = () => {
           float cloudDensity = cloudSample.r;
 
           // -----------------------------------------------------------------
-          // REAL-TIME HIGH-CONTRAST DARK CLOUD SHADOWS (LOCKSTEP WITH CLOUDS)
+          // REAL-TIME NATURAL CLOUD SHADOWS (32% AMBIENT DARKENING)
           // -----------------------------------------------------------------
           if (useCloudShadows > 0.5) {
-            vec2 shadowOffset = -normalize(s.xy + vec2(0.0001)) * 0.0055;
+            vec2 shadowOffset = -normalize(s.xy + vec2(0.0001)) * 0.0045;
             float cShadow = texture2D(cloudMap, cloudUv + shadowOffset).r;
-            // Distinct deep shadow darkening (85% light reduction under dense clouds)
-            float shadowFactor = smoothstep(0.15, 0.55, cShadow) * 0.85;
+            // Soft realistic shadow darkening (32% light reduction under dense clouds)
+            float shadowFactor = smoothstep(0.18, 0.58, cShadow) * 0.32;
             dayRgb *= (1.0 - shadowFactor * dayFactor);
           }
 
-          // Photorealistic oceanic sun glint (bright celestial reflection over water)
+          // Photorealistic oceanic sun glint (focused celestial reflection over water)
           vec3 r = reflect(-s, n);
-          float spec = pow(max(0.0, dot(r, v)), 32.0) * specMask * useSpecular * 3.0;
-          vec3 sunGlint = vec3(1.0, 0.96, 0.90) * spec * max(0.0, sunDot);
+          float spec = pow(max(0.0, dot(r, v)), 96.0) * specMask * useSpecular * 0.75;
+          // Dense clouds block sun reflection from water
+          spec *= (1.0 - smoothstep(0.12, 0.55, cloudDensity));
+          vec3 sunGlint = vec3(1.0, 0.98, 0.92) * spec * max(0.0, sunDot);
           dayRgb += sunGlint;
 
           // Sunset / Sunrise golden-crimson twilight glow along the terminator line
@@ -568,24 +597,24 @@ export const GlobalClimateGlobe3D: React.FC = () => {
           float dayFactor = smoothstep(-0.06, 0.08, sunDot);
 
           // Day: Pure brilliant gleaming white clouds with realistic solar elevation
-          vec3 dayCloudColor = vec3(1.0, 1.0, 1.0) * (0.96 + 0.32 * max(0.0, sunDot));
+          vec3 dayCloudColor = vec3(1.0, 1.0, 1.0) * clamp(0.96 + 0.28 * max(0.0, sunDot), 0.92, 1.25);
 
           // Forward Mie scattering on the sunlit rim
-          float mie = pow(max(0.0, dot(v, s)), 4.0) * 0.28;
-          dayCloudColor += vec3(0.25, 0.25, 0.25) * mie;
+          float mie = pow(max(0.0, dot(v, s)), 4.0) * 0.25;
+          dayCloudColor += vec3(0.20, 0.20, 0.20) * mie;
 
           // Sunset twilight golden-amber scattering along the narrow terminator band only
           float twilight = exp(-pow(sunDot / 0.06, 2.0)) * (1.0 - smoothstep(0.06, 0.16, sunDot));
-          dayCloudColor = mix(dayCloudColor, vec3(1.0, 0.72, 0.42), twilight * 0.75);
+          dayCloudColor = mix(dayCloudColor, vec3(1.0, 0.74, 0.45), twilight * 0.75);
 
           dayCloudColor = clamp(dayCloudColor, 0.0, 1.35);
 
-          // Night side: dark silhouette charcoal absorbing light (blocking ground lights)
-          vec3 nightCloudColor = vec3(0.010, 0.012, 0.018);
+          // Night side: soft atmospheric translucent silhouette (no pitch-black mud)
+          vec3 nightCloudColor = vec3(0.12, 0.15, 0.20);
 
           vec3 finalCloudColor = mix(nightCloudColor, dayCloudColor, dayFactor);
 
-          gl_FragColor = vec4(finalCloudColor, alpha * (dayFactor * 0.65 + 0.35));
+          gl_FragColor = vec4(finalCloudColor, alpha * (dayFactor * 0.70 + 0.30));
         }
       `,
     };
@@ -720,6 +749,21 @@ export const GlobalClimateGlobe3D: React.FC = () => {
       cloudTex.anisotropy = maxAnisotropy;
       cloudsShaderMat.uniforms.cloudMap.value = cloudTex;
       earthShaderMat.uniforms.cloudMap.value = cloudTex;
+
+      // Extract 512x256 image buffer for instant real-time cloud and rain detection
+      try {
+        const offCanvas = document.createElement("canvas");
+        offCanvas.width = 512;
+        offCanvas.height = 256;
+        const offCtx = offCanvas.getContext("2d");
+        if (offCtx && cloudTex.image) {
+          offCtx.drawImage(cloudTex.image, 0, 0, 512, 256);
+          const imgData = offCtx.getImageData(0, 0, 512, 256);
+          cloudPixelDataRef.current = imgData.data;
+        }
+      } catch (err) {
+        console.warn("Could not extract satellite cloud buffer:", err);
+      }
     });
 
     // 5. Monsoonal Moisture Jet Stream (Somali Jet -> Bay of Bengal -> Kolkata)
@@ -827,9 +871,24 @@ export const GlobalClimateGlobe3D: React.FC = () => {
     });
     globeGroup.add(beaconsGroup);
 
-    // Orient India & Bay of Bengal toward camera by default
-    globeGroup.rotation.y = -Math.PI * 0.45;
-    globeGroup.rotation.x = 0.22;
+    // 3D Interactive Touch Target Reticle for Cloud & Ground Identification
+    const touchReticleGeo = new THREE.RingGeometry(1.2, 2.5, 32);
+    const touchReticleMat = new THREE.MeshBasicMaterial({
+      color: 0x06b6d4,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.95,
+      blending: THREE.AdditiveBlending,
+      depthTest: false,
+    });
+    const touchReticleMesh = new THREE.Mesh(touchReticleGeo, touchReticleMat);
+    touchReticleMesh.visible = false;
+    touchReticleMesh.renderOrder = 999;
+    globeGroup.add(touchReticleMesh);
+
+    // Orient India & Bay of Bengal toward camera by default in high-noon daylight
+    globeGroup.rotation.y = -Math.PI * 0.98;
+    globeGroup.rotation.x = 0.20;
 
     // 8. 3D Raycasting & Pointer Interaction Engine
     const raycaster = new THREE.Raycaster();
@@ -855,6 +914,176 @@ export const GlobalClimateGlobe3D: React.FC = () => {
       const rect = container.getBoundingClientRect();
       mouseCoord.x = ((clientX - rect.left) / rect.width) * 2 - 1;
       mouseCoord.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+    };
+
+    const inspectCloudAtPoint = (clientX: number, clientY: number, lockSelection: boolean = false) => {
+      if (!cameraRef.current || !globeGroupRef.current) return null;
+      updateMouseCoord(clientX, clientY);
+      raycaster.setFromCamera(mouseCoord, cameraRef.current);
+
+      const targets = [cloudsMesh, earthMesh];
+      const intersects = raycaster.intersectObjects(targets);
+      if (intersects.length === 0) {
+        if (lockSelection) {
+          touchReticleMesh.visible = false;
+          setCloudInspection(null);
+        }
+        return null;
+      }
+
+      const hit = intersects[0];
+      const hitPoint = hit.point;
+
+      // Position touch reticle on sphere surface
+      touchReticleMesh.position.copy(hitPoint.clone().multiplyScalar(1.002));
+      touchReticleMesh.lookAt(new THREE.Vector3(0, 0, 0));
+      touchReticleMesh.visible = true;
+
+      // Geographic coordinates on Earth
+      const localPoint = earthMesh.worldToLocal(hitPoint.clone()).normalize();
+      const lat = Math.asin(Math.max(-1, Math.min(1, localPoint.y))) * (180 / Math.PI);
+      const theta = Math.atan2(localPoint.z, -localPoint.x);
+      let lon = (theta * 180 / Math.PI) - 180;
+      lon = ((lon + 180) % 360 + 360) % 360 - 180;
+
+      // Sampling coordinates on cloudsMesh
+      const cloudLocal = cloudsMesh.worldToLocal(hitPoint.clone()).normalize();
+      const cLat = Math.asin(Math.max(-1, Math.min(1, cloudLocal.y))) * (180 / Math.PI);
+      const cTheta = Math.atan2(cloudLocal.z, -cloudLocal.x);
+      let cLon = (cTheta * 180 / Math.PI) - 180;
+      cLon = ((cLon + 180) % 360 + 360) % 360 - 180;
+
+      const u = (cLon + 180) / 360;
+      const v = (cLat + 90) / 180;
+
+      // Match shader dynamic wind advection
+      const latWind = (v - 0.5) * 2.0;
+      const windSpeed = Math.abs(latWind) < 0.35 ? 0.015 : -0.010;
+      const cloudU = ((u + cloudTimeRef.current * windSpeed) % 1.0 + 1.0) % 1.0;
+      const cloudV = Math.max(0, Math.min(1, v + Math.sin(u * 6.28318 + cloudTimeRef.current * 0.025) * 0.003));
+
+      // Sample optical depth
+      let density = 0.0;
+      if (cloudPixelDataRef.current) {
+        const px = Math.floor(cloudU * 512) % 512;
+        const py = Math.floor(Math.max(0, Math.min(255, (1 - cloudV) * 256)));
+        const idx = (py * 512 + px) * 4;
+        density = cloudPixelDataRef.current[idx] / 255;
+      }
+
+      // Geographical basin recognition
+      let locationName = "Open Ocean Basin";
+      if (lat >= 10 && lat <= 30 && lon >= 70 && lon <= 95) {
+        if (lat >= 20 && lat <= 26 && lon >= 86 && lon <= 91) {
+          locationName = "Kolkata Metropolitan Delta / Sundarbans";
+        } else if (lat >= 10 && lat <= 22 && lon >= 80 && lon <= 95) {
+          locationName = "Bay of Bengal Marine Basin";
+        } else if (lat >= 10 && lat <= 24 && lon >= 68 && lon <= 78) {
+          locationName = "Indian Subcontinent (Central Plains)";
+        }
+      } else if (lat >= 5 && lat <= 25 && lon >= 55 && lon <= 75) {
+        locationName = "Arabian Sea Basin";
+      } else if (lat >= -15 && lat <= 5 && lon >= 50 && lon <= 100) {
+        locationName = "Equatorial Indian Ocean";
+      } else if (lat >= -15 && lat <= 15 && lon <= -120 && lon >= -170) {
+        locationName = "Equatorial Pacific (Niño 3.4)";
+      } else if (lat >= 25 && lat <= 38 && lon >= 75 && lon <= 95) {
+        locationName = "Himalayan Orographic Confluence";
+      } else if (lat >= 0 && lat <= 30 && lon >= 100 && lon <= 130) {
+        locationName = "South China Sea / SE Asia";
+      } else if (lat >= 30 && lat <= 60 && lon >= -10 && lon <= 40) {
+        locationName = "European Continental Mass";
+      } else if (lat >= 15 && lat <= 50 && lon >= -125 && lon <= -65) {
+        locationName = "North American Landmass";
+      } else if (lat >= -55 && lat <= 12 && lon >= -80 && lon <= -35) {
+        locationName = "Amazon Basin / South America";
+      }
+
+      // Meteorological Rain Cloud vs Non-Rain Cloud Classification
+      let isCloud = false;
+      let isRainCloud = false;
+      let rainSeverity: "none" | "light" | "moderate" | "heavy" | "extreme" = "none";
+      let statusLabel = "☀️ CLEAR SKY (NO CLOUDS)";
+      let cloudType = "Direct Terrestrial Surface Visibility";
+      let rainRate = 0.0;
+      let radarReflectivity = 0;
+      let cloudTopTemp = 28;
+      let precipProbability = 0;
+
+      if (density >= 0.38) {
+        isCloud = true;
+        isRainCloud = true;
+        const isSevere = density >= 0.60;
+        rainSeverity = isSevere ? "heavy" : "moderate";
+        statusLabel = isSevere ? "🌧️ HEAVY RAIN CLOUD DETECTED" : "🌧️ RAIN CLOUD DETECTED";
+        cloudType = isSevere
+          ? "Deep Convective Cumulonimbus Incus (Cb)"
+          : "Precipitating Monsoonal Convective Cell";
+        rainRate = Math.round(((density - 0.38) / 0.62 * 54 + 16) * 10) / 10;
+        radarReflectivity = Math.round((density - 0.38) / 0.62 * 18 + 38);
+        cloudTopTemp = Math.round(-42 - (density - 0.38) / 0.62 * 28);
+        precipProbability = Math.round(88 + (density - 0.38) * 18);
+        touchReticleMat.color.setHex(0x06b6d4); // Cyan for heavy rain
+      } else if (density >= 0.22) {
+        isCloud = true;
+        isRainCloud = true;
+        rainSeverity = "light";
+        statusLabel = "🌦️ LIGHT RAIN / DRIZZLE DETECTED";
+        cloudType = "Precipitating Nimbostratus / Stratocumulus";
+        rainRate = Math.round(((density - 0.22) / 0.16 * 10 + 2.5) * 10) / 10;
+        radarReflectivity = Math.round((density - 0.22) / 0.16 * 12 + 24);
+        cloudTopTemp = Math.round(-18 - (density - 0.22) / 0.16 * 20);
+        precipProbability = Math.round(65 + (density - 0.22) * 100);
+        touchReticleMat.color.setHex(0x38bdf8); // Sky blue for drizzle
+      } else if (density >= 0.08) {
+        isCloud = true;
+        isRainCloud = false;
+        rainSeverity = "none";
+        statusLabel = "⛅ NON-RAIN CLOUD (DRY)";
+        cloudType = "Fair-Weather Cirrus / Altocumulus";
+        rainRate = 0.0;
+        radarReflectivity = Math.round(density * 75);
+        cloudTopTemp = Math.round(-2 - (density - 0.08) / 0.14 * 14);
+        precipProbability = Math.round(density * 25);
+        touchReticleMat.color.setHex(0xf59e0b); // Amber for dry clouds
+      } else {
+        isCloud = false;
+        isRainCloud = false;
+        rainSeverity = "none";
+        statusLabel = "☀️ CLEAR SKY (NO CLOUDS)";
+        cloudType = "Clear Terrestrial Surface / Ground Visibility";
+        rainRate = 0.0;
+        radarReflectivity = 0;
+        cloudTopTemp = 28;
+        precipProbability = 0;
+        touchReticleMat.color.setHex(0x10b981); // Emerald for clear sky
+      }
+
+      const rect = container.getBoundingClientRect();
+      const screenX = clientX - rect.left;
+      const screenY = clientY - rect.top;
+
+      const inspection: CloudInspectionData = {
+        isCloud,
+        isRainCloud,
+        rainSeverity,
+        statusLabel,
+        cloudType,
+        opticalDensity: Math.round(density * 100),
+        rainRate,
+        radarReflectivity,
+        cloudTopTemp,
+        precipProbability,
+        lat: Number(lat.toFixed(2)),
+        lon: Number(lon.toFixed(2)),
+        locationName,
+        screenX,
+        screenY,
+        timestamp: Date.now(),
+      };
+
+      setCloudInspection(inspection);
+      return inspection;
     };
 
     const checkBeaconHover = (clientX: number, clientY: number) => {
@@ -890,6 +1119,11 @@ export const GlobalClimateGlobe3D: React.FC = () => {
 
     const handlePointerMove = (e: MouseEvent) => {
       checkBeaconHover(e.clientX, e.clientY);
+
+      // Perform real-time hover cloud inspection when not dragging
+      if (!isDragging) {
+        inspectCloudAtPoint(e.clientX, e.clientY, false);
+      }
 
       if (!isDragging || !globeGroupRef.current) return;
       const deltaX = e.clientX - prevMouseX;
@@ -941,6 +1175,9 @@ export const GlobalClimateGlobe3D: React.FC = () => {
             active: true,
           };
         }
+
+        // Inspect cloud/ground at click position
+        inspectCloudAtPoint(e.clientX, e.clientY, true);
       }
     };
 
@@ -971,6 +1208,8 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         prevMouseY = e.touches[0].clientY;
         dragVelocityRef.current = { vx: 0, vy: 0 };
         targetRotationRef.current.active = false;
+        // Preview cloud inspection on touch
+        inspectCloudAtPoint(e.touches[0].clientX, e.touches[0].clientY, false);
       } else if (e.touches.length === 2) {
         isDragging = false;
         initialPinchDistance = getPinchDistance(e.touches);
@@ -1020,8 +1259,13 @@ export const GlobalClimateGlobe3D: React.FC = () => {
           const intersects = raycaster.intersectObjects(interactiveObjects);
           if (intersects.length > 0) {
             const hit = intersects[0].object.userData.hotspot as Hotspot | undefined;
-            if (hit) focusHotspotInternal(hit);
+            if (hit) {
+              focusHotspotInternal(hit);
+              return;
+            }
           }
+          // Mobile tap cloud and rain inspection
+          inspectCloudAtPoint(prevMouseX, prevMouseY, true);
         }
       }
     };
@@ -1218,6 +1462,12 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         });
       }
 
+      // 3D Touch Reticle Pulsing
+      if (touchReticleMesh.visible) {
+        const rScale = 1.0 + Math.sin(cloudTimeRef.current * 6.0) * 0.18;
+        touchReticleMesh.scale.set(rScale, rScale, 1.0);
+      }
+
       // Smooth Orientation Targeting & Momentum Inertia Physics
       if (globeGroupRef.current) {
         if (targetRotationRef.current.active) {
@@ -1313,6 +1563,8 @@ export const GlobalClimateGlobe3D: React.FC = () => {
       cloudsShaderMat.dispose();
       atmosphereGeo.dispose();
       atmosphereShaderMat.dispose();
+      touchReticleGeo.dispose();
+      touchReticleMat.dispose();
       moistureLineGeo.dispose();
       moistureLineMat.dispose();
       particleGeo.dispose();
@@ -1334,8 +1586,8 @@ export const GlobalClimateGlobe3D: React.FC = () => {
 
   const resetView = () => {
     targetRotationRef.current = {
-      x: 0.22,
-      y: -Math.PI * 0.45,
+      x: 0.20,
+      y: -Math.PI * 0.98,
       active: true,
     };
     targetCameraZRef.current = 210;
@@ -1588,6 +1840,30 @@ export const GlobalClimateGlobe3D: React.FC = () => {
             <Wind className="w-3 h-3 text-cyan-400 animate-pulse" />
             <span className="font-bold text-cyan-300">{simTelemetry.cloudDriftStatus}</span>
           </div>
+          <span className="text-slate-700 hidden xl:inline">•</span>
+          <div className="hidden xl:flex items-center gap-1.5">
+            <Crosshair className="w-3 h-3 text-cyan-400" />
+            <span className="text-slate-400">TOUCH ANALYSIS:</span>
+            {cloudInspection ? (
+              <span
+                className={`px-1.5 py-0.2 rounded font-bold ${
+                  cloudInspection.isRainCloud
+                    ? "bg-cyan-950/80 text-cyan-300 border border-cyan-500/50"
+                    : cloudInspection.isCloud
+                    ? "bg-amber-950/80 text-amber-300 border border-amber-500/50"
+                    : "bg-emerald-950/80 text-emerald-300 border border-emerald-500/50"
+                }`}
+              >
+                {cloudInspection.isRainCloud
+                  ? `🌧️ RAIN CLOUD (${cloudInspection.rainRate} mm/hr)`
+                  : cloudInspection.isCloud
+                  ? "⛅ NON-RAIN CLOUD (DRY)"
+                  : "☀️ CLEAR SKY"}
+              </span>
+            ) : (
+              <span className="text-slate-500 italic">Touch/Click cloud to inspect</span>
+            )}
+          </div>
         </div>
 
         <div className="flex items-center gap-3">
@@ -1619,7 +1895,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         />
 
         {/* Interactive Hover HUD Tooltip (Triggered by 3D Raycasting) */}
-        {hoveredHotspot && (
+        {hoveredHotspot && !cloudInspection && (
           <div className="absolute top-4 left-4 z-20 pointer-events-none flex items-center gap-2.5 px-3 py-2 rounded-xl bg-slate-950/90 border border-cyan-500/60 backdrop-blur-md shadow-2xl animate-fade-in">
             <div
               className="w-2.5 h-2.5 rounded-full animate-ping"
@@ -1639,10 +1915,163 @@ export const GlobalClimateGlobe3D: React.FC = () => {
           </div>
         )}
 
+        {/* Floating Holographic Cloud & Rain Identification HUD */}
+        {cloudInspection && (
+          <div className="absolute top-4 right-4 z-20 max-w-sm w-[92%] sm:w-84 rounded-2xl bg-slate-950/95 border backdrop-blur-xl p-3.5 shadow-2xl transition-all duration-300 animate-in fade-in slide-in-from-top-2 border-cyan-500/50 shadow-[0_0_25px_rgba(6,182,212,0.25)]">
+            <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800/80">
+              <div className="flex items-center gap-2">
+                {cloudInspection.isRainCloud ? (
+                  <div className="p-1.5 rounded-lg bg-cyan-950/80 border border-cyan-400 text-cyan-300 animate-pulse">
+                    <CloudRain className="w-4 h-4" />
+                  </div>
+                ) : cloudInspection.isCloud ? (
+                  <div className="p-1.5 rounded-lg bg-amber-950/80 border border-amber-400 text-amber-300">
+                    <CloudSun className="w-4 h-4" />
+                  </div>
+                ) : (
+                  <div className="p-1.5 rounded-lg bg-emerald-950/80 border border-emerald-400 text-emerald-300">
+                    <Sun className="w-4 h-4" />
+                  </div>
+                )}
+                <div>
+                  <div className="text-xs font-bold font-sans tracking-wide text-white flex items-center gap-1.5">
+                    {cloudInspection.statusLabel}
+                  </div>
+                  <div className="text-[10px] font-mono text-slate-400">
+                    {cloudInspection.locationName}
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => setCloudInspection(null)}
+                className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+                title="Dismiss Inspector"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Cloud Type Classification Banner */}
+            <div className="mb-2 px-2.5 py-1 rounded-lg bg-[#040816] border border-slate-800/80 flex items-center justify-between text-[10px] font-mono">
+              <span className="text-slate-400">CLASSIFICATION:</span>
+              <span
+                className={`font-bold ${
+                  cloudInspection.isRainCloud
+                    ? "text-cyan-300"
+                    : cloudInspection.isCloud
+                    ? "text-amber-300"
+                    : "text-emerald-300"
+                }`}
+              >
+                {cloudInspection.cloudType}
+              </span>
+            </div>
+
+            {/* Precipitation & Atmospheric Metrics Grid */}
+            <div className="grid grid-cols-2 gap-2 mb-2 text-[10px] font-mono">
+              <div className="p-2 rounded-lg bg-slate-900/70 border border-slate-800/80">
+                <div className="text-slate-400 flex items-center gap-1 mb-0.5">
+                  <Droplets className="w-3 h-3 text-cyan-400" />
+                  RAIN RATE:
+                </div>
+                <div
+                  className={`text-sm font-bold ${
+                    cloudInspection.rainRate > 0 ? "text-cyan-300" : "text-slate-400"
+                  }`}
+                >
+                  {cloudInspection.rainRate.toFixed(1)}{" "}
+                  <span className="text-[10px] font-normal">mm/hr</span>
+                </div>
+                {/* Visual Rain Gauge Bar */}
+                <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden mt-1">
+                  <div
+                    className={`h-full transition-all duration-300 ${
+                      cloudInspection.rainSeverity === "heavy"
+                        ? "bg-gradient-to-r from-cyan-400 to-blue-500"
+                        : cloudInspection.rainSeverity === "moderate"
+                        ? "bg-cyan-400"
+                        : cloudInspection.rainSeverity === "light"
+                        ? "bg-sky-400"
+                        : "bg-slate-700"
+                    }`}
+                    style={{
+                      width: `${Math.min(100, Math.max(0, (cloudInspection.rainRate / 60) * 100))}%`,
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="p-2 rounded-lg bg-slate-900/70 border border-slate-800/80">
+                <div className="text-slate-400 flex items-center gap-1 mb-0.5">
+                  <Satellite className="w-3 h-3 text-sky-400" />
+                  RADAR ECHO:
+                </div>
+                <div className="text-sm font-bold text-sky-300">
+                  {cloudInspection.radarReflectivity}{" "}
+                  <span className="text-[10px] font-normal">dBZ</span>
+                </div>
+                <div className="text-[9px] text-slate-400 mt-1">
+                  {cloudInspection.radarReflectivity >= 45
+                    ? "Severe Precipitation"
+                    : cloudInspection.radarReflectivity >= 35
+                    ? "Moderate Rain"
+                    : cloudInspection.radarReflectivity >= 20
+                    ? "Light Scatter"
+                    : "Non-Precipitating"}
+                </div>
+              </div>
+
+              <div className="p-2 rounded-lg bg-slate-900/70 border border-slate-800/80">
+                <div className="text-slate-400 flex items-center gap-1 mb-0.5">
+                  <Wind className="w-3 h-3 text-indigo-400" />
+                  CLOUD TOP TEMP:
+                </div>
+                <div className="text-sm font-bold text-indigo-300">
+                  {cloudInspection.cloudTopTemp > 0
+                    ? `+${cloudInspection.cloudTopTemp}`
+                    : cloudInspection.cloudTopTemp}
+                  °C
+                </div>
+                <div className="text-[9px] text-slate-400 mt-1">
+                  {cloudInspection.cloudTopTemp <= -40 ? "Deep Convective Top" : "Low Altitude / Base"}
+                </div>
+              </div>
+
+              <div className="p-2 rounded-lg bg-slate-900/70 border border-slate-800/80">
+                <div className="text-slate-400 flex items-center gap-1 mb-0.5">
+                  <Layers className="w-3 h-3 text-purple-400" />
+                  OPTICAL DEPTH:
+                </div>
+                <div className="text-sm font-bold text-purple-300">
+                  {cloudInspection.opticalDensity}%
+                </div>
+                <div className="text-[9px] text-slate-400 mt-1">
+                  Prob: {cloudInspection.precipProbability}% Rain
+                </div>
+              </div>
+            </div>
+
+            {/* Coordinates and Satellite Source footer */}
+            <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[10px] font-mono text-slate-400">
+              <span className="flex items-center gap-1">
+                <Crosshair className="w-3 h-3 text-cyan-400" />
+                {cloudInspection.lat >= 0
+                  ? `${cloudInspection.lat}°N`
+                  : `${Math.abs(cloudInspection.lat)}°S`}
+                ,{" "}
+                {cloudInspection.lon >= 0
+                  ? `${cloudInspection.lon}°E`
+                  : `${Math.abs(cloudInspection.lon)}°W`}
+              </span>
+              <span className="text-cyan-400 text-[9px] font-bold">NASA SATELLITE RADAR</span>
+            </div>
+          </div>
+        )}
+
         {/* Interaction Guide Badge */}
         <div className="absolute bottom-3 right-3 z-10 pointer-events-none flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-950/80 border border-slate-800/80 text-[10px] font-mono text-slate-400 backdrop-blur-sm">
           <MousePointerClick className="w-3 h-3 text-cyan-400" />
-          <span>Click 3D Hotspot or Drag to Rotate • Real Satellite Clouds Moving Continuously</span>
+          <span>Touch or Click any cloud to identify Rain vs. Non-Rain • Drag to Rotate</span>
         </div>
       </div>
 
