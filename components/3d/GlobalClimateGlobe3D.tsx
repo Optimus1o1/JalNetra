@@ -307,8 +307,9 @@ export const GlobalClimateGlobe3D: React.FC = () => {
   const setSolarPreset = (mode: SolarMode) => {
     setSolarMode(mode);
     solarModeRef.current = mode;
+    simTimeOffsetRef.current = 0; // Reset time offset so preset takes effect immediately
     if (mode === "noon") {
-      setSolarLongitude(88.36); // Solar noon over Kolkata
+      setSolarLongitude(88.36); // Direct midday sun over Kolkata (Day Mode)
       solarLongitudeRef.current = 88.36;
     } else if (mode === "sunset") {
       setSolarLongitude(88.36 - 90); // Terminator directly bisecting Kolkata
@@ -447,12 +448,13 @@ export const GlobalClimateGlobe3D: React.FC = () => {
           float cloudDensity = max(cloudSample.r, cloudSample.a);
 
           // -----------------------------------------------------------------
-          // REAL-TIME SHARP CLOUD SHADOWS (MOVING IN LOCKSTEP WITH CLOUDS)
+          // REAL-TIME HIGH-CONTRAST DARK CLOUD SHADOWS (LOCKSTEP WITH CLOUDS)
           // -----------------------------------------------------------------
           if (useCloudShadows > 0.5) {
-            vec2 shadowOffset = -normalize(s.xy + vec2(0.0001)) * 0.004;
+            vec2 shadowOffset = -normalize(s.xy + vec2(0.0001)) * 0.0055;
             float cShadow = texture2D(cloudMap, cloudUv + shadowOffset).r;
-            float shadowFactor = smoothstep(0.25, 0.70, cShadow) * 0.45;
+            // Distinct deep shadow darkening (85% light reduction under dense clouds)
+            float shadowFactor = smoothstep(0.18, 0.60, cShadow) * 0.85;
             dayRgb *= (1.0 - shadowFactor * dayFactor);
           }
 
@@ -506,7 +508,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         cloudMap: { value: fallbackDay },
         sunDirection: { value: new THREE.Vector3(1, 0, 0) },
         uCloudTime: { value: 0.0 },
-        cloudOpacity: { value: 0.94 },
+        cloudOpacity: { value: 0.98 },
         visible: { value: 1.0 },
       },
       vertexShader: `
@@ -557,25 +559,27 @@ export const GlobalClimateGlobe3D: React.FC = () => {
           // ---------------------------------------------------------------
           // CRISP SATELLITE THRESHOLD: CLEAR SKIES ARE 100% CRYSTAL CLEAR!
           // ---------------------------------------------------------------
-          float alpha = smoothstep(0.22, 0.68, cloudDensity) * cloudOpacity;
+          float alpha = smoothstep(0.16, 0.58, cloudDensity) * cloudOpacity;
           if (alpha < 0.02) discard; // ZERO HAZE OVER CLEAR CONTINENTS AND SEAS
 
           float sunDot = dot(n, s);
           float dayFactor = smoothstep(-0.06, 0.08, sunDot);
 
-          // Day: Brilliant, crisp sunlit cloud tops with subtle solar shading
-          vec3 dayCloudColor = vec3(0.98, 0.99, 1.0) * (0.88 + 0.32 * max(0.0, sunDot));
+          // Day: Pure brilliant gleaming white clouds with realistic solar elevation
+          vec3 dayCloudColor = vec3(1.0, 1.0, 1.0) * (0.96 + 0.32 * max(0.0, sunDot));
 
           // Forward Mie scattering on the sunlit rim
-          float mie = pow(max(0.0, dot(v, s)), 4.0) * 0.35;
-          dayCloudColor += vec3(1.0, 1.0, 1.0) * mie;
+          float mie = pow(max(0.0, dot(v, s)), 4.0) * 0.28;
+          dayCloudColor += vec3(0.25, 0.25, 0.25) * mie;
 
-          // Sunset twilight golden-amber scattering along the terminator
-          float twilight = exp(-pow(sunDot / 0.10, 2.0));
-          dayCloudColor = mix(dayCloudColor, vec3(1.0, 0.62, 0.28), twilight * 0.9);
+          // Sunset twilight golden-amber scattering along the narrow terminator band only
+          float twilight = exp(-pow(sunDot / 0.06, 2.0)) * (1.0 - smoothstep(0.06, 0.16, sunDot));
+          dayCloudColor = mix(dayCloudColor, vec3(1.0, 0.72, 0.42), twilight * 0.75);
+
+          dayCloudColor = clamp(dayCloudColor, 0.0, 1.35);
 
           // Night side: dark silhouette charcoal absorbing light (blocking ground lights)
-          vec3 nightCloudColor = vec3(0.012, 0.015, 0.022);
+          vec3 nightCloudColor = vec3(0.010, 0.012, 0.018);
 
           vec3 finalCloudColor = mix(nightCloudColor, dayCloudColor, dayFactor);
 
@@ -1107,29 +1111,52 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         cloudsMeshRef.current.rotation.y += delta * 0.0022 * cMultiplier;
       }
 
-      // Calculate Astronomical Sun Vector in World Space
+      // Calculate Astronomical Sun Vector in World Space (Default Day Mode: Direct high noon illumination)
       const mode = solarModeRef.current;
       const now = new Date(Date.now() + simTimeOffsetRef.current * 1000);
       let subsolarLonDeg: number;
-      let subsolarLatDeg: number;
+      let subsolarLatDeg = 20.0;
+      let sunVec: THREE.Vector3;
 
-      if (mode === "live") {
+      if (mode === "noon") {
+        // Day Mode (Default): Direct brilliant high-noon sunlit hemisphere facing the camera
+        const drift = (simTimeOffsetRef.current * 360) / 86400;
+        const driftRad = (drift * Math.PI) / 180;
+        // In world coordinates, +Z faces the camera, +Y is north
+        sunVec = new THREE.Vector3(Math.sin(driftRad), 0.32, Math.cos(driftRad)).normalize();
+        subsolarLonDeg = ((88.36 + drift + 180) % 360) - 180;
+        subsolarLatDeg = 22.5;
+      } else if (mode === "sunset") {
+        const drift = (simTimeOffsetRef.current * 360) / 86400;
+        const driftRad = ((-90 + drift) * Math.PI) / 180;
+        sunVec = new THREE.Vector3(Math.sin(driftRad), 0.28, Math.cos(driftRad)).normalize();
+        subsolarLonDeg = ((88.36 - 90 + drift + 180) % 360) - 180;
+        subsolarLatDeg = 20.0;
+      } else if (mode === "night") {
+        const drift = (simTimeOffsetRef.current * 360) / 86400;
+        const driftRad = ((180 + drift) * Math.PI) / 180;
+        sunVec = new THREE.Vector3(Math.sin(driftRad), 0.28, Math.cos(driftRad)).normalize();
+        subsolarLonDeg = ((88.36 - 180 + drift + 180) % 360) - 180;
+        subsolarLatDeg = 20.0;
+      } else if (mode === "live") {
         const utcHours = now.getUTCHours() + now.getUTCMinutes() / 60 + now.getUTCSeconds() / 3600;
         subsolarLonDeg = -(utcHours - 12) * 15;
         const dayOfYear = Math.floor(
           (now.getTime() - new Date(now.getUTCFullYear(), 0, 0).getTime()) / 86400000
         );
         subsolarLatDeg = -23.44 * Math.cos(((2 * Math.PI) / 365) * (dayOfYear + 10));
+        const kolkataHours = (utcHours + 5.5) % 24;
+        const liveAngleRad = ((kolkataHours - 12) / 12) * Math.PI;
+        sunVec = new THREE.Vector3(-Math.sin(liveAngleRad), 0.30, Math.cos(liveAngleRad)).normalize();
       } else {
-        // Preset or Manual Solar Control
-        // If simulation speed is running, allow sun to drift continuously
+        // Manual slider scrub (solarLongitudeRef.current is -180 to 180)
         const drift = (simTimeOffsetRef.current * 360) / 86400;
-        subsolarLonDeg = ((solarLongitudeRef.current + drift + 180) % 360) - 180;
-        subsolarLatDeg = 20.0; // Northern summer declination
+        const totalLon = ((solarLongitudeRef.current + drift + 180) % 360) - 180;
+        const angleRad = ((totalLon - 88.36) * Math.PI) / 180;
+        sunVec = new THREE.Vector3(Math.sin(angleRad), 0.30, Math.cos(angleRad)).normalize();
+        subsolarLonDeg = totalLon;
+        subsolarLatDeg = 20.0;
       }
-
-      // Sun Vector in WORLD space (directed from Sun toward Earth)
-      const sunVec = latLonToVector3(subsolarLatDeg, subsolarLonDeg, 1.0).normalize();
 
       const currentLayers = layersRef.current;
 
@@ -1475,7 +1502,7 @@ export const GlobalClimateGlobe3D: React.FC = () => {
             }`}
           >
             <Sun className="w-3 h-3 text-amber-400" />
-            NOON (KOLKATA DAY)
+            DAY (SOLAR NOON)
           </button>
 
           <button
