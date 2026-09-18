@@ -13,10 +13,8 @@ import {
   Upload,
   Play,
   Sliders,
-  FileCode,
   Sparkles,
   RefreshCw,
-  ExternalLink,
   Layers,
   ArrowUpRight,
   TrendingUp,
@@ -202,11 +200,11 @@ export const ModelLabSection: React.FC = () => {
           <div className="flex items-center gap-2">
             <Cpu className="w-5 h-5 text-cyan-400" />
             <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white font-sans">
-              Model Lab & Custom Model Studio
+              Model Lab & Inference Cockpit
             </h2>
           </div>
           <p className="text-xs sm:text-sm text-slate-400 font-mono mt-1">
-            CRPS calibration, spatial IoU benchmarks, TreeSHAP attributions & Google Colab custom model training
+            CRPS calibration, spatial IoU benchmarks, TreeSHAP attributions & physics-informed hydrodynamic inference
           </p>
         </div>
 
@@ -229,211 +227,150 @@ export const ModelLabSection: React.FC = () => {
       <ModelArchitecture3D />
 
       {/* ========================================================================= */}
-      {/* GOOGLE COLAB CUSTOM MODEL DEPLOYMENT & LIVE INFERENCE BENCH */}
+      {/* HYDROLOGICAL MODEL LIVE INFERENCE COCKPIT (FULL-WIDTH 12-COL DECK) */}
       {/* ========================================================================= */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* Colab Instructions & Dataset Source (Left 5 Cols) */}
-        <div className="lg:col-span-5 space-y-5">
-          <GlassCard tone="elevated" className="p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <FileCode className="w-5 h-5 text-amber-400" />
-                <h3 className="text-sm font-bold text-slate-100 font-sans">
-                  Train in Google Colab
-                </h3>
-              </div>
-              <Badge variant="amber" size="sm">
-                OPEN DATASET PIPELINE
+      <GlassCard tone="standard" className="p-5 sm:p-6 space-y-5">
+        {/* Hidden file input for hot-swapping weights */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".json"
+          onChange={handleFileUpload}
+          className="hidden"
+          id="custom-model-upload"
+        />
+
+        {/* Cockpit Header */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-800 pb-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <Sliders className="w-5 h-5 text-cyan-400" />
+              <h3 className="text-base font-bold text-slate-100 font-sans">
+                Hydrological Model Live Inference Cockpit
+              </h3>
+              <Badge variant="cyan" size="sm">
+                PHYSICS-INFORMED PINN
               </Badge>
             </div>
-
-            <p className="text-xs text-slate-300 font-mono leading-relaxed">
-              Train your own deep hydrological PINN or XGBoost model in Google Colab using verified open internet datasets, then export and load directly into JalNetra.
+            <p className="text-xs text-slate-400 font-mono mt-1">
+              Simulate hydrodynamic inundation response & additive TreeSHAP feature attributions in real time
             </p>
+          </div>
 
-            <div className="p-3 rounded-lg bg-slate-900/90 border border-slate-800 space-y-2 font-mono text-xs">
-              <div className="text-[11px] font-bold text-cyan-300 flex items-center gap-1.5">
-                <Database className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Curated Training Datasets:</span>
-              </div>
-              <ul className="space-y-1.5 text-[11px] text-slate-300">
-                <li className="flex items-center justify-between bg-slate-950/60 p-1.5 rounded border border-slate-800">
-                  <span className="truncate pr-2">1. Indian Rainfall & Flood Dataset</span>
-                  <a
-                    href="https://raw.githubusercontent.com/neharikajsh/Flood_Prediction/master/data.csv"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-cyan-400 hover:text-cyan-300 inline-flex items-center gap-1 text-[10px] shrink-0"
-                  >
-                    CSV <ExternalLink className="w-2.5 h-2.5" />
-                  </a>
-                </li>
-                <li className="flex items-center justify-between bg-slate-950/60 p-1.5 rounded border border-slate-800">
-                  <span className="truncate pr-2">2. Kerala Decadal Flood Series</span>
-                  <a
-                    href="https://raw.githubusercontent.com/amandp13/Flood-Prediction-Model/master/kerala.csv"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-cyan-400 hover:text-cyan-300 inline-flex items-center gap-1 text-[10px] shrink-0"
-                  >
-                    CSV <ExternalLink className="w-2.5 h-2.5" />
-                  </a>
-                </li>
-                <li className="flex items-center justify-between bg-slate-950/60 p-1.5 rounded border border-slate-800">
-                  <span className="truncate pr-2">3. Kolkata Saint-Venant DEM Matrix</span>
-                  <span className="text-emerald-400 text-[10px] shrink-0 font-bold">Auto-Gen (5k)</span>
-                </li>
-              </ul>
-            </div>
+          {/* Model Management Actions */}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isLoading}
+              className="px-3 py-1.5 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700 font-mono text-xs font-semibold flex items-center gap-1.5 transition disabled:opacity-50"
+              title="Import model weights JSON artifact"
+            >
+              <Upload className="w-3.5 h-3.5 text-cyan-400" />
+              <span>{isLoading ? "Validating..." : "Import Model JSON"}</span>
+            </button>
 
-            <div className="space-y-2 font-mono text-xs">
-              <div className="text-[11px] font-bold text-slate-300">
-                3-Step Training Workflow:
-              </div>
-              <div className="text-[11px] text-slate-400 space-y-1">
-                <div>
-                  <span className="text-cyan-400 font-bold">1.</span> Open{" "}
-                  <code className="text-amber-300 bg-slate-900 px-1 py-0.5 rounded">
-                    colab/JalNetra_Custom_Model_Training.ipynb
-                  </code>{" "}
-                  in Colab.
-                </div>
-                <div>
-                  <span className="text-cyan-400 font-bold">2.</span> Click <strong>Runtime &rarr; Run all</strong> to train PINN + XGBoost.
-                </div>
-                <div>
-                  <span className="text-cyan-400 font-bold">3.</span> Colab exports{" "}
-                  <code className="text-emerald-300 bg-slate-900 px-1 py-0.5 rounded">
-                    jalnetra_custom_model.json
-                  </code>
-                  . Upload below!
-                </div>
-              </div>
-            </div>
+            <button
+              onClick={loadBundledBenchmark}
+              disabled={isLoading}
+              className="px-3 py-1.5 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-slate-300 border border-slate-700 font-mono text-xs flex items-center gap-1.5 transition disabled:opacity-50"
+              title="Reload server production model"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-cyan-400 ${isLoading ? "animate-spin" : ""}`} />
+              <span>Reload Benchmark</span>
+            </button>
 
-            {/* Upload Zone */}
-            <div className="pt-2 border-t border-slate-800 space-y-3">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".json"
-                onChange={handleFileUpload}
-                className="hidden"
-                id="colab-model-upload"
-              />
-
-              <div className="flex flex-col sm:flex-row gap-2">
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isLoading}
-                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-mono text-xs font-bold transition shadow-lg shadow-cyan-900/30 disabled:opacity-50"
-                >
-                  <Upload className="w-3.5 h-3.5" />
-                  <span>{isLoading ? "Validating..." : "Upload Model JSON"}</span>
-                </button>
-
-                <button
-                  onClick={loadBundledBenchmark}
-                  disabled={isLoading}
-                  className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 font-mono text-xs font-semibold border border-cyan-500/30 transition disabled:opacity-50"
-                  title="Load the verified Colab model pre-computed and stored on the server"
-                >
-                  <RefreshCw className={`w-3 h-3 ${isLoading ? "animate-spin" : ""}`} />
-                  <span>Load Benchmark</span>
-                </button>
-              </div>
-
-              {uploadMessage && (
-                <div className="p-2.5 rounded bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 font-mono text-xs flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>{uploadMessage}</span>
-                </div>
-              )}
-
-              {uploadError && (
-                <div className="p-2.5 rounded bg-rose-950/60 border border-rose-500/40 text-rose-300 font-mono text-xs flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
-                  <span>{uploadError}</span>
-                </div>
-              )}
-            </div>
-          </GlassCard>
+            {customModel && (
+              <button
+                onClick={() => setIsCustomChampion(!isCustomChampion)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold flex items-center gap-1.5 transition ${
+                  isCustomChampion
+                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/50"
+                    : "bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700"
+                }`}
+              >
+                <Award className="w-3.5 h-3.5 text-amber-400" />
+                <span>{isCustomChampion ? "CHAMPION ACTIVE" : "PROMOTE TO CHAMPION"}</span>
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Live Model Evaluation & Interactive Test Bench (Right 7 Cols) */}
-        <div className="lg:col-span-7 space-y-5">
-          <GlassCard tone="standard" className="p-5 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <Sliders className="w-4 h-4 text-cyan-400" />
-                  <h3 className="text-sm font-bold text-slate-100 font-sans">
-                    Custom Model Live Inference Bench
-                  </h3>
-                </div>
-                <p className="text-[11px] text-slate-400 font-mono mt-0.5">
-                  Test custom model predictions against hydraulic stress scenarios in real time
-                </p>
-              </div>
+        {/* Upload Alerts / Toast Notices */}
+        {uploadMessage && (
+          <div className="p-2.5 rounded-lg bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 font-mono text-xs flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>{uploadMessage}</span>
+          </div>
+        )}
 
-              {customModel && (
-                <button
-                  onClick={() => setIsCustomChampion(!isCustomChampion)}
-                  className={`px-2.5 py-1 rounded text-xs font-mono font-bold flex items-center gap-1.5 transition ${
-                    isCustomChampion
-                      ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/50"
-                      : "bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700"
-                  }`}
-                >
-                  <Award className="w-3.5 h-3.5 text-amber-400" />
-                  <span>{isCustomChampion ? "CHAMPION ACTIVE" : "PROMOTE TO CHAMPION"}</span>
-                </button>
-              )}
+        {uploadError && (
+          <div className="p-2.5 rounded-lg bg-rose-950/60 border border-rose-500/40 text-rose-300 font-mono text-xs flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+            <span>{uploadError}</span>
+          </div>
+        )}
+
+        {/* Model Performance & Provenance Strip */}
+        {customModel ? (
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 font-mono text-xs">
+            <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800 col-span-2 sm:col-span-1">
+              <span className="text-[10px] text-slate-400 block">Model ID</span>
+              <span className="text-xs font-bold text-slate-200 truncate block mt-0.5" title={customModel.modelMetadata.id}>
+                {customModel.modelMetadata.id}
+              </span>
+              <span className="text-[9px] text-emerald-400 block mt-0.5">● Active Champion</span>
             </div>
 
-            {/* Loaded Model Summary */}
-            {customModel ? (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono text-xs">
-                <div className="p-2 rounded bg-slate-900/80 border border-slate-800">
-                  <span className="text-[10px] text-slate-400 block">R² Score</span>
-                  <span className="text-sm font-bold text-emerald-300 telemetry-num">
-                    {(customModel.metrics.r2Score * 100).toFixed(1)}%
-                  </span>
-                  <span className="text-[9px] text-slate-500 block">Variance Explained</span>
-                </div>
+            <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800">
+              <span className="text-[10px] text-slate-400 block">R² Score</span>
+              <span className="text-base font-bold text-emerald-300 telemetry-num">
+                {(customModel.metrics.r2Score * 100).toFixed(1)}%
+              </span>
+              <span className="text-[9px] text-slate-500 block">Variance Explained</span>
+            </div>
 
-                <div className="p-2 rounded bg-slate-900/80 border border-slate-800">
-                  <span className="text-[10px] text-slate-400 block">Spatial IoU</span>
-                  <span className="text-sm font-bold text-cyan-300 telemetry-num">
-                    {(customModel.metrics.spatialIoU * 100).toFixed(1)}%
-                  </span>
-                  <span className="text-[9px] text-slate-500 block">Flood Polygon Match</span>
-                </div>
+            <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800">
+              <span className="text-[10px] text-slate-400 block">Spatial IoU</span>
+              <span className="text-base font-bold text-cyan-300 telemetry-num">
+                {(customModel.metrics.spatialIoU * 100).toFixed(1)}%
+              </span>
+              <span className="text-[9px] text-slate-500 block">Polygon Overlap</span>
+            </div>
 
-                <div className="p-2 rounded bg-slate-900/80 border border-slate-800">
-                  <span className="text-[10px] text-slate-400 block">Calibration (Brier)</span>
-                  <span className="text-sm font-bold text-cyan-300 telemetry-num">
-                    {customModel.metrics.brierScore.toFixed(3)}
-                  </span>
-                  <span className="text-[9px] text-slate-500 block">&lt;0.10 Optimal</span>
-                </div>
+            <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800">
+              <span className="text-[10px] text-slate-400 block">Calibration (Brier)</span>
+              <span className="text-base font-bold text-cyan-300 telemetry-num">
+                {customModel.metrics.brierScore.toFixed(3)}
+              </span>
+              <span className="text-[9px] text-slate-500 block">&lt;0.10 Optimal</span>
+            </div>
 
-                <div className="p-2 rounded bg-slate-900/80 border border-slate-800">
-                  <span className="text-[10px] text-slate-400 block">Val RMSE</span>
-                  <span className="text-sm font-bold text-amber-300 telemetry-num">
-                    {customModel.metrics.rmse.toFixed(1)} cm
-                  </span>
-                  <span className="text-[9px] text-slate-500 block">Sub-5cm target</span>
-                </div>
-              </div>
-            ) : (
-              <div className="p-3 rounded bg-slate-900/60 border border-dashed border-slate-800 text-center font-mono text-xs text-slate-400">
-                No custom model currently loaded. Click <strong>&quot;Load Benchmark&quot;</strong> or upload your Colab model to view metrics.
-              </div>
-            )}
+            <div className="p-2.5 rounded-lg bg-slate-900/80 border border-slate-800">
+              <span className="text-[10px] text-slate-400 block">Val RMSE</span>
+              <span className="text-base font-bold text-amber-300 telemetry-num">
+                {customModel.metrics.rmse.toFixed(1)} cm
+              </span>
+              <span className="text-[9px] text-slate-500 block">Sub-5cm target</span>
+            </div>
+          </div>
+        ) : (
+          <div className="p-3 rounded-lg bg-slate-900/60 border border-dashed border-slate-800 text-center font-mono text-xs text-slate-400">
+            No custom model currently loaded. Click <strong>&quot;Reload Benchmark&quot;</strong> or import a model JSON.
+          </div>
+        )}
 
-            {/* Interactive Sliders */}
-            <div className="space-y-3 pt-2 font-mono text-xs">
+        {/* 2-Column Split: Boundary Controls (Left 6 Cols) vs Inference Output (Right 6 Cols) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pt-2">
+          {/* Left: Hydraulic Parameters (6 Cols) */}
+          <div className="lg:col-span-6 space-y-4">
+            <div className="flex items-center gap-2 border-b border-slate-800/80 pb-2">
+              <Layers className="w-4 h-4 text-cyan-400" />
+              <h4 className="text-xs font-bold text-slate-200 font-mono uppercase tracking-wider">
+                Boundary Condition Inputs
+              </h4>
+            </div>
+
+            <div className="space-y-3.5 font-mono text-xs">
               {/* Slider 1: Rainfall */}
               <div className="space-y-1">
                 <div className="flex justify-between text-slate-300 text-[11px]">
@@ -517,13 +454,21 @@ export const ModelLabSection: React.FC = () => {
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* Inference Result Output Display */}
-            <div className="mt-4 p-4 rounded-xl bg-slate-950/80 border border-cyan-500/30 space-y-3">
+          {/* Right: Inference Output & Attribution (6 Cols) */}
+          <div className="lg:col-span-6 space-y-4">
+            <div className="flex items-center gap-2 border-b border-slate-800/80 pb-2">
+              <Activity className="w-4 h-4 text-cyan-400" />
+              <h4 className="text-xs font-bold text-slate-200 font-mono uppercase tracking-wider">
+                Predicted Inundation Response
+              </h4>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-950/80 border border-cyan-500/30 space-y-3">
               <div className="flex items-center justify-between">
-                <div className="text-xs font-mono font-bold text-slate-200 flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-cyan-400" />
-                  <span>Predicted Inundation Depth</span>
+                <div className="text-xs font-mono font-bold text-slate-200">
+                  Estimated Waterlogging Depth
                 </div>
                 <Badge
                   variant={
@@ -553,8 +498,8 @@ export const ModelLabSection: React.FC = () => {
                 </span>
               </div>
 
-              {/* Confidence Band (Probabilistic Honesty Section 19) */}
-              <div className="p-2 rounded bg-slate-900 border border-slate-800 font-mono text-[11px] flex flex-wrap items-center justify-between text-slate-400 gap-2">
+              {/* Confidence Band */}
+              <div className="p-2.5 rounded bg-slate-900 border border-slate-800 font-mono text-[11px] flex flex-wrap items-center justify-between text-slate-400 gap-2">
                 <span>P10 Lower: <strong className="text-slate-200">{liveInference.p10} cm</strong></span>
                 <span>P50 Median: <strong className="text-cyan-300">{liveInference.depth} cm</strong></span>
                 <span>P90 Extreme: <strong className="text-rose-300">{liveInference.p90} cm</strong></span>
@@ -562,37 +507,37 @@ export const ModelLabSection: React.FC = () => {
 
               {/* TreeSHAP Feature Attribution Breakdown */}
               {customModel?.treeShapAttributions && (
-                <div className="pt-2 border-t border-slate-800 space-y-1.5 font-mono text-[10px]">
+                <div className="pt-2 border-t border-slate-800 space-y-2 font-mono text-[10px]">
                   <div className="text-slate-400 flex items-center justify-between">
                     <span>TreeSHAP Feature Attribution:</span>
-                    <span className="text-cyan-400">Additive Marginal Attribution</span>
+                    <span className="text-cyan-400">Additive Marginal Contribution</span>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 text-slate-300">
-                    <div className="p-1 rounded bg-slate-900 border border-slate-800 flex justify-between">
+                    <div className="p-1.5 rounded bg-slate-900 border border-slate-800 flex justify-between">
                       <span>Precip Inflow:</span>
                       <span className="text-cyan-300 font-bold">
                         +{customModel.treeShapAttributions.rainfallInflow?.toFixed(1)}%
                       </span>
                     </div>
-                    <div className="p-1 rounded bg-slate-900 border border-slate-800 flex justify-between">
+                    <div className="p-1.5 rounded bg-slate-900 border border-slate-800 flex justify-between">
                       <span>Tidal Surge:</span>
                       <span className="text-cyan-300 font-bold">
                         +{customModel.treeShapAttributions.tidalBackflow?.toFixed(1)}%
                       </span>
                     </div>
-                    <div className="p-1 rounded bg-slate-900 border border-slate-800 flex justify-between">
+                    <div className="p-1.5 rounded bg-slate-900 border border-slate-800 flex justify-between">
                       <span>Canal Friction:</span>
                       <span className="text-amber-300 font-bold">
                         +{customModel.treeShapAttributions.canalSiltResistance?.toFixed(1)}%
                       </span>
                     </div>
-                    <div className="p-1 rounded bg-slate-900 border border-slate-800 flex justify-between">
+                    <div className="p-1.5 rounded bg-slate-900 border border-slate-800 flex justify-between">
                       <span>DEM Relief:</span>
                       <span className="text-emerald-300 font-bold">
                         -{customModel.treeShapAttributions.elevationFreeboard?.toFixed(1)}%
                       </span>
                     </div>
-                    <div className="p-1 rounded bg-slate-900 border border-slate-800 flex justify-between">
+                    <div className="p-1.5 rounded bg-slate-900 border border-slate-800 flex justify-between col-span-2 sm:col-span-1">
                       <span>Turbine Relief:</span>
                       <span className="text-emerald-300 font-bold">
                         -{customModel.treeShapAttributions.pumpCapacity?.toFixed(1)}%
@@ -602,9 +547,9 @@ export const ModelLabSection: React.FC = () => {
                 </div>
               )}
             </div>
-          </GlassCard>
+          </div>
         </div>
-      </div>
+      </GlassCard>
 
       {/* ========================================================================= */}
       {/* STANDARD MODEL ARCHITECTURES REGISTRY */}
