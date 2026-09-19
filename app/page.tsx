@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { GlassNav } from "@/components/navigation/GlassNav";
 import { TelemetryTicker } from "@/components/navigation/TelemetryTicker";
 import { Footer } from "@/components/navigation/Footer";
@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/Badge";
 import { PILOT_GRID_CELLS } from "@/lib/data/pilotRegionData";
 import { INITIAL_ALERTS } from "@/lib/data/alertsData";
 import { runSimulationScenario } from "@/lib/simulationEngine";
-import { SimulationScenarioResult } from "@/lib/types";
+import { GridCell, SimulationScenarioResult } from "@/lib/types";
 
 // Section Components
 import { CockpitHydrographPanel } from "@/components/cockpit/CockpitHydrographPanel";
@@ -45,13 +45,41 @@ export default function JalNetraApp() {
   const [activeSimulationResult, setActiveSimulationResult] = useState<SimulationScenarioResult | null>(null);
   const [selectedWardForDrawer, setSelectedWardForDrawer] = useState<number | null>(null);
 
+  // Sync active screen with URL hash on mount and hashchange
+  useEffect(() => {
+    const handleHash = () => {
+      const hash = window.location.hash.replace("#", "");
+      if (
+        hash &&
+        [
+          "cockpit",
+          "global",
+          "rainfall",
+          "water-twin",
+          "vulnerability",
+          "simulation",
+          "alerts",
+          "models",
+        ].includes(hash)
+      ) {
+        setActiveScreen(hash);
+      }
+    };
+    handleHash();
+    window.addEventListener("hashchange", handleHash);
+    return () => window.removeEventListener("hashchange", handleHash);
+  }, []);
+
+  // Effective cells (overridden by active simulation scenario if present)
+  const effectiveCells = activeSimulationResult?.updatedCells || PILOT_GRID_CELLS;
+
   // Selected cell for slide-out telemetry drawer
   const selectedCell = selectedWardForDrawer
-    ? PILOT_GRID_CELLS.find((c) => c.wardNumber === selectedWardForDrawer) || null
+    ? effectiveCells.find((c: GridCell) => c.wardNumber === selectedWardForDrawer) || null
     : null;
 
   // Top 4 critical wards sorted by risk score
-  const topCriticalWards = [...PILOT_GRID_CELLS]
+  const topCriticalWards = [...effectiveCells]
     .sort((a, b) => b.riskScore - a.riskScore)
     .slice(0, 4);
 
@@ -181,8 +209,32 @@ export default function JalNetraApp() {
                   </Button>
                 </div>
 
+                {/* Simulation Scenario Active Notice Banner */}
+                {activeSimulationResult && (
+                  <div className="flex items-center justify-between p-2.5 rounded-lg bg-cyan-950/60 border border-cyan-500/40 text-xs font-mono text-cyan-300">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+                      <span>
+                        ACTIVE SCENARIO OVERLAY: <strong>{activeSimulationResult.scenarioName}</strong>
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => setActiveSimulationResult(null)}
+                      className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 text-[10px] cursor-pointer"
+                    >
+                      Revert to Live Telemetry
+                    </button>
+                  </div>
+                )}
+
                 <DigitalTwinMap
                   onSelectWard={(wardNo) => setSelectedWardForDrawer(wardNo)}
+                  selectedWardNumber={selectedWardForDrawer}
+                  overrideCells={activeSimulationResult?.updatedCells}
+                  onTriggerSimulationForWard={(wardNum) => {
+                    setSelectedWardForDrawer(wardNum);
+                    setActiveScreen("simulation");
+                  }}
                 />
               </div>
 
@@ -311,6 +363,8 @@ export default function JalNetraApp() {
         {/* VIEW 6: WHAT-IF SIMULATOR */}
         {activeScreen === "simulation" && (
           <SimulationSection
+            targetWardNumber={selectedWardForDrawer}
+            onClearTargetWard={() => setSelectedWardForDrawer(null)}
             onApplyScenarioToMap={(scen) => setActiveSimulationResult(scen)}
           />
         )}
@@ -327,7 +381,7 @@ export default function JalNetraApp() {
         cell={selectedCell}
         onClose={() => setSelectedWardForDrawer(null)}
         onTriggerSimulationForWard={(wardNum) => {
-          setSelectedWardForDrawer(null);
+          setSelectedWardForDrawer(wardNum);
           setActiveScreen("simulation");
         }}
       />

@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   Globe2,
@@ -33,6 +33,7 @@ export const GlassNav: React.FC<GlassNavProps> = ({
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
 
   const navItems = [
     { id: "cockpit", label: "Cockpit", icon: LayoutDashboard, href: "/" },
@@ -46,8 +47,17 @@ export const GlassNav: React.FC<GlassNavProps> = ({
   ];
 
   const handleNavClick = (id: string) => {
-    if (onSelectScreen) {
-      onSelectScreen(id);
+    if (pathname !== "/") {
+      router.push(`/#${id}`);
+    } else {
+      if (onSelectScreen) {
+        onSelectScreen(id);
+      }
+      try {
+        window.location.hash = id;
+      } catch {
+        // ignore in SSR
+      }
     }
     setMobileMenuOpen(false);
   };

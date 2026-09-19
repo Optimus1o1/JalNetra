@@ -11,10 +11,14 @@ import { HydrodynamicPhysicsSandbox3D } from "../3d/HydrodynamicPhysicsSandbox3D
 
 interface SimulationSectionProps {
   onApplyScenarioToMap?: (scenario: SimulationScenarioResult) => void;
+  targetWardNumber?: number | null;
+  onClearTargetWard?: () => void;
 }
 
 export const SimulationSection: React.FC<SimulationSectionProps> = ({
   onApplyScenarioToMap,
+  targetWardNumber,
+  onClearTargetWard,
 }) => {
   // Scenario inputs state
   const [rainfallMultiplier, setRainfallMultiplier] = useState<number>(1.25);
@@ -101,6 +105,26 @@ export const SimulationSection: React.FC<SimulationSectionProps> = ({
           </Button>
         </div>
       </div>
+
+      {/* Target Ward Focus Banner */}
+      {targetWardNumber && (
+        <div className="flex items-center justify-between p-3 rounded-xl bg-cyan-950/60 border border-cyan-500/40 text-xs font-mono text-cyan-200">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+            <span>
+              Targeted simulation context calibrated for <strong>Ward {targetWardNumber}</strong>. Interventions prioritize runoff reduction in this local catchment basin.
+            </span>
+          </div>
+          {onClearTargetWard && (
+            <button
+              onClick={onClearTargetWard}
+              className="text-[11px] text-slate-400 hover:text-white underline cursor-pointer"
+            >
+              Clear Focus
+            </button>
+          )}
+        </div>
+      )}
 
       {/* 3D Hydrodynamic Inundation Physics Sandbox */}
       <HydrodynamicPhysicsSandbox3D

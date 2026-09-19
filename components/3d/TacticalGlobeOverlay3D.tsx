@@ -165,6 +165,7 @@ export const TacticalGlobeOverlay3D: React.FC<TacticalGlobeOverlay3DProps> = ({ 
     let isDragging = false;
     let prevX = 0;
     let prevY = 0;
+    let dragDistance = 0;
 
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
@@ -175,6 +176,7 @@ export const TacticalGlobeOverlay3D: React.FC<TacticalGlobeOverlay3DProps> = ({ 
       const cy = "touches" in e ? e.touches[0].clientY : e.clientY;
       prevX = cx;
       prevY = cy;
+      dragDistance = 0;
     };
 
     const handlePointerMove = (e: MouseEvent | TouchEvent) => {
@@ -184,6 +186,7 @@ export const TacticalGlobeOverlay3D: React.FC<TacticalGlobeOverlay3DProps> = ({ 
       if (isDragging && groupRef.current) {
         const dx = cx - prevX;
         const dy = cy - prevY;
+        dragDistance += Math.hypot(dx, dy);
 
         groupRef.current.rotation.y += dx * 0.007;
         groupRef.current.rotation.x = Math.max(-0.2, Math.min(0.6, groupRef.current.rotation.x + dy * 0.005));
@@ -219,6 +222,11 @@ export const TacticalGlobeOverlay3D: React.FC<TacticalGlobeOverlay3DProps> = ({ 
     };
 
     const handleClick = (e: MouseEvent) => {
+      // If user was dragging/orbiting the globe, do not trigger a click selection
+      if (dragDistance > 6) {
+        return;
+      }
+
       const rect = renderer.domElement.getBoundingClientRect();
       const clickMouse = new THREE.Vector2(
         ((e.clientX - rect.left) / rect.width) * 2 - 1,

@@ -304,13 +304,30 @@ export const GlobalClimateGlobe3D: React.FC = () => {
   const cloudInspectionRef = useRef<CloudInspectionData | null>(null);
   cloudInspectionRef.current = cloudInspection;
 
+  // Dedicated Locate Clouds inspection mode toggle
+  const [locateCloudsMode, setLocateCloudsMode] = useState<boolean>(true);
+  const locateCloudsModeRef = useRef<boolean>(true);
+  locateCloudsModeRef.current = locateCloudsMode;
+
   // Fully remove pointer from globe and dismiss inspection state
   const clearCloudInspection = React.useCallback(() => {
     setCloudInspection(null);
+    cloudInspectionRef.current = null;
     if (touchReticleMeshRef.current) {
       touchReticleMeshRef.current.visible = false;
     }
   }, []);
+
+  const toggleLocateCloudsMode = () => {
+    setLocateCloudsMode((prev) => {
+      const next = !prev;
+      locateCloudsModeRef.current = next;
+      if (!next) {
+        clearCloudInspection();
+      }
+      return next;
+    });
+  };
 
   // Keyboard shortcut: Escape removes the pointer
   useEffect(() => {
@@ -944,10 +961,19 @@ export const GlobalClimateGlobe3D: React.FC = () => {
 
     const inspectCloudAtPoint = (clientX: number, clientY: number, lockSelection: boolean = false) => {
       if (!cameraRef.current || !globeGroupRef.current) return null;
+
+      // If locate clouds mode is off, do not place pointer or inspect on user clicks
+      if (lockSelection && !locateCloudsModeRef.current) {
+        return null;
+      }
+
       updateMouseCoord(clientX, clientY);
       raycaster.setFromCamera(mouseCoord, cameraRef.current);
 
-      const targets = [cloudsMesh, earthMesh];
+      // Include touchReticleMesh directly in targets so clicking the pointer itself dismisses it
+      const targets = touchReticleMesh.visible
+        ? [touchReticleMesh, cloudsMesh, earthMesh]
+        : [cloudsMesh, earthMesh];
       const intersects = raycaster.intersectObjects(targets);
       if (intersects.length === 0) {
         if (lockSelection) {
@@ -956,7 +982,13 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         return null;
       }
 
-      const hit = intersects[0];
+      // If user directly clicked the active 3D reticle mesh, immediately dismiss and remove pointer
+      if (lockSelection && intersects[0].object === touchReticleMesh) {
+        clearCloudInspection();
+        return null;
+      }
+
+      const hit = intersects.find((i) => i.object === cloudsMesh || i.object === earthMesh) || intersects[0];
       const hitPoint = hit.point;
 
       // Geographic coordinates on Earth
@@ -966,22 +998,24 @@ export const GlobalClimateGlobe3D: React.FC = () => {
       let lon = (theta * 180 / Math.PI) - 180;
       lon = ((lon + 180) % 360 + 360) % 360 - 180;
 
-      // Toggle off / remove pointer if clicking on or near the already active pin (within 6° lat/lon)
+      // Toggle off / remove pointer if clicking on or near the already active pin (within 8° lat/lon)
       if (lockSelection && cloudInspectionRef.current) {
         const activeLat = cloudInspectionRef.current.lat;
         const activeLon = cloudInspectionRef.current.lon;
         const dLat = Math.abs(lat - activeLat);
         const dLonRaw = Math.abs(lon - activeLon);
         const dLon = Math.min(dLonRaw, 360 - dLonRaw);
-        if (dLat < 6 && dLon < 6) {
+        if (dLat < 8 && dLon < 8) {
           clearCloudInspection();
           return null;
         }
       }
 
-      // Position touch reticle on sphere surface
-      touchReticleMesh.position.copy(hitPoint.clone().multiplyScalar(1.002));
-      touchReticleMesh.lookAt(new THREE.Vector3(0, 0, 0));
+      // Position touch reticle accurately in globeGroup's local coordinate frame on sphere surface
+      // (earthMesh has radius 50; offset by 0.15 to avoid z-fighting and align ring normal)
+      const reticleLocalPos = localPoint.clone().multiplyScalar(50.15);
+      touchReticleMesh.position.copy(reticleLocalPos);
+      touchReticleMesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), localPoint);
       touchReticleMesh.visible = true;
 
       // Sampling coordinates on cloudsMesh
@@ -1197,8 +1231,10 @@ export const GlobalClimateGlobe3D: React.FC = () => {
           }
         }
 
-        // Inspect cloud/ground at click position (stable: zero camera jerking or snapping)
-        inspectCloudAtPoint(e.clientX, e.clientY, true);
+        // Inspect cloud/ground at click position only if locate clouds mode is enabled
+        if (locateCloudsModeRef.current) {
+          inspectCloudAtPoint(e.clientX, e.clientY, true);
+        }
       }
     };
 
@@ -1285,7 +1321,9 @@ export const GlobalClimateGlobe3D: React.FC = () => {
             }
           }
           // Mobile tap cloud and rain inspection (smooth, zero camera jerk)
-          inspectCloudAtPoint(prevMouseX, prevMouseY, true);
+          if (locateCloudsModeRef.current) {
+            inspectCloudAtPoint(prevMouseX, prevMouseY, true);
+          }
         }
       }
     };
@@ -1318,8 +1356,31 @@ export const GlobalClimateGlobe3D: React.FC = () => {
     domElement.addEventListener("wheel", handleWheel, { passive: false });
     domElement.addEventListener("touchstart", handleTouchStart, { passive: false });
 
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+      clearCloudInspection();
+    };
+
+    const handleDblClick = (e: MouseEvent) => {
+      e.preventDefault();
+      clearCloudInspection();
+    };
+
+    container.addEventListener("contextmenu", handleContextMenu);
+    container.addEventListener("dblclick", handleDblClick);
+
     window.addEventListener("mousemove", handlePointerMove);
     window.addEventListener("mouseup", handlePointerUp);
+
+    if (typeof window !== "undefined") {
+      (window as any).__jalnetra_inspectCloud = (clientX?: number, clientY?: number) => {
+        const rect = container.getBoundingClientRect();
+        const cx = clientX ?? Math.round(rect.left + rect.width * 0.52);
+        const cy = clientY ?? Math.round(rect.top + rect.height * 0.48);
+        return inspectCloudAtPoint(cx, cy, true);
+      };
+      (window as any).__jalnetra_clearCloud = () => clearCloudInspection();
+    }
 
     // 9. IntersectionObserver to Halt GPU Loop When Scrolled Out of View (/3d-design rule)
     const intersectionObserver = new IntersectionObserver(
@@ -1573,10 +1634,16 @@ export const GlobalClimateGlobe3D: React.FC = () => {
       container.removeEventListener("touchstart", handleTouchStart);
       container.removeEventListener("touchmove", handleTouchMove);
       container.removeEventListener("touchend", handleTouchEnd);
+      container.removeEventListener("contextmenu", handleContextMenu);
+      container.removeEventListener("dblclick", handleDblClick);
       domElement.removeEventListener("wheel", handleWheel);
       domElement.removeEventListener("touchstart", handleTouchStart);
       window.removeEventListener("mousemove", handlePointerMove);
       window.removeEventListener("mouseup", handlePointerUp);
+      if (typeof window !== "undefined") {
+        delete (window as any).__jalnetra_inspectCloud;
+        delete (window as any).__jalnetra_clearCloud;
+      }
       resizeObserver.disconnect();
       intersectionObserver.disconnect();
 
@@ -1853,6 +1920,21 @@ export const GlobalClimateGlobe3D: React.FC = () => {
               {speed === "2x" ? "2x (ACTIVE)" : speed === "5x" ? "5x (STORM)" : speed}
             </button>
           ))}
+
+          {/* LOCATE CLOUDS / POINTER MODE TOGGLE */}
+          <div className="w-px h-3.5 bg-slate-800 mx-1 hidden sm:block" />
+          <button
+            onClick={toggleLocateCloudsMode}
+            title={locateCloudsMode ? "Locate clouds mode active. Click to disable pin placement and allow unrestricted orbiting." : "Click to activate cloud & rain locator pin on the globe."}
+            className={`px-2 py-0.5 rounded border text-[10px] cursor-pointer transition-all flex items-center gap-1 font-bold ${
+              locateCloudsMode
+                ? "bg-cyan-500/25 text-cyan-300 border-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.4)] ring-1 ring-cyan-400/40"
+                : "bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200"
+            }`}
+          >
+            <CloudRain className="w-3 h-3 text-cyan-400" />
+            <span>LOCATE CLOUDS: {locateCloudsMode ? "ON" : "OFF"}</span>
+          </button>
         </div>
       </div>
 
@@ -2127,7 +2209,11 @@ export const GlobalClimateGlobe3D: React.FC = () => {
         {/* Interaction Guide Badge */}
         <div className="absolute bottom-3 right-3 z-10 pointer-events-none flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-950/80 border border-slate-800/80 text-[10px] font-mono text-slate-400 backdrop-blur-sm">
           <MousePointerClick className="w-3 h-3 text-cyan-400" />
-          <span>Touch or Click any cloud to identify Rain vs. Non-Rain • Drag to Rotate</span>
+          <span>
+            {locateCloudsMode
+              ? "Locate Clouds ON: Click any cloud to inspect • Click pin, right-click, or press Esc to remove"
+              : "Locate Clouds OFF: Drag to Orbit/Pan • Turn ON above to drop inspection pin"}
+          </span>
         </div>
       </div>
 

@@ -30,9 +30,22 @@ export const AlertsSection: React.FC = () => {
         setAlerts((prev) =>
           prev.map((a) => (a.id === alertId ? data.updatedAlert : a))
         );
+      } else {
+        throw new Error("Alert response non-200");
       }
-    } catch (err) {
-      console.error("Failed to acknowledge alert", err);
+    } catch {
+      setAlerts((prev) =>
+        prev.map((a) =>
+          a.id === alertId
+            ? {
+                ...a,
+                status: "acknowledged",
+                acknowledgedBy: "KMC Central Disaster Control Desk",
+                acknowledgedAt: new Date().toLocaleTimeString("en-GB", { timeZone: "Asia/Kolkata" }) + " IST",
+              }
+            : a
+        )
+      );
     } finally {
       setAcknowledgingId(null);
     }

@@ -144,10 +144,29 @@ export function runSimulationScenario(
     ).toFixed(1)
   );
 
+  const scenarioName = emergencyPumpsActive
+    ? "Active Pumping & Sluice Relief"
+    : rainfallMultiplier > 1.2
+    ? `Intense Rainfront (+${Math.round((rainfallMultiplier - 1) * 100)}%)`
+    : "Hydraulic Stress Scenario";
+
+  const updatedCells = PILOT_GRID_CELLS.map((cell) => {
+    const deltaItem = wardDeltas.find((w) => w.cellId === cell.id);
+    if (!deltaItem) return cell;
+    return {
+      ...cell,
+      riskScore: deltaItem.scenarioRisk,
+      floodDepthM: Number((deltaItem.inundationDepthCm / 100).toFixed(2)),
+      forecastRainfall24h: Number((cell.forecastRainfall24h * rainfallMultiplier).toFixed(1)),
+    };
+  });
+
   return {
     id: `sim-${Date.now()}`,
+    scenarioName,
     timestamp: new Date().toISOString(),
     scenarioInputs: inputs,
+    updatedCells,
     summary: {
       baselineAvgRisk,
       scenarioAvgRisk,

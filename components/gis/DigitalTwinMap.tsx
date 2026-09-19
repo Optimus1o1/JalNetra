@@ -26,17 +26,21 @@ type MapLayer = "risk" | "rainfall" | "elevation" | "imperviousness";
 
 interface DigitalTwinMapProps {
   onSelectWard?: (wardNumber: number) => void;
+  selectedWardNumber?: number | null;
+  onTriggerSimulationForWard?: (wardNumber: number) => void;
   overrideCells?: GridCell[];
   className?: string;
 }
 
 export const DigitalTwinMap: React.FC<DigitalTwinMapProps> = ({
   onSelectWard,
+  selectedWardNumber,
+  onTriggerSimulationForWard,
   overrideCells,
   className,
 }) => {
   const [is3DMode, setIs3DMode] = useState(false);
-  const [selectedCell, setSelectedCell] = useState<GridCell | null>(null);
+  const [internalSelectedCell, setInternalSelectedCell] = useState<GridCell | null>(null);
   const [activeLayer, setActiveLayer] = useState<MapLayer>("risk");
   const [showSensors, setShowSensors] = useState(true);
   const [showAssets, setShowAssets] = useState(true);
@@ -44,6 +48,9 @@ export const DigitalTwinMap: React.FC<DigitalTwinMapProps> = ({
   const [selectedSensor, setSelectedSensor] = useState<SensorNode | null>(null);
 
   const cells = overrideCells || PILOT_GRID_CELLS;
+  const selectedCell = selectedWardNumber !== undefined
+    ? (selectedWardNumber ? cells.find((c) => c.wardNumber === selectedWardNumber) || null : null)
+    : internalSelectedCell;
 
   // Geographic bounds conversion to SVG coordinate canvas (width 800, height 600)
   const minLat = 22.47;
@@ -90,7 +97,7 @@ export const DigitalTwinMap: React.FC<DigitalTwinMapProps> = ({
   };
 
   const handleCellClick = (cell: GridCell) => {
-    setSelectedCell(cell);
+    setInternalSelectedCell(cell);
     setSelectedSensor(null);
     if (onSelectWard) {
       onSelectWard(cell.wardNumber);
@@ -569,8 +576,14 @@ export const DigitalTwinMap: React.FC<DigitalTwinMapProps> = ({
         </div>
       </div>
 
-      {/* Slide-out Drawer for selected cell */}
-      <CellDetailDrawer cell={selectedCell} onClose={() => setSelectedCell(null)} />
+      {/* Slide-out Drawer for selected cell (only rendered in standalone mode without parent onSelectWard) */}
+      {!onSelectWard && (
+        <CellDetailDrawer
+          cell={selectedCell}
+          onClose={() => setInternalSelectedCell(null)}
+          onTriggerSimulationForWard={onTriggerSimulationForWard}
+        />
+      )}
     </div>
   );
 };

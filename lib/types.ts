@@ -122,8 +122,10 @@ export interface SimulationScenarioRequest {
 
 export interface SimulationScenarioResult {
   id: string;
+  scenarioName?: string;
   timestamp: string;
   scenarioInputs: SimulationScenarioRequest;
+  updatedCells?: GridCell[];
   summary: {
     baselineAvgRisk: number;
     scenarioAvgRisk: number;
