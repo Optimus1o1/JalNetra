@@ -2,6 +2,7 @@
 
 <div align="center">
 
+[![Live Demo](https://img.shields.io/badge/Live_Demo-jalnetra--xam9.onrender.com-06b6d4?style=for-the-badge&logo=render&logoColor=white)](https://jalnetra-xam9.onrender.com)
 ![Next.js](https://img.shields.io/badge/Next.js-16.1.1-black?style=for-the-badge&logo=next.js)
 ![React](https://img.shields.io/badge/React-19-blue?style=for-the-badge&logo=react)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?style=for-the-badge&logo=typescript)
@@ -14,6 +15,8 @@
 
 *Engineered by **CIPHER** — Decode. Build. Evolve.*
 
+### 🚀 **Live Production Instance**: [https://jalnetra-xam9.onrender.com](https://jalnetra-xam9.onrender.com)
+
 </div>
 
 ---
@@ -21,6 +24,7 @@
 ## 🌊 Executive Overview
 
 **JalNetra Global** is an intelligence-grade climate resilience and hydrodynamic digital twin platform. It bridges planetary-scale atmospheric signals (NASA GPM IMERG satellite precipitation, ENSO Niño 3.4, Indian Ocean Dipole, and Madden-Julian Oscillation) with street-level urban drainage physics across all **144 administrative wards of the Kolkata Municipal Corporation (KMC)**.
+
 
 Operating at the confluence of heavy monsoon precipitation, Hooghly estuary tidal locks, and silted drainage canals (Bagjola, Circular, Tolly's Nullah, and Monikhali), JalNetra provides municipal emergency planners and hydrologists with explainable, actionable early warnings before catastrophic inundation occurs.
 
@@ -117,12 +121,20 @@ The platform exposes a full suite of versioned REST endpoints adhering to Sectio
 ---
 
 ## 🚀 Getting Started
+ 
+### 🌐 Live Cloud Deployment
+Access the live production digital twin directly on Render:  
+👉 **[https://jalnetra-xam9.onrender.com](https://jalnetra-xam9.onrender.com)**
 
-### Prerequisites
+---
+
+### Local Development Setup
+
+#### Prerequisites
 - Node.js 20.x or higher
 - npm 10.x or higher
 
-### Installation
+#### Installation
 
 ```bash
 # 1. Clone the repository
