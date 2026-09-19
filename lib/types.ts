@@ -118,6 +118,7 @@ export interface SimulationScenarioRequest {
   sluiceGatesAutomated: boolean;
   permeablePavementScenario: boolean;
   temporaryBundsDeployed: boolean;
+  targetWardNumber?: number | null;
 }
 
 export interface SimulationScenarioResult {

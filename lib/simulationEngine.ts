@@ -34,6 +34,9 @@ export function runSimulationScenario(
     if (sluiceGatesAutomated) {
       effectiveDrainage += 6; // Prevents 6 mm/h tidal lock loss
     }
+    if (inputs.targetWardNumber && cell.wardNumber === inputs.targetWardNumber) {
+      effectiveDrainage += 12; // Extra targeted emergency pumping capacity for focused ward
+    }
 
     // Imperviousness modification
     let effectiveImperviousness = cell.imperviousness;

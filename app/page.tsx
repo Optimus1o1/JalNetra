@@ -366,6 +366,7 @@ export default function JalNetraApp() {
             targetWardNumber={selectedWardForDrawer}
             onClearTargetWard={() => setSelectedWardForDrawer(null)}
             onApplyScenarioToMap={(scen) => setActiveSimulationResult(scen)}
+            onNavigateToCockpit={() => setActiveScreen("cockpit")}
           />
         )}
 
