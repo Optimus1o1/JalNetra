@@ -5,44 +5,77 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Shield,
-  KeyRound,
-  Radio,
   Clock,
   CheckCircle2,
   AlertTriangle,
   Fingerprint,
   Eye,
   EyeOff,
-  Cpu,
-  Layers,
-  ArrowRight,
-  Server,
   Lock,
   ArrowLeft,
   Activity,
-  Terminal,
+  Radio,
+  KeyRound,
+  Info,
+  RefreshCw,
 } from "lucide-react";
 import { JalNetraLogo } from "@/components/brand/JalNetraLogo";
 
 type ClearanceLevel = "lvl1" | "lvl2" | "lvl3";
 
+interface AuditLogItem {
+  id: string;
+  timestamp: string;
+  type: string;
+  severity: "INFO" | "WARN" | "CRITICAL";
+  actor: string;
+  details: string;
+}
+
+const DEFAULT_CREDENTIALS: Record<ClearanceLevel, { callSign: string; passcode: string }> = {
+  lvl1: { callSign: "OBS-7041", passcode: "Observer@Jal2026" },
+  lvl2: { callSign: "KMC-HYD-40892", passcode: "Hydro#Delta2026" },
+  lvl3: { callSign: "CMD-KMC-001", passcode: "Commander!KMC2026" },
+};
+
 export default function LoginPage() {
   const router = useRouter();
   const [clearance, setClearance] = useState<ClearanceLevel>("lvl2");
-  const [callSign, setCallSign] = useState("KMC-HYD-40892");
-  const [passcode, setPasscode] = useState("••••••••••••");
+  const [callSign, setCallSign] = useState(DEFAULT_CREDENTIALS.lvl2.callSign);
+  const [passcode, setPasscode] = useState(DEFAULT_CREDENTIALS.lvl2.passcode);
   const [showPassword, setShowPassword] = useState(false);
-  const [hwKeyVerified, setHwKeyVerified] = useState(true);
   const [bindMac, setBindMac] = useState(true);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authSuccess, setAuthSuccess] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [lockoutSec, setLockoutSec] = useState<number | null>(null);
+  const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
 
   // Live dual atomic clocks
   const [utcTime, setUtcTime] = useState("18:24:05Z");
   const [istTime, setIstTime] = useState("23:54:05 IST");
   const [countdown, setCountdown] = useState(899); // 14:59
 
+  const fetchAuditLogs = async () => {
+    try {
+      setLogsLoading(true);
+      const res = await fetch("/api/v1/admin/audit?limit=6");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.logs) {
+          setAuditLogs(data.logs);
+        }
+      }
+    } catch {
+      // ignore in offline/SSR mode
+    } finally {
+      setLogsLoading(false);
+    }
+  };
+
   useEffect(() => {
+    fetchAuditLogs();
     const timer = setInterval(() => {
       const now = new Date();
       setUtcTime(now.toISOString().substring(11, 19) + "Z");
@@ -60,16 +93,77 @@ export default function LoginPage() {
     return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
   };
 
-  const handleAuthenticate = (e: React.FormEvent) => {
+  const handleClearanceChange = (lvl: ClearanceLevel) => {
+    setClearance(lvl);
+    setCallSign(DEFAULT_CREDENTIALS[lvl].callSign);
+    setPasscode(DEFAULT_CREDENTIALS[lvl].passcode);
+    setErrorMessage(null);
+  };
+
+  const handleAuthenticate = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsAuthenticating(true);
-    setTimeout(() => {
-      setIsAuthenticating(false);
+    setErrorMessage(null);
+
+    try {
+      const res = await fetch("/api/v1/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          callSign,
+          passcode,
+          clearance,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setErrorMessage(data.error || "Authentication failed.");
+        if (data.lockoutActive && data.remainingLockoutSec) {
+          setLockoutSec(data.remainingLockoutSec);
+        }
+        setIsAuthenticating(false);
+        fetchAuditLogs();
+        return;
+      }
+
       setAuthSuccess(true);
+      fetchAuditLogs();
       setTimeout(() => {
         router.push("/");
       }, 700);
-    }, 900);
+    } catch (err) {
+      setErrorMessage("Network error connecting to JalNetra authentication gateway.");
+      setIsAuthenticating(false);
+    }
+  };
+
+  const handleEmergencyBypass = async () => {
+    setIsAuthenticating(true);
+    setErrorMessage(null);
+
+    try {
+      const res = await fetch("/api/v1/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emergencyBypass: true }),
+      });
+
+      if (res.ok) {
+        setAuthSuccess(true);
+        fetchAuditLogs();
+        setTimeout(() => {
+          router.push("/");
+        }, 600);
+      } else {
+        setErrorMessage("Emergency bypass gateway unavailable.");
+        setIsAuthenticating(false);
+      }
+    } catch {
+      setErrorMessage("Emergency bypass network failure.");
+      setIsAuthenticating(false);
+    }
   };
 
   const clearanceData = {
@@ -85,7 +179,7 @@ export default function LoginPage() {
     },
     lvl3: {
       name: "LEVEL 3: INCIDENT COMMANDER",
-      scope: "Emergency Pump Dispatch, Embankment Interlocks & Evacuation",
+      scope: "Emergency Pump Dispatch, Embankment Interlocks & Admin Seed",
       badge: "COMMAND CLEARANCE",
     },
   };
@@ -113,7 +207,7 @@ export default function LoginPage() {
               NDMA / KMC GATEWAY [ONLINE]
             </span>
             <span className="px-2 py-0.5 rounded bg-[#0b1020] border border-slate-800 text-amber-400">
-              HSM FIPS-140-3 [PASS]
+              HMAC-SHA256 TOKEN [GUARDED]
             </span>
           </div>
 
@@ -182,22 +276,36 @@ export default function LoginPage() {
             </div>
           </div>
 
+          {/* Quick Mission Credentials Card */}
           <div className="p-4 rounded-lg border border-slate-800/90 bg-[#080d19]/90 backdrop-blur-md space-y-2.5 shadow-lg shadow-black/20">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block border-b border-slate-800 pb-1.5">
-              SYSTEM INTEGRITY
+            <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest block border-b border-slate-800 pb-1.5 flex items-center gap-1.5">
+              <KeyRound className="w-3.5 h-3.5 text-cyan-400" />
+              MISSION CREDENTIALS
             </span>
-            <div className="space-y-1.5 text-[11px] text-slate-300">
-              <div className="flex justify-between">
-                <span className="text-slate-500">CIPHER:</span>
-                <span className="text-cyan-300 font-mono">ED25519-SHA512</span>
+            <div className="space-y-2 text-[11px] font-mono text-slate-300">
+              <div
+                onClick={() => handleClearanceChange("lvl1")}
+                className="p-1.5 rounded hover:bg-slate-800/50 cursor-pointer border border-transparent hover:border-slate-700 transition-colors"
+              >
+                <div className="text-cyan-400 text-[10px] font-semibold">LVL 1: OBSERVER</div>
+                <div className="text-slate-400 text-[10px]">Callsign: <span className="text-white">OBS-7041</span></div>
+                <div className="text-slate-500 text-[9px]">Passcode: Observer@Jal2026</div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">PROTOCOL:</span>
-                <span className="text-slate-300 font-mono">FIDO2 / WebAuthn</span>
+              <div
+                onClick={() => handleClearanceChange("lvl2")}
+                className="p-1.5 rounded hover:bg-slate-800/50 cursor-pointer border border-transparent hover:border-slate-700 transition-colors"
+              >
+                <div className="text-cyan-400 text-[10px] font-semibold">LVL 2: HYDROLOGIST (Default)</div>
+                <div className="text-slate-400 text-[10px]">Callsign: <span className="text-white">KMC-HYD-40892</span></div>
+                <div className="text-slate-500 text-[9px]">Passcode: Hydro#Delta2026</div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">LOCKOUT:</span>
-                <span className="text-emerald-400 font-mono font-semibold">0 / 3 FAILS</span>
+              <div
+                onClick={() => handleClearanceChange("lvl3")}
+                className="p-1.5 rounded hover:bg-slate-800/50 cursor-pointer border border-transparent hover:border-slate-700 transition-colors"
+              >
+                <div className="text-cyan-400 text-[10px] font-semibold">LVL 3: COMMANDER</div>
+                <div className="text-slate-400 text-[10px]">Callsign: <span className="text-white">CMD-KMC-001</span></div>
+                <div className="text-slate-500 text-[9px]">Passcode: Commander!KMC2026</div>
               </div>
             </div>
           </div>
@@ -224,6 +332,17 @@ export default function LoginPage() {
               </div>
             </div>
 
+            {/* Error / Alert Banner */}
+            {errorMessage && (
+              <div className="p-3 rounded-lg bg-rose-950/40 border border-rose-500/50 text-rose-300 font-mono text-xs flex items-start gap-2.5">
+                <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <div className="font-semibold text-rose-200">AUTHENTICATION REJECTED</div>
+                  <div className="text-[11px] leading-relaxed text-rose-300">{errorMessage}</div>
+                </div>
+              </div>
+            )}
+
             {/* Clearance Tier Selector */}
             <div className="space-y-2">
               <div className="flex items-center justify-between text-[10px] font-mono uppercase tracking-wider text-slate-400">
@@ -235,7 +354,7 @@ export default function LoginPage() {
                   <button
                     key={lvl}
                     type="button"
-                    onClick={() => setClearance(lvl)}
+                    onClick={() => handleClearanceChange(lvl)}
                     className={`px-2 py-2 rounded-md text-[10px] font-mono uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
                       clearance === lvl
                         ? "bg-cyan-500/15 text-cyan-300 font-bold border border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.15)]"
@@ -276,7 +395,7 @@ export default function LoginPage() {
                   <label className="block text-[10px] font-mono uppercase tracking-wider text-slate-400 font-semibold">
                     CRYPTOGRAPHIC SECURITY PASSCODE
                   </label>
-                  <span className="text-[9px] font-mono text-slate-500">256-BIT ENTROPY</span>
+                  <span className="text-[9px] font-mono text-slate-500">TIMING-SAFE HMAC</span>
                 </div>
                 <div className="relative">
                   <input
@@ -362,12 +481,14 @@ export default function LoginPage() {
               <p className="text-[10px] font-mono text-slate-300 leading-relaxed">
                 During Cyclone / High-Tide Embankment Breach conditions, operators may execute NDRF fast-bypass authentication.
               </p>
-              <Link
-                href="/"
-                className="inline-flex items-center gap-1 text-[10px] font-mono text-rose-300 underline font-semibold hover:text-rose-200 transition-colors pt-0.5"
+              <button
+                type="button"
+                onClick={handleEmergencyBypass}
+                disabled={isAuthenticating}
+                className="inline-flex items-center gap-1 text-[10px] font-mono text-rose-300 underline font-semibold hover:text-rose-200 transition-colors pt-0.5 cursor-pointer disabled:opacity-50"
               >
                 <span>[EXECUTE NDRF EMERGENCY COCKPIT BYPASS →]</span>
-              </Link>
+              </button>
             </div>
           </div>
         </div>
@@ -375,19 +496,46 @@ export default function LoginPage() {
         {/* Right Security Audit Telemetry Bracket (Hidden on mobile) */}
         <div className="hidden lg:block lg:col-span-3 space-y-4 font-mono text-xs">
           <div className="p-4 rounded-lg border border-slate-800/90 bg-[#080d19]/90 backdrop-blur-md space-y-3 shadow-lg shadow-black/20">
-            <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest block border-b border-slate-800 pb-1.5">
-              SECURITY AUDIT LOG
-            </span>
-            <div className="space-y-2 text-[10px] text-slate-400">
-              <div>
-                <span className="text-slate-500">18:22:04Z:</span> Session handshake received from 10.14.88.22
-              </div>
-              <div>
-                <span className="text-slate-500">18:23:11Z:</span> YubiKey token 77189 challenge verified
-              </div>
-              <div>
-                <span className="text-slate-500">18:24:00Z:</span> S2S IMD radar downlink stream online
-              </div>
+            <div className="flex items-center justify-between border-b border-slate-800 pb-1.5">
+              <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">
+                LIVE SECURITY AUDIT LOG
+              </span>
+              <button
+                onClick={fetchAuditLogs}
+                title="Refresh audit logs"
+                className="text-slate-500 hover:text-cyan-400 cursor-pointer p-0.5"
+              >
+                <RefreshCw className={`w-3 h-3 ${logsLoading ? "animate-spin" : ""}`} />
+              </button>
+            </div>
+            <div className="space-y-2 text-[10px]">
+              {auditLogs.length === 0 ? (
+                <div className="text-slate-500 italic py-2">No security events recorded.</div>
+              ) : (
+                auditLogs.map((log) => (
+                  <div key={log.id} className="border-b border-slate-800/40 pb-1.5 last:border-none">
+                    <div className="flex items-center justify-between text-[9px] mb-0.5">
+                      <span className="text-slate-500">
+                        {log.timestamp ? log.timestamp.substring(11, 19) + "Z" : "00:00:00Z"}
+                      </span>
+                      <span
+                        className={`px-1 rounded text-[8px] font-bold ${
+                          log.severity === "CRITICAL"
+                            ? "bg-rose-950 text-rose-300 border border-rose-800"
+                            : log.severity === "WARN"
+                            ? "bg-amber-950 text-amber-300 border border-amber-800"
+                            : "bg-emerald-950 text-emerald-300 border border-emerald-800"
+                        }`}
+                      >
+                        {log.type}
+                      </span>
+                    </div>
+                    <div className="text-slate-300 leading-tight line-clamp-2">
+                      <span className="text-cyan-400 font-semibold">{log.actor}:</span> {log.details}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
@@ -411,7 +559,7 @@ export default function LoginPage() {
             GOV OF WEST BENGAL & KMC FLOOD FORECASTING INITIATIVE // IMD ALIPORE // NASA GPM // SENTINEL-1 SAR
           </div>
           <div className="text-slate-400">
-            FINGERPRINT: SHA256: 9f8a42b109c...33c1d884
+            HMAC-SHA256 SESSION INTEGRITY ACTIVE // CIPHER SECURITY BASELINE
           </div>
         </div>
       </footer>

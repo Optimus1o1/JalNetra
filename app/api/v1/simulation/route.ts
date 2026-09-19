@@ -1,20 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { executeAndLogSimulation, getRecentSimulationRuns } from "@/lib/services/simulationService";
 import { SimulationScenarioRequest } from "@/lib/types";
+import { clampNumber } from "@/lib/security/sanitize";
 
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as Partial<SimulationScenarioRequest>;
 
     const inputs: SimulationScenarioRequest = {
-      rainfallMultiplier: body.rainfallMultiplier ?? 1.25,
-      durationHours: body.durationHours ?? 6,
-      drainageEfficiencyPct: body.drainageEfficiencyPct ?? -15,
-      tidalSurgeMeters: body.tidalSurgeMeters ?? 0.8,
-      emergencyPumpsActive: body.emergencyPumpsActive ?? false,
-      sluiceGatesAutomated: body.sluiceGatesAutomated ?? true,
-      permeablePavementScenario: body.permeablePavementScenario ?? false,
-      temporaryBundsDeployed: body.temporaryBundsDeployed ?? false,
+      rainfallMultiplier: clampNumber(body.rainfallMultiplier, 0.1, 10.0, 1.25),
+      durationHours: Math.round(clampNumber(body.durationHours, 1, 72, 6)),
+      drainageEfficiencyPct: clampNumber(body.drainageEfficiencyPct, -100, 100, -15),
+      tidalSurgeMeters: clampNumber(body.tidalSurgeMeters, -2.0, 10.0, 0.8),
+      emergencyPumpsActive: Boolean(body.emergencyPumpsActive),
+      sluiceGatesAutomated: Boolean(body.sluiceGatesAutomated ?? true),
+      permeablePavementScenario: Boolean(body.permeablePavementScenario),
+      temporaryBundsDeployed: Boolean(body.temporaryBundsDeployed),
     };
 
     const { result, runId } = await executeAndLogSimulation(

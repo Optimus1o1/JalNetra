@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --test tests/e2e_twin_tests.mjs tests/backend_service_tests.mjs",
+    "test": "node --test tests/security_tests.mjs tests/backend_service_tests.mjs tests/e2e_twin_tests.mjs",
+    "test:security": "node --test tests/security_tests.mjs",
     "test:backend": "node --test tests/backend_service_tests.mjs",
     "test:e2e": "node --test tests/e2e_twin_tests.mjs"
   },

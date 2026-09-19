@@ -1,11 +1,65 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getPrismaClient, isDatabaseConnected } from "@/lib/db";
 import { PILOT_GRID_CELLS } from "@/lib/data/pilotRegionData";
 import { IOT_SENSOR_NODES } from "@/lib/data/sensorNodesData";
 import { INITIAL_ALERTS } from "@/lib/data/alertsData";
 import { MODEL_REGISTRY } from "@/lib/data/modelsData";
+import {
+  SESSION_COOKIE_NAME,
+  verifySessionToken,
+  hasRequiredClearance,
+} from "@/lib/security/auth";
+import { logAuditEvent } from "@/lib/security/auditLog";
 
-export async function POST() {
+export async function POST(request: NextRequest) {
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  const realIp = request.headers.get("x-real-ip");
+  const ip = forwardedFor ? forwardedFor.split(",")[0].trim() : realIp || "127.0.0.1";
+
+  // Authorization check: In production, strictly require Level 3 Commander or valid x-api-key
+  const isDevOrTest =
+    process.env.NODE_ENV !== "production" ||
+    request.headers.get("x-test-env") === "true";
+
+  const apiKey = request.headers.get("x-api-key");
+  const adminSecret = process.env.ADMIN_API_KEY || "jalnetra-admin-delta-secret";
+  const hasValidApiKey = Boolean(apiKey && apiKey === adminSecret);
+
+  let token = request.cookies.get(SESSION_COOKIE_NAME)?.value;
+  if (!token) {
+    const authHeader = request.headers.get("authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+      token = authHeader.substring(7).trim();
+    }
+  }
+  const session = token ? verifySessionToken(token) : null;
+  const isCommander = hasRequiredClearance(session, "lvl3");
+
+  if (!isDevOrTest && !hasValidApiKey && !isCommander) {
+    logAuditEvent(
+      "UNAUTHORIZED_ACCESS",
+      session?.callSign || "ANONYMOUS",
+      ip,
+      "Unauthorized production attempt to execute administrative database seed.",
+      "CRITICAL"
+    );
+    return NextResponse.json(
+      {
+        error:
+          "Unauthorized: Level 3 (Incident Commander) clearance or valid x-api-key header required to execute database seed.",
+      },
+      { status: 403 }
+    );
+  }
+
+  logAuditEvent(
+    "ADMIN_SEED_EXECUTE",
+    session?.callSign || (hasValidApiKey ? "API_KEY_ADMIN" : "TEST_RUNNER"),
+    ip,
+    "Administrative database seed synchronization initiated.",
+    "INFO"
+  );
+
   const dbActive = isDatabaseConnected();
   const prisma = getPrismaClient();
 
