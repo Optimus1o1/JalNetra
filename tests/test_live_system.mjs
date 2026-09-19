@@ -467,6 +467,38 @@ try {
   console.log("  ✓ Sluice Gate Raised (Gravity Discharge Active):", openTelemetry);
   await saveScreenshot("test6_water_twin_sluice_gate_open.png");
 
+  // Test Zoom Controls (Zoom In, Zoom Out, Reset Zoom)
+  const zoomInTested = await evalCode(`(() => {
+    const zoomInBtn = document.querySelector('button[title*="Zoom In"], button[aria-label="Zoom In"]');
+    if (!zoomInBtn) return false;
+    zoomInBtn.click();
+    zoomInBtn.click();
+    return true;
+  })()`);
+  console.log("  ✓ Triggered Zoom In (+) on Sluice Gate 3D Viewport:", zoomInTested);
+  await new Promise((r) => setTimeout(r, 1200));
+  await saveScreenshot("test6_water_twin_sluice_gate_zoomed_in.png");
+
+  const zoomOutTested = await evalCode(`(() => {
+    const zoomOutBtn = document.querySelector('button[title*="Zoom Out"], button[aria-label="Zoom Out"]');
+    if (!zoomOutBtn) return false;
+    zoomOutBtn.click();
+    zoomOutBtn.click();
+    zoomOutBtn.click();
+    return true;
+  })()`);
+  console.log("  ✓ Triggered Zoom Out (-) on Sluice Gate 3D Viewport:", zoomOutTested);
+  await new Promise((r) => setTimeout(r, 1000));
+
+  const resetZoomTested = await evalCode(`(() => {
+    const resetBtn = document.querySelector('button[title*="Reset Zoom"], button[aria-label="Reset Zoom & Camera"]');
+    if (!resetBtn) return false;
+    resetBtn.click();
+    return true;
+  })()`);
+  console.log("  ✓ Triggered Reset Zoom (⟲) on Sluice Gate 3D Viewport:", resetZoomTested);
+  await new Promise((r) => setTimeout(r, 1000));
+
   console.log("\n=======================================================");
   console.log("✓ ALL LIVE BROWSER TESTS PASSED WITH 100% SUCCESS RATE!");
   console.log("=======================================================\n");

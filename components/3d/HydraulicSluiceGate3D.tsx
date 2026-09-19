@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import * as THREE from "three";
-import { Waves, ShieldAlert, CheckCircle, RotateCw, Compass, Eye, Gauge, ArrowDownUp } from "lucide-react";
+import { Waves, ShieldAlert, CheckCircle, RotateCw, Compass, Eye, Gauge, ArrowDownUp, ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
 
 /**
  * Creates a high-resolution vertical flood level staff gauge texture
@@ -72,6 +72,13 @@ function createStaffGaugeTexture(): THREE.CanvasTexture {
 
 export type CameraPreset = "iso" | "river" | "canal" | "gantry";
 
+const DEFAULT_PRESETS: Record<CameraPreset, { pos: [number, number, number]; look: [number, number, number] }> = {
+  iso: { pos: [75, 55, 95], look: [0, 12, 0] },
+  river: { pos: [-85, 35, 10], look: [0, 16, 0] },
+  canal: { pos: [85, 30, 10], look: [0, 16, 0] },
+  gantry: { pos: [0, 95, 25], look: [0, 20, 0] },
+};
+
 export const HydraulicSluiceGate3D: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [gateState, setGateState] = useState<"locked" | "open">("locked");
@@ -94,6 +101,36 @@ export const HydraulicSluiceGate3D: React.FC = () => {
 
   const targetCameraPos = useRef<THREE.Vector3>(new THREE.Vector3(75, 55, 95));
   const targetCameraLook = useRef<THREE.Vector3>(new THREE.Vector3(0, 12, 0));
+
+  const applyZoom = useCallback((factor: number) => {
+    const look = targetCameraLook.current;
+    const dir = targetCameraPos.current.clone().sub(look);
+    const currentDist = dir.length();
+    // Allow zooming in to 22 units (close inspection of leaf, seal, rivets, gauge)
+    // and zooming out to 250 units (wide panoramic catchment)
+    const newDist = Math.max(22, Math.min(250, currentDist * factor));
+    dir.normalize().multiplyScalar(newDist);
+    targetCameraPos.current.copy(look).add(dir);
+  }, []);
+
+  const resetZoom = useCallback(() => {
+    const defaultSetup = DEFAULT_PRESETS[cameraPreset];
+    targetCameraPos.current.set(...defaultSetup.pos);
+    targetCameraLook.current.set(...defaultSetup.look);
+    if (groupRef.current) {
+      groupRef.current.rotation.set(0, 0, 0);
+    }
+  }, [cameraPreset]);
+
+  const applyCameraPreset = (preset: CameraPreset) => {
+    setCameraPreset(preset);
+    if (groupRef.current) {
+      groupRef.current.rotation.set(0, 0, 0);
+    }
+    const defaultSetup = DEFAULT_PRESETS[preset];
+    targetCameraPos.current.set(...defaultSetup.pos);
+    targetCameraLook.current.set(...defaultSetup.look);
+  };
 
   useEffect(() => {
     const container = containerRef.current;
@@ -521,7 +558,7 @@ export const HydraulicSluiceGate3D: React.FC = () => {
     scene.add(fillLight);
 
     // =========================================================================
-    // 10. INTERACTIVE POINTER ORBIT & DRAG CONTROLS
+    // 10. INTERACTIVE POINTER ORBIT, DRAG & ZOOM CONTROLS
     // =========================================================================
     let isDragging = false;
     let prevX = 0;
@@ -554,13 +591,62 @@ export const HydraulicSluiceGate3D: React.FC = () => {
       isDragging = false;
     };
 
+    // Mouse Wheel Zoom (Clamped 22m to 250m)
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const factor = e.deltaY > 0 ? 1.09 : 0.91;
+      applyZoom(factor);
+    };
+
+    // Touch Orbit & Pinch-to-Zoom
+    let initialPinchDist: number | null = null;
+    const getTouchDist = (e: TouchEvent) => {
+      if (e.touches.length < 2) return null;
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      return Math.hypot(dx, dy);
+    };
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length >= 2) {
+        initialPinchDist = getTouchDist(e);
+        isDragging = false;
+      } else if (e.touches.length === 1) {
+        handlePointerDown(e);
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length >= 2 && initialPinchDist) {
+        const currentDist = getTouchDist(e);
+        if (currentDist && currentDist > 0) {
+          const ratio = initialPinchDist / currentDist;
+          const factor = 1 + (ratio - 1) * 0.35;
+          applyZoom(factor);
+          initialPinchDist = currentDist;
+        }
+      } else if (e.touches.length === 1) {
+        handlePointerMove(e);
+      }
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) {
+        initialPinchDist = null;
+      }
+      if (e.touches.length === 0) {
+        handlePointerUp();
+      }
+    };
+
     const domElement = renderer.domElement;
     domElement.addEventListener("mousedown", handlePointerDown);
     window.addEventListener("mousemove", handlePointerMove);
     window.addEventListener("mouseup", handlePointerUp);
-    domElement.addEventListener("touchstart", handlePointerDown, { passive: true });
-    window.addEventListener("touchmove", handlePointerMove, { passive: true });
-    window.addEventListener("touchend", handlePointerUp);
+    domElement.addEventListener("wheel", handleWheel, { passive: false });
+    domElement.addEventListener("touchstart", handleTouchStart, { passive: true });
+    window.addEventListener("touchmove", handleTouchMove, { passive: true });
+    window.addEventListener("touchend", handleTouchEnd);
 
     // =========================================================================
     // 11. HIGH-PRECISION REAL-TIME ANIMATION LOOP
@@ -572,9 +658,9 @@ export const HydraulicSluiceGate3D: React.FC = () => {
       animationFrameId = requestAnimationFrame(animate);
       time += 0.035;
 
-      // Smooth Camera Preset Transition
+      // Smooth Camera Preset & Zoom Transition
       if (cameraRef.current) {
-        cameraRef.current.position.lerp(targetCameraPos.current, 0.08);
+        cameraRef.current.position.lerp(targetCameraPos.current, 0.1);
         cameraRef.current.lookAt(targetCameraLook.current);
       }
 
@@ -663,9 +749,10 @@ export const HydraulicSluiceGate3D: React.FC = () => {
       domElement.removeEventListener("mousedown", handlePointerDown);
       window.removeEventListener("mousemove", handlePointerMove);
       window.removeEventListener("mouseup", handlePointerUp);
-      domElement.removeEventListener("touchstart", handlePointerDown);
-      window.removeEventListener("touchmove", handlePointerMove);
-      window.removeEventListener("touchend", handlePointerUp);
+      domElement.removeEventListener("wheel", handleWheel);
+      domElement.removeEventListener("touchstart", handleTouchStart);
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchend", handleTouchEnd);
       resizeObserver.disconnect();
       renderer.dispose();
       concreteMat.dispose();
@@ -680,7 +767,7 @@ export const HydraulicSluiceGate3D: React.FC = () => {
       canalMat.dispose();
       frothMat.dispose();
     };
-  }, [gateState]);
+  }, [gateState, applyZoom]);
 
   const toggleGate = (mode: "locked" | "open") => {
     setGateState(mode);
@@ -690,32 +777,6 @@ export const HydraulicSluiceGate3D: React.FC = () => {
     } else {
       setRiverLevelM(1.85);
       setCanalLevelM(2.95);
-    }
-  };
-
-  const applyCameraPreset = (preset: CameraPreset) => {
-    setCameraPreset(preset);
-    if (groupRef.current) {
-      groupRef.current.rotation.set(0, 0, 0);
-    }
-
-    switch (preset) {
-      case "iso":
-        targetCameraPos.current.set(75, 55, 95);
-        targetCameraLook.current.set(0, 12, 0);
-        break;
-      case "river":
-        targetCameraPos.current.set(-85, 35, 10);
-        targetCameraLook.current.set(0, 16, 0);
-        break;
-      case "canal":
-        targetCameraPos.current.set(85, 30, 10);
-        targetCameraLook.current.set(0, 16, 0);
-        break;
-      case "gantry":
-        targetCameraPos.current.set(0, 95, 25);
-        targetCameraLook.current.set(0, 20, 0);
-        break;
     }
   };
 
@@ -772,6 +833,28 @@ export const HydraulicSluiceGate3D: React.FC = () => {
             </button>
           </div>
 
+          {/* Quick Zoom Buttons in Top Header */}
+          <div className="flex items-center bg-[#040816] border border-slate-800 p-0.5 rounded text-[11px] font-mono">
+            <button
+              onClick={() => applyZoom(0.85)}
+              className="px-2 py-0.5 rounded hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 transition cursor-pointer flex items-center gap-1"
+              title="Zoom In (or Scroll Wheel Up)"
+              aria-label="Zoom In"
+            >
+              <ZoomIn className="w-3.5 h-3.5 text-cyan-400" />
+              <span>ZOOM +</span>
+            </button>
+            <button
+              onClick={() => applyZoom(1.18)}
+              className="px-2 py-0.5 rounded hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 transition cursor-pointer border-l border-slate-800 flex items-center gap-1"
+              title="Zoom Out (or Scroll Wheel Down)"
+              aria-label="Zoom Out"
+            >
+              <ZoomOut className="w-3.5 h-3.5 text-cyan-400" />
+              <span>-</span>
+            </button>
+          </div>
+
           {/* Reset Orbit Angle Button */}
           <button
             onClick={() => applyCameraPreset("iso")}
@@ -805,6 +888,36 @@ export const HydraulicSluiceGate3D: React.FC = () => {
         </div>
       </div>
 
+      {/* Floating Viewport Zoom & Reset Controls */}
+      <div className="absolute top-16 right-3.5 z-20 flex flex-col gap-1 bg-[#050a17]/90 border border-slate-800/90 rounded-lg p-1 backdrop-blur-md shadow-xl">
+        <button
+          onClick={() => applyZoom(0.85)}
+          className="p-1.5 rounded hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 transition cursor-pointer"
+          title="Zoom In (+ or Scroll Wheel Up)"
+          aria-label="Zoom In"
+        >
+          <ZoomIn className="w-4 h-4" />
+        </button>
+        <div className="w-full h-px bg-slate-800" />
+        <button
+          onClick={() => applyZoom(1.18)}
+          className="p-1.5 rounded hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 transition cursor-pointer"
+          title="Zoom Out (- or Scroll Wheel Down)"
+          aria-label="Zoom Out"
+        >
+          <ZoomOut className="w-4 h-4" />
+        </button>
+        <div className="w-full h-px bg-slate-800" />
+        <button
+          onClick={resetZoom}
+          className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition cursor-pointer"
+          title="Reset Zoom & Camera"
+          aria-label="Reset Zoom & Camera"
+        >
+          <RotateCcw className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
       {/* 3D WebGL Canvas Viewport */}
       <div
         ref={containerRef}
@@ -824,8 +937,8 @@ export const HydraulicSluiceGate3D: React.FC = () => {
       </div>
 
       {/* Interactive Drag & Orbit Tip */}
-      <div className="absolute bottom-16 right-3.5 z-10 pointer-events-none hidden sm:flex items-center gap-1.5 px-2 py-0.5 rounded bg-slate-950/70 border border-slate-800/80 text-[10px] font-mono text-slate-400">
-        <span>Click & drag to inspect 3D structure • Switch angles above</span>
+      <div className="absolute bottom-16 right-3.5 z-10 pointer-events-none hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-950/80 border border-slate-800/80 text-[10px] font-mono text-slate-400 backdrop-blur-sm shadow-md">
+        <span>Click & drag to orbit • Scroll wheel or +/- to zoom • Switch angles above</span>
       </div>
 
       {/* Hydraulic Stage Telemetry Grid */}
