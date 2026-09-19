@@ -888,57 +888,60 @@ export const HydraulicSluiceGate3D: React.FC = () => {
         </div>
       </div>
 
-      {/* Floating Viewport Zoom & Reset Controls */}
-      <div className="absolute top-16 right-3.5 z-20 flex flex-col gap-1 bg-[#050a17]/90 border border-slate-800/90 rounded-lg p-1 backdrop-blur-md shadow-xl">
-        <button
-          onClick={() => applyZoom(0.85)}
-          className="p-1.5 rounded hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 transition cursor-pointer"
-          title="Zoom In (+ or Scroll Wheel Up)"
-          aria-label="Zoom In"
-        >
-          <ZoomIn className="w-4 h-4" />
-        </button>
-        <div className="w-full h-px bg-slate-800" />
-        <button
-          onClick={() => applyZoom(1.18)}
-          className="p-1.5 rounded hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 transition cursor-pointer"
-          title="Zoom Out (- or Scroll Wheel Down)"
-          aria-label="Zoom Out"
-        >
-          <ZoomOut className="w-4 h-4" />
-        </button>
-        <div className="w-full h-px bg-slate-800" />
-        <button
-          onClick={resetZoom}
-          className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition cursor-pointer"
-          title="Reset Zoom & Camera"
-          aria-label="Reset Zoom & Camera"
-        >
-          <RotateCcw className="w-3.5 h-3.5" />
-        </button>
-      </div>
+      {/* 3D WebGL Viewport Container (Isolated relative container prevents overlay bleeding into telemetry grid) */}
+      <div className="relative w-full h-[380px] sm:h-[450px] overflow-hidden bg-[#040813]">
+        {/* Canvas DOM Target */}
+        <div
+          ref={containerRef}
+          className="w-full h-full cursor-grab active:cursor-grabbing"
+        />
 
-      {/* 3D WebGL Canvas Viewport */}
-      <div
-        ref={containerRef}
-        className="w-full h-[380px] sm:h-[450px] cursor-grab active:cursor-grabbing relative"
-      />
-
-      {/* Architectural Callout Overlays */}
-      <div className="absolute bottom-16 left-3.5 z-10 pointer-events-none hidden sm:flex flex-col gap-1.5">
-        <div className="px-2.5 py-1 rounded bg-slate-950/85 border border-cyan-500/30 text-[10px] font-mono text-cyan-300 backdrop-blur-md shadow-lg flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
-          <span>UPSTREAM: HOOGHLY ESTUARY (+{riverLevelM}m MSL)</span>
+        {/* Floating Viewport Zoom & Reset Controls */}
+        <div className="absolute top-3.5 right-3.5 z-20 flex flex-col gap-1 bg-[#050a17]/90 border border-slate-800/90 rounded-lg p-1 backdrop-blur-md shadow-xl">
+          <button
+            onClick={() => applyZoom(0.85)}
+            className="p-1.5 rounded hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 transition cursor-pointer"
+            title="Zoom In (+ or Scroll Wheel Up)"
+            aria-label="Zoom In"
+          >
+            <ZoomIn className="w-4 h-4" />
+          </button>
+          <div className="w-full h-px bg-slate-800" />
+          <button
+            onClick={() => applyZoom(1.18)}
+            className="p-1.5 rounded hover:bg-cyan-500/20 text-slate-300 hover:text-cyan-300 transition cursor-pointer"
+            title="Zoom Out (- or Scroll Wheel Down)"
+            aria-label="Zoom Out"
+          >
+            <ZoomOut className="w-4 h-4" />
+          </button>
+          <div className="w-full h-px bg-slate-800" />
+          <button
+            onClick={resetZoom}
+            className="p-1.5 rounded hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition cursor-pointer"
+            title="Reset Zoom & Camera"
+            aria-label="Reset Zoom & Camera"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+          </button>
         </div>
-        <div className="px-2.5 py-1 rounded bg-slate-950/85 border border-slate-800 text-[10px] font-mono text-slate-400 backdrop-blur-md shadow-lg flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-          <span>DOWNSTREAM: CHETLA CANAL BASIN (+{canalLevelM}m MSL)</span>
-        </div>
-      </div>
 
-      {/* Interactive Drag & Orbit Tip */}
-      <div className="absolute bottom-16 right-3.5 z-10 pointer-events-none hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-950/80 border border-slate-800/80 text-[10px] font-mono text-slate-400 backdrop-blur-sm shadow-md">
-        <span>Click & drag to orbit • Scroll wheel or +/- to zoom • Switch angles above</span>
+        {/* Architectural Callout Overlays (Safely anchored inside the 3D viewport) */}
+        <div className="absolute bottom-3 left-3.5 z-10 pointer-events-none hidden sm:flex flex-col gap-1.5">
+          <div className="px-2.5 py-1 rounded bg-slate-950/85 border border-cyan-500/30 text-[10px] font-mono text-cyan-300 backdrop-blur-md shadow-lg flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
+            <span>UPSTREAM: HOOGHLY ESTUARY (+{riverLevelM.toFixed(2)}m MSL)</span>
+          </div>
+          <div className="px-2.5 py-1 rounded bg-slate-950/85 border border-slate-800 text-[10px] font-mono text-slate-400 backdrop-blur-md shadow-lg flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+            <span>DOWNSTREAM: CHETLA CANAL BASIN (+{canalLevelM.toFixed(2)}m MSL)</span>
+          </div>
+        </div>
+
+        {/* Interactive Drag & Orbit Tip (Safely anchored inside the 3D viewport) */}
+        <div className="absolute bottom-3 right-3.5 z-10 pointer-events-none hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-950/85 border border-slate-800/80 text-[10px] font-mono text-slate-400 backdrop-blur-md shadow-md">
+          <span>Click & drag to orbit • Scroll wheel or +/- to zoom • Switch angles above</span>
+        </div>
       </div>
 
       {/* Hydraulic Stage Telemetry Grid */}

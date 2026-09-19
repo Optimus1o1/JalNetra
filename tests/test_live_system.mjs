@@ -410,6 +410,13 @@ try {
   `);
   console.log("  ✓ Water Twin 3D Sluice Gate component mounted:", hasSluiceCanvas);
 
+  // Scroll Sluice Gate into view
+  await evalCode(`(() => {
+    const sluiceHeader = Array.from(document.querySelectorAll('span, h2, h3, h4')).find(el => el.textContent.includes('SLUICE GATE 04') || el.textContent.includes('3D Hydraulic Sluice Gate'));
+    if (sluiceHeader) sluiceHeader.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  })()`);
+  await new Promise((r) => setTimeout(r, 1200));
+
   const initialTelemetry = await evalCode(`(() => {
     const text = document.body.innerText;
     return {
