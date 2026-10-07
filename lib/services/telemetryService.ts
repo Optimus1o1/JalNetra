@@ -4,7 +4,15 @@ import { SensorNode } from "@/lib/types";
 
 export interface TelemetryPayload {
   sensorId: string;
-  metric: "waterLevelM" | "dischargeCumec" | "siltDepthCm" | "pumpRatePct" | "salinityPpt";
+  metric:
+    | "waterLevelM"
+    | "dischargeCumec"
+    | "siltDepthCm"
+    | "pumpRatePct"
+    | "salinityPpt"
+    | "tankLevelM"
+    | "availableCapacityL"
+    | "rainfallMm";
   value: number;
   unit?: string;
   batteryPct?: number;
@@ -28,6 +36,9 @@ const inMemoryLatestObservations: Record<
   {
     waterLevelM?: number;
     dischargeCumec?: number;
+    tankLevelM?: number;
+    availableCapacityL?: number;
+    rainfallMm?: number;
     lastUpdated: string;
     qualityFlag: string;
   }
@@ -79,6 +90,48 @@ export async function ingestTelemetry(payload: TelemetryPayload): Promise<Ingest
     }
   }
 
+  if (metric === "tankLevelM") {
+    if (value < 0.0 || value > 15.0) {
+      return {
+        success: false,
+        status: "REJECTED_QC",
+        receiptId,
+        sensorId,
+        processedAt,
+        qualityCheck: "OUT_OF_BOUNDS_TANK_LEVEL",
+        message: `Quality control rejected tank level reading (${value}m). Allowed bounds: [0.0m - 15.0m].`,
+      };
+    }
+  }
+
+  if (metric === "availableCapacityL") {
+    if (value < 0.0 || value > 10000000.0) {
+      return {
+        success: false,
+        status: "REJECTED_QC",
+        receiptId,
+        sensorId,
+        processedAt,
+        qualityCheck: "OUT_OF_BOUNDS_CAPACITY",
+        message: `Quality control rejected available capacity (${value}L). Allowed bounds: [0.0 - 10,000,000L].`,
+      };
+    }
+  }
+
+  if (metric === "rainfallMm") {
+    if (value < 0.0 || value > 500.0) {
+      return {
+        success: false,
+        status: "REJECTED_QC",
+        receiptId,
+        sensorId,
+        processedAt,
+        qualityCheck: "OUT_OF_BOUNDS_RAINFALL",
+        message: `Quality control rejected rainfall intensity (${value}mm). Allowed bounds: [0.0 - 500.0mm].`,
+      };
+    }
+  }
+
   // 2. Rate-of-Change Spike Filter
   const prevObservation = inMemoryLatestObservations[sensorId];
   let finalQualityFlag = qualityFlag || "QC_PASSED";
@@ -90,11 +143,21 @@ export async function ingestTelemetry(payload: TelemetryPayload): Promise<Ingest
     }
   }
 
+  if (prevObservation && metric === "tankLevelM" && prevObservation.tankLevelM !== undefined) {
+    const delta = Math.abs(value - prevObservation.tankLevelM);
+    if (delta > 3.0) {
+      finalQualityFlag = "SUSPECT_SPIKE_FILTERED";
+    }
+  }
+
   // 3. Update Operational Memory Cache
   inMemoryLatestObservations[sensorId] = {
     ...prevObservation,
     waterLevelM: metric === "waterLevelM" ? value : prevObservation?.waterLevelM,
     dischargeCumec: metric === "dischargeCumec" ? value : prevObservation?.dischargeCumec,
+    tankLevelM: metric === "tankLevelM" ? value : prevObservation?.tankLevelM,
+    availableCapacityL: metric === "availableCapacityL" ? value : prevObservation?.availableCapacityL,
+    rainfallMm: metric === "rainfallMm" ? value : prevObservation?.rainfallMm,
     lastUpdated: processedAt,
     qualityFlag: finalQualityFlag,
   };

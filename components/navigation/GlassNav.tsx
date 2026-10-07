@@ -19,6 +19,10 @@ import {
   Shield,
   LogOut,
   UserCheck,
+  Layers,
+  Droplets,
+  Zap,
+  Activity,
 } from "lucide-react";
 import { JalNetraLogo } from "@/components/brand/JalNetraLogo";
 
@@ -77,13 +81,15 @@ export const GlassNav: React.FC<GlassNavProps> = ({
 
   const navItems = [
     { id: "cockpit", label: "Cockpit", icon: LayoutDashboard, href: "/" },
-    { id: "global", label: "Global Climate", icon: Globe2, href: "/#global" },
-    { id: "rainfall", label: "Rainfall Radar", icon: CloudRain, href: "/#rainfall" },
-    { id: "water-twin", label: "Water Twin", icon: Waves, href: "/#water-twin" },
+    { id: "planner", label: "Interventions", icon: Layers, href: "/#planner" },
+    { id: "water-balance", label: "Water Balance", icon: Droplets, href: "/#water-balance" },
+    { id: "storm-mode", label: "Storm Mode", icon: Zap, href: "/#storm-mode", badge: "Live" },
+    { id: "sensors", label: "IoT & Tanks", icon: Activity, href: "/#sensors" },
+    { id: "water-twin", label: "Spatial Twin", icon: Waves, href: "/#water-twin" },
     { id: "vulnerability", label: "Vulnerability", icon: ShieldAlert, href: "/#vulnerability" },
     { id: "simulation", label: "Sim Engine", icon: PlaySquare, href: "/#simulation" },
+    { id: "science", label: "Science Lab", icon: Cpu, href: "/#science" },
     { id: "alerts", label: "Alerts", icon: Bell, href: "/#alerts", badge: "3" },
-    { id: "models", label: "Model Lab", icon: Cpu, href: "/#models" },
   ];
 
   const handleNavClick = (id: string) => {

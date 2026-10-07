@@ -42,7 +42,9 @@ export type SensorType =
   | "canal_flow"
   | "sluice_gate"
   | "stormwater_sump"
-  | "groundwater_piezometer";
+  | "groundwater_piezometer"
+  | "rainwater_tank"
+  | "weather_station";
 
 export interface SensorNode {
   id: string;
@@ -62,6 +64,13 @@ export interface SensorNode {
   lastPing: string;
   anomalyDetected: boolean;
   anomalyMessage?: string;
+  // Circular Rainwater & Storage Telemetry
+  tankLevelM?: number;
+  tankCapacityL?: number;
+  currentStorageL?: number;
+  availableCapacityL?: number;
+  rainfallMm?: number;
+  rechargeRateLph?: number;
 }
 
 export interface ClimateIndices {

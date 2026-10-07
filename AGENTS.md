@@ -79,3 +79,4 @@ The primary UI communicates:
 - Intervention priority
 
 Advanced scientific diagnostics (ENSO/IOD/MJO, PINN manifolds, 3D radar clouds) belong in the **Science Lab**.
+
