@@ -2,20 +2,20 @@
 
 <div align="center">
 
-[![Live Demo](https://img.shields.io/badge/Live_Demo-jalnetra--xam9.onrender.com-06b6d4?style=for-the-badge&logo=render&logoColor=white)](https://jalnetra-b0ab.onrender.com)
+[![Live Demo](https://img.shields.io/badge/Live_Demo-jalnetra--b0ab.onrender.com-06b6d4?style=for-the-badge&logo=render&logoColor=white)](https://jalnetra-b0ab.onrender.com)
 ![Next.js](https://img.shields.io/badge/Next.js-16.1.1-black?style=for-the-badge&logo=next.js)
 ![React](https://img.shields.io/badge/React-19-blue?style=for-the-badge&logo=react)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?style=for-the-badge&logo=typescript)
 ![Three.js](https://img.shields.io/badge/Three.js-WebGL-000000?style=for-the-badge&logo=three.js)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind-CSS-38B2AC?style=for-the-badge&logo=tailwind-css)
-![Tests](https://img.shields.io/badge/Tests-30%2F30%20Passing-emerald?style=for-the-badge&logo=jest)
+![Tests](https://img.shields.io/badge/Tests-Passing-emerald?style=for-the-badge&logo=jest)
 ![License](https://img.shields.io/badge/License-MIT-amber?style=for-the-badge)
 
 **Physics-Informed Climate, Rainfall & Hydrodynamic Early Warning System for Kolkata Metropolitan Area**
 
 *Engineered by **CIPHER** — Decode. Build. Evolve.*
 
-### 🚀 **Live Production Instance**: [https://jalnetra-xam9.onrender.com](https://jalnetra-xam9.onrender.com)
+### 🚀 **Live Production Instance**: [https://jalnetra-b0ab.onrender.com](https://jalnetra-b0ab.onrender.com)
 
 </div>
 
@@ -102,6 +102,14 @@ The platform exposes a full suite of versioned REST endpoints adhering to Sectio
 | `/api/v1/simulation` | `POST` / `GET` | Execute 2D hydrodynamic simulation and persist run receipts |
 | `/api/v1/alerts` | `GET` / `POST` | Live emergency incident feed and tactical dispatch logging |
 | `/api/v1/sensors/observations` | `POST` | Ingest streaming IoT sensor telemetry (ESP32/MQTT) with QA/QC |
+| `/api/v1/sensors` | `GET` | Live IoT sensor fleet with RWH tank capacities & headroom |
+| `/api/v1/opportunities` | `GET` | Harvestable rainwater opportunity & institutional catchment yields |
+| `/api/v1/water-balance` | `GET` / `POST` | Dynamic storage mass balance & zero-negative invariant solver |
+| `/api/v1/interventions` | `GET` | Catalog of municipal rainwater intervention packages |
+| `/api/v1/demand` | `GET` | Non-potable reuse allocation (flushing, irrigation, cooling) |
+| `/api/v1/recharge` | `GET` | Hydrogeological recharge index & vadose clearance checks |
+| `/api/v1/scenarios` | `POST` | SHA-256 scenario hash cache & fast surrogate simulation (<15ms) |
+| `/api/v1/storm` | `GET` / `POST` | Active storm influx mode & pre-storm drawdown protocol |
 | `/api/v1/models/status` | `GET` | ML model evaluation metrics, CRPS benchmarks, and freshness |
 | `/api/v1/models/custom` | `GET` / `POST` | Ingest and evaluate external Google Colab model artifacts |
 | `/api/v1/admin/seed` | `GET` / `POST` | Baseline GIS database synchronization & diagnostic health check |
@@ -124,7 +132,7 @@ The platform exposes a full suite of versioned REST endpoints adhering to Sectio
  
 ### 🌐 Live Cloud Deployment
 Access the live production digital twin directly on Render:  
-👉 **[https://jalnetra-xam9.onrender.com](https://jalnetra-xam9.onrender.com)**
+👉 **[https://jalnetra-b0ab.onrender.com](https://jalnetra-b0ab.onrender.com)**
 
 ---
 
