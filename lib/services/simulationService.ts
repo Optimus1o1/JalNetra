@@ -1,57 +1,54 @@
-import { calculateStorageBalance } from '../domain/storageBalance';
-import { calculateOpportunity } from '../domain/rainwaterEngine';
-import { rainwaterSites } from '../data/rainwaterSitesData';
+import { calculateOpportunity } from "@/lib/domain/rainwaterEngine";
+import { computeStorageMassBalance } from "@/lib/domain/storageBalance";
+import { matchNonPotableDemand } from "@/lib/domain/demandMatcher";
+import { assessRechargeSuitability } from "@/lib/domain/rechargeSuitability";
+import { calculateWaterCircularityScore } from "@/lib/domain/waterCircularityScore";
+import { CatchmentSite } from "@/lib/domain/types";
 
-export interface SimulationRequest {
-  siteId: string;
+export interface SimulationParams {
+  site: CatchmentSite;
   rainfallMm: number;
-  storageCapacityML: number;
-  dailyDemandML: number;
+  addedStorageL?: number;
+  permeablePavementRatio?: number;
+  demandOffsetTargetPct?: number;
 }
 
-export interface SimulationResponse {
-  siteId: string;
-  rainfallMm: number;
-  storageCapacityML: number;
-  dailyDemandML: number;
-  inflowML: number;
-  retainedML: number;
-  overflowML: number;
-  deficitML: number;
-  finalStorageML: number;
-  circularSatisfactionRate: number;
-  daysOfResilience: number;
-  provenance: 'SIMULATED';
-  timestamp: string;
-}
+export function runHydrologicalSimulation(params: SimulationParams) {
+  const { site, rainfallMm, addedStorageL = 0 } = params;
 
-/**
- * Lightweight simulation service executing deterministic hydrological solvers.
- * Guaranteed <15ms execution time with zero PDE mesh overhead.
- */
-export async function runSimulation(req: SimulationRequest): Promise<SimulationResponse> {
-  const site = rainwaterSites.find((s) => s.id === req.siteId) || rainwaterSites[0];
-  const opportunity = calculateOpportunity(site, req.rainfallMm);
-  const balance = calculateStorageBalance(
-    opportunity.harvestablePotentialML,
-    req.storageCapacityML,
-    req.dailyDemandML,
-    site.existingStorageML
-  );
+  // 1. Calculate Opportunity
+  const opportunity = calculateOpportunity(site, rainfallMm);
+
+  // 2. Storage Mass Balance
+  const effectiveCapacity = site.existingTankCapacityL + addedStorageL;
+  const balance = computeStorageMassBalance({
+    previousStorageL: site.currentTankStorageL,
+    inflowL: opportunity.harvestableVolumeL,
+    reuseWithdrawalL: site.dailyNonPotableDemandL,
+    rechargeInfiltrationL: 0,
+    tankCapacityL: effectiveCapacity,
+  });
+
+  // 3. Demand Match
+  const demandMatch = matchNonPotableDemand(site, balance.currentStorageL);
+
+  // 4. Recharge Suitability
+  const rechargeEval = assessRechargeSuitability(site);
+
+  // 5. Circularity Score
+  const grossPrecip = rainfallMm * site.totalCatchmentAreaSqM;
+  const circularity = calculateWaterCircularityScore({
+    harvestRatio: grossPrecip > 0 ? opportunity.harvestableVolumeL / grossPrecip : 0,
+    reuseDemandFulfillmentRatio: demandMatch.demandFulfillmentPct / 100,
+    rechargeScore: rechargeEval.suitabilityClass === "EXCELLENT" ? 95 : 65,
+    runoffMitigationScore: grossPrecip > 0 ? (grossPrecip - opportunity.unmitigatedRunoffL) / grossPrecip * 100 : 0,
+  });
 
   return {
-    siteId: site.id,
-    rainfallMm: req.rainfallMm,
-    storageCapacityML: req.storageCapacityML,
-    dailyDemandML: req.dailyDemandML,
-    inflowML: opportunity.harvestablePotentialML,
-    retainedML: balance.retainedML,
-    overflowML: balance.overflowML,
-    deficitML: balance.deficitML,
-    finalStorageML: balance.finalStorageML,
-    circularSatisfactionRate: balance.circularSatisfactionRate,
-    daysOfResilience: balance.daysOfResilience,
-    provenance: 'SIMULATED',
-    timestamp: new Date().toISOString(),
+    opportunity,
+    balance,
+    demandMatch,
+    rechargeEval,
+    circularity,
   };
 }

@@ -1,86 +1,196 @@
-generator client {
-  provider = "prisma-client-js"
-}
-
 datasource db {
   provider = "postgresql"
 }
 
-enum LandUseType {
-  RESIDENTIAL
-  COMMERCIAL
-  OPEN_SPACE
-  INDUSTRIAL
+generator client {
+  provider = "prisma-client-js"
 }
 
-enum InterventionType {
-  MODULAR_CISTERN
-  PERMEABLE_PAVEMENT
-  BIOSWALE_CORRIDOR
-  AQUIFER_INJECTION_WELL
-  RETENTION_POND
+model Ward {
+  id                        String             @id @default(uuid())
+  wardNumber                Int                @unique @map("ward_number")
+  wardName                  String             @map("ward_name")
+  borough                   String
+  areaSqKm                  Float              @map("area_sq_km")
+  population                Int
+  elevationBaselineM        Float              @map("elevation_baseline_m")
+  imperviousnessPct         Float              @map("imperviousness_pct")
+  baseDrainageCapacityCumec Float              @map("base_drainage_capacity_cumec")
+  criticalInfrastructure    Json               @default("[]") @map("critical_infrastructure")
+  geometry                  Json?
+  sensors                   SensorNode[]
+  riskSnapshots             RiskSnapshot[]
+  incidents                 IncidentAlert[]
+  createdAt                 DateTime           @default(now()) @map("created_at")
+  updatedAt                 DateTime           @updatedAt @map("updated_at")
+
+  @@map("wards")
 }
 
-enum DrainageCongestion {
-  NORMAL
-  ELEVATED
-  CRITICAL
+model SensorNode {
+  id                 String              @id @default(uuid())
+  nodeKey            String              @unique @map("node_key")
+  name               String
+  type               String              // "SUMP", "CANAL_STAGE", "RIVER_GAUGE", "DOPPLER_RADAR", "SLUICE_GATE"
+  wardId             String?             @map("ward_id")
+  ward               Ward?               @relation(fields: [wardId], references: [id], onDelete: SetNull)
+  latitude           Float
+  longitude          Float
+  elevationM         Float               @map("elevation_m")
+  hardwareSpec       String              @default("ESP32-S3") @map("hardware_spec")
+  firmwareVersion    String              @default("v2.4.1-rc3") @map("firmware_version")
+  status             String              @default("ONLINE") // "ONLINE", "WARN", "CRITICAL", "OFFLINE"
+  batteryPct         Int                 @default(100) @map("battery_pct")
+  lastWaterLevelM    Float?              @map("last_water_level_m")
+  lastDischargeCumec Float?              @map("last_discharge_cumec")
+  lastPingAt         DateTime            @default(now()) @map("last_ping_at")
+  observations       SensorObservation[]
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
+
+  @@map("sensor_nodes")
 }
 
-enum RechargeSuitability {
-  HIGHLY_SUITABLE
-  MODERATE
-  MARGINAL
-  UNSUITABLE
+model SensorObservation {
+  id           String     @id @default(uuid())
+  sensorId     String     @map("sensor_id")
+  sensor       SensorNode @relation(fields: [sensorId], references: [id], onDelete: Cascade)
+  parameter    String     // "WATER_LEVEL", "DISCHARGE", "RAINFALL", "SILT_DEPTH"
+  value        Float
+  unit         String
+  qualityFlag  String     @default("GOOD") @map("quality_flag")
+  timestamp    DateTime   @default(now())
+  rawTelemetry Json?      @map("raw_telemetry")
+
+  @@index([sensorId, timestamp])
+  @@map("sensor_observations")
+}
+
+model RiskSnapshot {
+  id                 String   @id @default(uuid())
+  wardId             String   @map("ward_id")
+  ward               Ward     @relation(fields: [wardId], references: [id], onDelete: Cascade)
+  snapshotTimestamp  DateTime @default(now()) @map("snapshot_timestamp")
+  forecastWindowHrs  Int      @map("forecast_window_hrs")
+  riskScore          Float    @map("risk_score")
+  inundationProbPct  Float    @map("inundation_prob_pct")
+  predictedDepthCm   Float    @map("predicted_depth_cm")
+  treeShapFeatures   Json     @map("tree_shap_features")
+  pinnPhysicsLoss    Float?   @map("pinn_physics_loss")
+  outfallLockRiskPct Float?   @map("outfall_lock_risk_pct")
+
+  @@index([wardId, snapshotTimestamp])
+  @@map("risk_snapshots")
+}
+
+model IncidentAlert {
+  id                      String    @id @default(uuid())
+  alertCode               String    @unique @map("alert_code")
+  wardId                  String?   @map("ward_id")
+  ward                    Ward?     @relation(fields: [wardId], references: [id], onDelete: SetNull)
+  severity                String    // "CRITICAL", "WARNING", "WATCH"
+  title                   String
+  message                 String
+  affectedInfrastructure  Json      @default("[]") @map("affected_infrastructure")
+  confidenceScore         Float     @map("confidence_score")
+  issuedAt                DateTime  @default(now()) @map("issued_at")
+  acknowledged            Boolean   @default(false)
+  acknowledgedBy          String?   @map("acknowledged_by")
+  acknowledgedAt          DateTime? @map("acknowledged_at")
+  actionProtocolDispatched String?  @map("action_protocol_dispatched")
+
+  @@map("incident_alerts")
+}
+
+model SluiceGateState {
+  id                String   @id @default(uuid())
+  gateKey           String   @unique @map("gate_key")
+  name              String
+  outfallBasin      String   @map("outfall_basin") // "PALMER_BRIDGE", "BALLYGUNGE", "DHAPA"
+  hooghlyStageM     Float    @map("hooghly_stage_m")
+  lockupThresholdM  Float    @map("lockup_threshold_m")
+  flapGateStatus    String   @map("flap_gate_status") // "OPEN", "SEALED", "LOCKED_BACKFLOW"
+  lastActuationAt   DateTime @default(now()) @map("last_actuation_at")
+  actuationMode     String   @default("AUTOMATIC_SCADA") @map("actuation_mode")
+
+  @@map("sluice_gate_states")
+}
+
+model ModelRegistry {
+  id              String   @id @default(uuid())
+  modelName       String   @unique @map("model_name")
+  architecture    String   // "PINN_SHALLOW_WATER", "LIGHTGBM_SURROGATE", "ECMWF_ENSEMBLE"
+  versionTag      String   @map("version_tag")
+  crpsBenchmark   Float    @map("crps_benchmark")
+  inferenceP95Ms  Float    @map("inference_p95_ms")
+  offlineTrainedAt DateTime @map("offline_trained_at")
+  isActive        Boolean  @default(true) @map("is_active")
+
+  @@map("model_registries")
 }
 
 model CatchmentSite {
-  id                 String       @id
-  name               String
-  ward               Int
-  areaHectares       Float
-  runoffCoefficient  Float        // C in Q = C * I * A
-  existingStorageML  Float
-  plannedStorageML   Float
-  landUse            LandUseType
-  geometry           Json?        // GeoJSON polygon boundary
-  createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @updatedAt
+  id                       String   @id @default(uuid())
+  siteKey                  String   @unique @map("site_key")
+  wardNumber               Int      @map("ward_number")
+  wardName                 String   @map("ward_name")
+  borough                  String
+  siteName                 String   @map("site_name")
+  siteType                 String   @map("site_type")
+  latitude                 Float
+  longitude                Float
+  roofAreaSqM              Float    @map("roof_area_sq_m")
+  openGroundAreaSqM        Float    @map("open_ground_area_sq_m")
+  totalCatchmentAreaSqM    Float    @map("total_catchment_area_sq_m")
+  runoffCoefficient        Float    @map("runoff_coefficient")
+  collectionEfficiency     Float    @map("collection_efficiency")
+  existingTankCapacityL    Float    @map("existing_tank_capacity_l")
+  currentTankStorageL      Float    @map("current_tank_storage_l")
+  dailyNonPotableDemandL   Float    @map("daily_non_potable_demand_l")
+  soilInfiltrationRateMmHr Float    @map("soil_infiltration_rate_mm_hr")
+  depthToWaterTableM       Float    @map("depth_to_water_table_m")
+  rechargeSuitability      String   @map("recharge_suitability")
+  provenance               Json?    @map("provenance")
+  geometry                 Json?    @map("geometry")
+  createdAt                DateTime @default(now()) @map("created_at")
+  updatedAt                DateTime @updatedAt @map("updated_at")
 
-  @@index([ward])
   @@map("catchment_sites")
 }
 
 model InterventionOption {
-  id                     String           @id
-  siteId                 String
-  ward                   Int
-  interventionType       InterventionType
-  estimatedCostLakhs     Float
-  capturePotentialML     Float
-  drainageReliefPct      Float
-  costEffectivenessRatio Float            // ML per Lakh INR
-  implementationMonths   Int
-  spatialSuitability     Float            // 0 - 1 score
-  createdAt              DateTime         @default(now())
-  updatedAt              DateTime         @updatedAt
+  id                          String   @id @default(uuid())
+  interventionKey             String   @unique @map("intervention_key")
+  siteId                      String?  @map("site_id")
+  name                        String
+  type                        String
+  designCapacityL             Float    @map("design_capacity_l")
+  estimatedCostInr            Float    @map("estimated_cost_inr")
+  annualHarvestPotentialMl    Float    @map("annual_harvest_potential_ml")
+  annualRunoffAvoidedMl       Float    @map("annual_runoff_avoided_ml")
+  priorityScore               Int      @map("priority_score")
+  implementationTimelineWeeks Int      @map("implementation_timeline_weeks")
+  status                      String   @default("PROPOSED")
+  owner                       String
+  createdAt                   DateTime @default(now()) @map("created_at")
+  updatedAt                   DateTime @updatedAt @map("updated_at")
 
-  @@index([ward])
-  @@index([costEffectivenessRatio])
   @@map("intervention_options")
 }
 
 model PersistedScenario {
-  id                String   @id @default(uuid())
-  scenarioHash      String   @unique
-  rainfallMm        Float
-  storageCapacityML Float
-  dailyDemandML     Float
-  resultPayload     Json
-  accessCount       Int      @default(1)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                 String   @id @default(uuid())
+  scenarioHash       String   @unique @map("scenario_hash")
+  scenarioName       String   @map("scenario_name")
+  wardNumber         Int      @map("ward_number")
+  rainfallEventMm    Float    @map("rainfall_event_mm")
+  calculationVersion String   @default("2.1.0") @map("calculation_version")
+  modelVersion       String   @default("1.4.0") @map("model_version")
+  inputs             Json
+  results            Json
+  provenance         String   @default("SIMULATED")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
 
-  @@index([rainfallMm, storageCapacityML, dailyDemandML])
   @@map("persisted_scenarios")
 }
