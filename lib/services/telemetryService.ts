@@ -1,253 +1,131 @@
-import { getPrismaClient, isDatabaseConnected } from "@/lib/db";
-import { IOT_SENSOR_NODES } from "@/lib/data/sensorNodesData";
-import { SensorNode } from "@/lib/types";
+import crypto from 'node:crypto';
+import { sensorNodes } from '../data/sensorNodesData';
+import { SensorNode } from '../types';
 
-export interface TelemetryPayload {
-  sensorId: string;
-  metric:
-    | "waterLevelM"
-    | "dischargeCumec"
-    | "siltDepthCm"
-    | "pumpRatePct"
-    | "salinityPpt"
-    | "tankLevelM"
-    | "availableCapacityL"
-    | "rainfallMm";
+export interface TelemetryObservation {
+  stationId: string;
+  parameter: 'RAINFALL_RATE_MM_HR' | 'WATER_LEVEL_METERS' | 'SOIL_MOISTURE_PCT';
   value: number;
-  unit?: string;
-  batteryPct?: number;
-  qualityFlag?: string;
-  rawPayload?: Record<string, unknown>;
+  qualityFlag: 'GOOD' | 'SUSPECT' | 'ERRONEOUS';
+  timestamp: string;
 }
 
-export interface IngestionResult {
-  success: boolean;
-  status: "INGESTED" | "REJECTED_QC" | "FLAGGED_ANOMALY";
-  receiptId: string;
-  sensorId: string;
-  processedAt: string;
-  qualityCheck: string;
-  message: string;
+// Bounded in-memory ring buffer of recent sensor telemetry (max 100 observations)
+const MAX_OBSERVATIONS = 100;
+const observationRingBuffer: TelemetryObservation[] = [];
+
+// Seed initial buffer with current calibrated baseline readings
+sensorNodes.forEach((node) => {
+  observationRingBuffer.push({
+    stationId: node.id,
+    parameter: 'RAINFALL_RATE_MM_HR',
+    value: node.lastReadingMm,
+    qualityFlag: node.status === 'ONLINE' ? 'GOOD' : 'SUSPECT',
+    timestamp: node.lastUpdated,
+  });
+});
+
+export function getSensorNodes(): SensorNode[] {
+  return sensorNodes;
 }
 
-// In-memory operational ring buffer for ultra-low latency edge lookups
-const inMemoryLatestObservations: Record<
-  string,
-  {
-    waterLevelM?: number;
-    dischargeCumec?: number;
-    tankLevelM?: number;
-    availableCapacityL?: number;
-    rainfallMm?: number;
-    lastUpdated: string;
-    qualityFlag: string;
+export function getLatestObservations(stationId?: string): TelemetryObservation[] {
+  if (stationId) {
+    return observationRingBuffer.filter((obs) => obs.stationId === stationId);
   }
-> = {};
+  return [...observationRingBuffer];
+}
 
-export async function ingestTelemetry(payload: TelemetryPayload): Promise<IngestionResult> {
-  const { sensorId, metric, value, batteryPct, qualityFlag } = payload;
-  const processedAt = new Date().toISOString();
-  const receiptId = `rcpt-tel-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+/**
+ * Ingests incoming sensor telemetry observations with bounded memory protection.
+ */
+export function ingestObservation(obs: TelemetryObservation): void {
+  if (observationRingBuffer.length >= MAX_OBSERVATIONS) {
+    observationRingBuffer.shift(); // Evict oldest
+  }
+  observationRingBuffer.push(obs);
+}
 
-  if (!sensorId || value === undefined || isNaN(value)) {
+/**
+ * Authenticates and ingests telemetry data from IoT nodes or SCADA systems.
+ * Supports Bearer API key or HMAC-SHA256 signature verification.
+ */
+export function ingestObservationsWithAuth(
+  rawBody: string,
+  authHeader: string | null,
+  signatureHeader: string | null
+): { success: boolean; status: number; error?: string; data?: TelemetryObservation[] } {
+  const expectedApiKey = process.env.TELEMETRY_API_KEY || 'jalnetra-dev-telemetry-secret';
+  const hmacSecret = process.env.TELEMETRY_HMAC_SECRET || expectedApiKey;
+
+  let authenticated = false;
+
+  // 1. Bearer / API-Key validation
+  if (authHeader) {
+    const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : authHeader.trim();
+    if (token === expectedApiKey) {
+      authenticated = true;
+    }
+  }
+
+  // 2. HMAC-SHA256 validation if signature header present
+  if (!authenticated && signatureHeader) {
+    try {
+      const calculatedSig = crypto.createHmac('sha256', hmacSecret).update(rawBody).digest('hex');
+      if (calculatedSig.toLowerCase() === signatureHeader.trim().toLowerCase()) {
+        authenticated = true;
+      }
+    } catch {
+      // Signature error handled as unauthenticated
+    }
+  }
+
+  if (!authenticated) {
     return {
       success: false,
-      status: "REJECTED_QC",
-      receiptId,
-      sensorId: sensorId || "UNKNOWN",
-      processedAt,
-      qualityCheck: "MISSING_MANDATORY_PARAMETERS",
-      message: "Telemetry rejection: sensorId and numerical value are required.",
+      status: 401,
+      error: 'Unauthorized: Invalid or missing telemetry authorization credentials',
     };
   }
 
-  // 1. Physical Sanity Threshold Checks
-  if (metric === "waterLevelM") {
-    if (value < 0.0 || value > 25.0) {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(rawBody);
+  } catch {
+    return {
+      success: false,
+      status: 400,
+      error: 'Malformed JSON payload',
+    };
+  }
+
+  const items = Array.isArray(parsed) ? parsed : [parsed];
+  const ingested: TelemetryObservation[] = [];
+
+  for (const item of items) {
+    if (!item.stationId || typeof item.value !== 'number') {
       return {
         success: false,
-        status: "REJECTED_QC",
-        receiptId,
-        sensorId,
-        processedAt,
-        qualityCheck: "OUT_OF_BOUNDS_PHYSICS_VIOLATION",
-        message: `Quality control rejected impossible water level reading (${value}m). Allowed bounds: [0.0m - 25.0m].`,
+        status: 422,
+        error: 'Invalid observation schema: stationId and numeric value required',
       };
     }
-  }
 
-  if (metric === "dischargeCumec") {
-    if (value < 0.0 || value > 500.0) {
-      return {
-        success: false,
-        status: "REJECTED_QC",
-        receiptId,
-        sensorId,
-        processedAt,
-        qualityCheck: "OUT_OF_BOUNDS_DISCHARGE",
-        message: `Quality control rejected discharge rate (${value} m³/s). Allowed bounds: [0.0 - 500.0 m³/s].`,
-      };
-    }
-  }
+    const obs: TelemetryObservation = {
+      stationId: String(item.stationId),
+      parameter: item.parameter || 'RAINFALL_RATE_MM_HR',
+      value: Number(item.value),
+      qualityFlag: item.qualityFlag || 'GOOD',
+      timestamp: item.timestamp || new Date().toISOString(),
+    };
 
-  if (metric === "tankLevelM") {
-    if (value < 0.0 || value > 15.0) {
-      return {
-        success: false,
-        status: "REJECTED_QC",
-        receiptId,
-        sensorId,
-        processedAt,
-        qualityCheck: "OUT_OF_BOUNDS_TANK_LEVEL",
-        message: `Quality control rejected tank level reading (${value}m). Allowed bounds: [0.0m - 15.0m].`,
-      };
-    }
-  }
-
-  if (metric === "availableCapacityL") {
-    if (value < 0.0 || value > 10000000.0) {
-      return {
-        success: false,
-        status: "REJECTED_QC",
-        receiptId,
-        sensorId,
-        processedAt,
-        qualityCheck: "OUT_OF_BOUNDS_CAPACITY",
-        message: `Quality control rejected available capacity (${value}L). Allowed bounds: [0.0 - 10,000,000L].`,
-      };
-    }
-  }
-
-  if (metric === "rainfallMm") {
-    if (value < 0.0 || value > 500.0) {
-      return {
-        success: false,
-        status: "REJECTED_QC",
-        receiptId,
-        sensorId,
-        processedAt,
-        qualityCheck: "OUT_OF_BOUNDS_RAINFALL",
-        message: `Quality control rejected rainfall intensity (${value}mm). Allowed bounds: [0.0 - 500.0mm].`,
-      };
-    }
-  }
-
-  // 2. Rate-of-Change Spike Filter
-  const prevObservation = inMemoryLatestObservations[sensorId];
-  let finalQualityFlag = qualityFlag || "QC_PASSED";
-
-  if (prevObservation && metric === "waterLevelM" && prevObservation.waterLevelM !== undefined) {
-    const delta = Math.abs(value - prevObservation.waterLevelM);
-    if (delta > 5.0) {
-      finalQualityFlag = "SUSPECT_SPIKE_FILTERED";
-    }
-  }
-
-  if (prevObservation && metric === "tankLevelM" && prevObservation.tankLevelM !== undefined) {
-    const delta = Math.abs(value - prevObservation.tankLevelM);
-    if (delta > 3.0) {
-      finalQualityFlag = "SUSPECT_SPIKE_FILTERED";
-    }
-  }
-
-  // 3. Update Operational Memory Cache
-  inMemoryLatestObservations[sensorId] = {
-    ...prevObservation,
-    waterLevelM: metric === "waterLevelM" ? value : prevObservation?.waterLevelM,
-    dischargeCumec: metric === "dischargeCumec" ? value : prevObservation?.dischargeCumec,
-    tankLevelM: metric === "tankLevelM" ? value : prevObservation?.tankLevelM,
-    availableCapacityL: metric === "availableCapacityL" ? value : prevObservation?.availableCapacityL,
-    rainfallMm: metric === "rainfallMm" ? value : prevObservation?.rainfallMm,
-    lastUpdated: processedAt,
-    qualityFlag: finalQualityFlag,
-  };
-
-  // 4. Persist to PostgreSQL via Prisma if database is connected
-  const prisma = getPrismaClient();
-  if (isDatabaseConnected() && prisma) {
-    try {
-      await prisma.sensorObservation.create({
-        data: {
-          sensor: {
-            connectOrCreate: {
-              where: { nodeKey: sensorId },
-              create: {
-                nodeKey: sensorId,
-                name: `IoT Node ${sensorId}`,
-                type: metric === "dischargeCumec" ? "CANAL_STAGE" : "SUMP",
-                latitude: 22.541,
-                longitude: 88.398,
-                elevationM: 3.2,
-                status: finalQualityFlag === "SUSPECT_SPIKE_FILTERED" ? "WARN" : "ONLINE",
-                lastWaterLevelM: metric === "waterLevelM" ? value : null,
-                lastDischargeCumec: metric === "dischargeCumec" ? value : null,
-                batteryPct: batteryPct ?? 100,
-              },
-            },
-          },
-          waterLevelM: metric === "waterLevelM" ? value : null,
-          dischargeRateCumec: metric === "dischargeCumec" ? value : null,
-          qualityFlag: finalQualityFlag,
-          rawPayload: payload.rawPayload ? (payload.rawPayload as object) : undefined,
-        },
-      });
-
-      // Update parent node status
-      await prisma.sensorNode.updateMany({
-        where: { nodeKey: sensorId },
-        data: {
-          lastPingAt: new Date(),
-          batteryPct: batteryPct ?? undefined,
-          lastWaterLevelM: metric === "waterLevelM" ? value : undefined,
-          lastDischargeCumec: metric === "dischargeCumec" ? value : undefined,
-          status: finalQualityFlag === "SUSPECT_SPIKE_FILTERED" ? "WARN" : "ONLINE",
-        },
-      });
-    } catch (dbErr) {
-      console.warn("[TelemetryService] Error persisting observation to DB; cached in-memory.", dbErr);
-    }
+    ingestObservation(obs);
+    ingested.push(obs);
   }
 
   return {
     success: true,
-    status: finalQualityFlag === "SUSPECT_SPIKE_FILTERED" ? "FLAGGED_ANOMALY" : "INGESTED",
-    receiptId,
-    sensorId,
-    processedAt,
-    qualityCheck: finalQualityFlag,
-    message: `Observation for ${sensorId} [${metric}: ${value} ${payload.unit || ""}] validated and ingested.`,
+    status: 200,
+    data: ingested,
   };
-}
-
-export async function getActiveSensorFleet(): Promise<SensorNode[]> {
-  const prisma = getPrismaClient();
-  if (isDatabaseConnected() && prisma) {
-    try {
-      const nodes = await prisma.sensorNode.findMany({
-        take: 50,
-        orderBy: { lastPingAt: "desc" },
-      });
-      if (nodes.length > 0) {
-        return nodes.map((n: any) => ({
-          id: n.id,
-          name: n.name,
-          type: n.type as SensorNode["type"],
-          wardNumber: 66,
-          latitude: n.latitude,
-          longitude: n.longitude,
-          waterLevelM: n.lastWaterLevelM ?? 2.1,
-          dischargeRateCumec: n.lastDischargeCumec ?? 14.5,
-          pumpCapacityCumec: 28.0,
-          status: n.status as SensorNode["status"],
-          lastPing: n.lastPingAt.toISOString(),
-          batteryPct: n.batteryPct,
-        }));
-      }
-    } catch (err) {
-      console.warn("[TelemetryService] Database read failed, returning calibrated fleet.", err);
-    }
-  }
-
-  // Resilient fallback to calibrated sensor fleet
-  return IOT_SENSOR_NODES;
 }

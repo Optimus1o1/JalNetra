@@ -1,167 +1,129 @@
-// JalNetra — Urban Rainwater Intelligence & Circular Water Digital Twin Domain Types
-
-export type DataProvenance = "MEASURED" | "SIMULATED" | "PREDICTED" | "ASSUMED";
-
-export type SiteType =
-  | "ROOFTOP_RESIDENTIAL"
-  | "ROOFTOP_COMMERCIAL"
-  | "PUBLIC_INSTITUTION" // e.g. Hospitals, Universities, Municipal buildings
-  | "COMMUNITY_PLAZA"
-  | "PARK_OPEN_SPACE";
-
-export type RechargeSuitabilityClass = "HIGH" | "MEDIUM" | "LOW" | "UNSUITABLE";
-
-export type InterventionType =
-  | "ROOFTOP_CISTERN"
-  | "COMMUNITY_STORAGE_SUMP"
-  | "INFILTRATION_RECHARGE_SHAFT"
-  | "BIO_RETENTION_BIOSWALE"
-  | "PERMEABLE_PAVEMENT_RETROFIT";
-
 export interface CatchmentSite {
   id: string;
-  wardNumber: number;
-  wardName: string;
-  borough: string;
-  siteName: string;
-  siteType: SiteType;
-  coordinates: [number, number]; // [lat, lng]
-  roofAreaSqM: number;
-  openGroundAreaSqM: number;
-  totalCatchmentAreaSqM: number;
-  runoffCoefficient: number; // 0.15 - 0.95
-  collectionEfficiency: number; // 0.80 - 0.90 (first flush rejection accounted)
-  existingTankCapacityL: number;
-  currentTankStorageL: number;
-  dailyNonPotableDemandL: number;
-  soilInfiltrationRateMmHr: number;
-  depthToWaterTableM: number;
-  rechargeSuitability: RechargeSuitabilityClass;
-  provenance: Record<string, DataProvenance>;
+  name: string;
+  ward: number;
+  areaHectares: number;
+  runoffCoefficient: number; // C in Rational Method Q = C * I * A
+  existingStorageML: number;
+  plannedStorageML: number;
+  landUse: 'RESIDENTIAL' | 'COMMERCIAL' | 'OPEN_SPACE' | 'INDUSTRIAL';
+  geometry?: any;
 }
 
-export interface RainwaterOpportunity {
+export interface OpportunityCalculation {
   siteId: string;
   siteName: string;
-  wardNumber: number;
+  ward: number;
   rainfallMm: number;
-  harvestableVolumeL: number;
-  harvestableVolumeML: number; // Mega-litres (million litres)
-  recommendedStorageL: number;
-  potentialRunoffAvoidedL: number;
-  drainageContributionReliefPct: number;
-  provenance: DataProvenance;
+  totalPrecipitationML: number;
+  harvestablePotentialML: number; // Volume that can actually be captured given C
+  recommendedStorageML: number;
+  avoidedRunoffPct: number;
+  captureEfficiencyPct: number;
 }
 
 export interface StorageBalanceResult {
-  previousStorageL: number;
-  inflowL: number;
-  reuseWithdrawalL: number;
-  rechargeInfiltrationL: number;
-  lossesL: number;
-  currentStorageL: number;
-  overflowL: number;
-  tankCapacityL: number;
-  fillPercentage: number;
-  storageHeadroomL: number; // remaining capacity before overflow
-  provenance: DataProvenance;
+  retainedML: number;
+  overflowML: number;
+  deficitML: number;
+  finalStorageML: number;
+  circularSatisfactionRate: number; // % of demand met by stored rainwater
+  daysOfResilience: number; // Days storage can meet non-potable demand without rain
+  massBalanceErrorML: number; // Inflow - Outflow - DeltaStorage (must be approx 0)
+}
+
+export type DemandCategoryType =
+  | 'TOILET_FLUSHING'
+  | 'COOLING_TOWERS'
+  | 'URBAN_HORTICULTURE'
+  | 'FIRE_AND_ROAD_WASHING';
+
+export interface DemandCategory {
+  category: DemandCategoryType;
+  dailyDemandML: number;
+  priority: number; // 1 = highest
+  qualityRequired: 'SECONDARY_FILTERED' | 'TERTIARY_TREATED' | 'RAW_RAINWATER';
+  description: string;
+  provenance: 'ASSUMED';
 }
 
 export interface DemandMatchResult {
-  totalDailyDemandL: number;
-  waterSuppliedFromHarvestL: number;
-  unmetDemandL: number;
-  demandFulfillmentPct: number;
-  applications: {
-    toiletFlushingL: number;
-    landscapeIrrigationL: number;
-    coolingHvacL: number;
-    streetCleaningL: number;
-  };
-  provenance: DataProvenance;
+  totalSupplyML: number;
+  totalDemandML: number;
+  totalAllocatedML: number;
+  unmetDemandML: number;
+  surplusWaterML: number;
+  overallSatisfactionRate: number;
+  breakdown: Array<{
+    category: DemandCategoryType;
+    demandML: number;
+    allocatedML: number;
+    satisfactionRate: number;
+    priority: number;
+  }>;
 }
 
-export interface RechargeAssessment {
-  siteId: string;
-  suitabilityClass: RechargeSuitabilityClass;
-  rechargeScore: number; // 0 - 100
-  percolationRateMmHr: number;
-  maxDailyRechargeCapacityL: number;
-  limitingFactors: string[];
-  recommendedMethod: string;
-  provenance: DataProvenance;
+export interface AquiferProperties {
+  permeabilityK: number; // m/day
+  depthToWaterTableM: number; // m
+  soilInfiltrationRateMmHr: number; // mm/hr
+  salinityPPM: number;
 }
 
-export interface WaterCircularityScore {
-  compositeScore: number; // 0 - 100
-  rating: "OPTIMAL" | "BALANCED" | "DEVELOPING" | "CRITICAL_DEFICIT";
-  dimensions: {
-    capturePotential: number; // 0 - 100
-    reuseFulfillment: number; // 0 - 100
-    rechargeEffectiveness: number; // 0 - 100
-    floodRunoffRelief: number; // 0 - 100
-  };
-  factorWeights: {
-    capture: number;
-    reuse: number;
-    recharge: number;
-    runoffRelief: number;
-  };
-  explanations: {
-    name: string;
-    impact: number;
-    direction: "positive" | "negative";
-    narrative: string;
-  }[];
-  provenance: DataProvenance;
+export interface RechargeSuitabilityResult {
+  suitabilityScore: number; // 0 to 100
+  rating: 'HIGHLY_SUITABLE' | 'MODERATE' | 'MARGINAL' | 'UNSUITABLE';
+  limitingFactor: string;
+  recommendedMethod: 'INJECTION_WELL' | 'PERCOLATION_PIT' | 'BIOSWALE' | 'NONE';
+  maxRechargeRateMLD: number;
+  subsurfaceRiskScore: number; // 0 to 100
 }
 
-export interface InterventionOption {
+export interface CircularityScoreBreakdown {
+  score: number; // 0 to 100
+  harvestRatio: number; // % of runoff captured
+  demandOffsetRatio: number; // % of non-potable demand offset
+  rechargeContributionRatio: number; // % directed to groundwater
+  retentionBufferHours: number; // Delay to peak urban runoff
+  status: 'EXCELLENT' | 'CIRCULAR' | 'TRANSITIONAL' | 'LINEAR_DRAINAGE';
+}
+
+export interface InterventionSite {
   id: string;
   siteId: string;
-  name: string;
-  type: InterventionType;
-  designCapacityL: number;
-  estimatedCostINR: number;
-  annualHarvestPotentialML: number;
-  annualRunoffAvoidedML: number;
-  priorityScore: number; // 0 - 100
-  implementationTimelineWeeks: number;
-  status: "PROPOSED" | "ASSESSED" | "APPROVED" | "IN_PROGRESS" | "OPERATIONAL";
-  owner: string;
+  ward: number;
+  interventionType:
+    | 'MODULAR_CISTERN'
+    | 'PERMEABLE_PAVEMENT'
+    | 'BIOSWALE_CORRIDOR'
+    | 'AQUIFER_INJECTION_WELL'
+    | 'RETENTION_POND';
+  estimatedCostLakhs: number;
+  capturePotentialML: number;
+  drainageReliefPct: number;
+  costEffectivenessRatio: number; // ML per Lakhs INR
+  implementationMonths: number;
+  spatialSuitability: number; // 0-1
 }
 
-export interface InterventionScenarioComparison {
-  scenarioId: string;
-  scenarioName: string;
-  wardNumber: number;
-  rainfallEventMm: number;
-  baseline: {
-    totalRainfallVolumeML: number;
-    uncontrolledRunoffML: number;
-    capturedVolumeML: number;
-    reusedVolumeML: number;
-    rechargedVolumeML: number;
-    canalDrainageLoadCumec: number;
-    inundationExposureIndex: number;
-  };
-  intervention: {
-    totalRainfallVolumeML: number;
-    uncontrolledRunoffML: number;
-    capturedVolumeML: number;
-    reusedVolumeML: number;
-    rechargedVolumeML: number;
-    canalDrainageLoadCumec: number;
-    inundationExposureIndex: number;
-  };
-  deltas: {
-    runoffAvoidedML: number;
-    runoffReductionPct: number;
-    capturedIncreaseML: number;
-    reusedIncreaseML: number;
-    rechargeIncreaseML: number;
-    drainageReliefCumec: number;
-    avoidedLossCroresINR: number;
-  };
-  provenance: DataProvenance;
+export interface InterventionPlan {
+  totalBudgetCr: number;
+  allocatedBudgetCr: number;
+  selectedInterventions: InterventionSite[];
+  totalCaptureCapacityML: number;
+  averageDrainageReliefPct: number;
+  wardsCovered: number[];
+}
+
+export interface ScenarioParams {
+  rainfallMm: number;
+  storageCapacityML: number;
+  dailyDemandML: number;
+  siteId: string;
+  wardId: number;
+}
+
+export interface ScenarioResult extends ScenarioParams, StorageBalanceResult {
+  harvestablePotentialML: number;
+  runDate: string;
 }
