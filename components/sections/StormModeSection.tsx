@@ -1,211 +1,230 @@
-"use client";
+'use client';
 
-import React, { useState, useEffect } from "react";
-import { GlassCard } from "../ui/GlassCard";
-import { Button } from "../ui/Button";
-import { Badge } from "../ui/Badge";
+import React, { useState } from 'react';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
-  CloudLightning,
   AlertTriangle,
-  ArrowDownToLine,
-  Droplets,
-  ShieldAlert,
-  CheckCircle2,
-  Clock,
-  Layers,
+  ShieldCheck,
+  TrendingUp,
+  Waves,
+  Zap,
   ArrowRight,
-} from "lucide-react";
+  Flame,
+  CheckCircle2,
+} from 'lucide-react';
 
-interface StormModeSectionProps {
-  onNavigateToPlanner?: () => void;
-}
+export function StormModeSection() {
+  const [activeStage, setActiveStage] = useState<'WATCH' | 'WARNING' | 'EMERGENCY'>('WARNING');
+  const [tankDepletionPercent, setTankDepletionPercent] = useState<number>(65);
 
-export const StormModeSection: React.FC<StormModeSectionProps> = ({
-  onNavigateToPlanner,
-}) => {
-  const [isExecutingDrawdown, setIsExecutingDrawdown] = useState<boolean>(false);
-  const [drawdownComplete, setDrawdownComplete] = useState<boolean>(false);
-
-  const handleExecuteDrawdown = () => {
-    setIsExecutingDrawdown(true);
-    setTimeout(() => {
-      setIsExecutingDrawdown(false);
-      setDrawdownComplete(true);
-    }, 1500);
-  };
+  const stages = [
+    {
+      level: 'WATCH',
+      threshold: '25-50 mm/hr forecast',
+      color: 'text-amber-400 border-amber-500/30 bg-amber-500/10',
+      action: 'Targeted Pre-drawdown (30%)',
+    },
+    {
+      level: 'WARNING',
+      threshold: '50-80 mm/hr convective band',
+      color: 'text-orange-400 border-orange-500/30 bg-orange-500/10',
+      action: 'Aggressive Depletion (65%)',
+    },
+    {
+      level: 'EMERGENCY',
+      threshold: '>80 mm/hr Cloudburst & High Tide Lock',
+      color: 'text-rose-400 border-rose-500/30 bg-rose-500/10',
+      action: 'Maximum Emergency Detention (100%)',
+    },
+  ];
 
   return (
-    <div className="space-y-6">
+    <section className="space-y-6">
       {/* Header Banner */}
-      <div className="p-5 rounded-2xl bg-gradient-to-r from-amber-950/60 via-slate-900/80 to-cyan-950/60 border border-amber-500/40 space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/30">
-              <CloudLightning className="w-6 h-6 animate-pulse" />
+      <div className="relative overflow-hidden rounded-2xl border border-rose-500/30 bg-gradient-to-r from-rose-950/40 via-slate-900 to-amber-950/30 p-6 backdrop-blur-md">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="flex h-3 w-3 rounded-full bg-rose-500 animate-ping" />
+              <Badge variant="outline" className="border-rose-500 text-rose-400 font-mono">
+                CRITICAL DISPATCH ENGINE · KMC COMMAND
+              </Badge>
+              <Badge variant="outline" className="border-cyan-500/40 text-cyan-400 font-mono text-[10px]">
+                CALIBRATED SURROGATE
+              </Badge>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-xl font-bold text-white font-sans">
-                  Active Storm Influx Mode // 3-Hour Downpour Approaching
-                </h2>
-                <Badge variant="amber">T-MINUS 140 MIN</Badge>
-              </div>
-              <p className="text-xs font-mono text-slate-300 mt-0.5">
-                P50 Nowcast: <strong>64.0 mm</strong> convective rainfall expected over Greater Kolkata & Hooghly Basin.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {onNavigateToPlanner && (
-              <Button variant="glass" size="sm" onClick={onNavigateToPlanner}>
-                Intervention Planner →
-              </Button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* 4 Readiness Telemetry Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <GlassCard tone="standard" className="p-4 space-y-1">
-          <span className="text-[10px] font-mono uppercase text-slate-400">
-            Expected Basin Rainfall
-          </span>
-          <div className="text-2xl font-bold text-amber-400 font-mono">64.0 mm</div>
-          <span className="text-[10px] font-mono text-slate-400">
-            88% PoP Heavy Rainfall
-          </span>
-        </GlassCard>
-
-        <GlassCard tone="standard" className="p-4 space-y-1">
-          <span className="text-[10px] font-mono uppercase text-slate-400">
-            Potential Storm Harvest
-          </span>
-          <div className="text-2xl font-bold text-cyan-400 font-mono">11.82 ML</div>
-          <span className="text-[10px] font-mono text-cyan-400/80">
-            Catchment roofs & basins
-          </span>
-        </GlassCard>
-
-        <GlassCard tone="standard" className="p-4 space-y-1">
-          <span className="text-[10px] font-mono uppercase text-slate-400">
-            Current Storage Headroom
-          </span>
-          <div className="text-2xl font-bold text-slate-200 font-mono">
-            {drawdownComplete ? "0.485 ML" : "0.360 ML"}
-          </div>
-          <span className="text-[10px] font-mono text-emerald-400">
-            {drawdownComplete ? "Drawdown Completed (+125kL free)" : "Constrained headroom"}
-          </span>
-        </GlassCard>
-
-        <GlassCard tone="standard" className="p-4 space-y-1">
-          <span className="text-[10px] font-mono uppercase text-slate-400">
-            Pre-emptive Drawdown Target
-          </span>
-          <div className="text-2xl font-bold text-emerald-400 font-mono">125,000 L</div>
-          <span className="text-[10px] font-mono text-emerald-400/80">
-            Transfer to recharge wells
-          </span>
-        </GlassCard>
-      </div>
-
-      {/* Two-Column Decision Rail */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column: Pre-Storm Drawdown Action Protocol (7 cols) */}
-        <div className="lg:col-span-7 space-y-4">
-          <GlassCard tone="standard" className="p-5 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
-              <h3 className="text-sm font-bold text-white font-sans flex items-center gap-2">
-                <ArrowDownToLine className="w-4 h-4 text-cyan-400" />
-                Pre-Emptive Storage Drawdown Protocol
-              </h3>
-              <span className="text-[10px] font-mono text-cyan-400">
-                STATUS: {drawdownComplete ? "STANDBY - CAPTURE READY" : "ACTION RECOMMENDED"}
-              </span>
-            </div>
-
-            <p className="text-xs font-mono text-slate-300 leading-relaxed">
-              To maximize stormwater capture and eliminate street flooding, non-potable tanks at municipal institutions must be drawn down into groundwater recharge shafts prior to storm onset. This frees <strong>125,000 Litres</strong> of immediate storage capacity.
+            <h2 className="text-2xl font-bold text-white tracking-tight">
+              Pre-Storm Detention & Lockup Relief Dispatcher
+            </h2>
+            <p className="text-sm text-slate-300 max-w-2xl leading-relaxed">
+              When heavy rainfall coincides with Hooghly River high tide lock at outfalls, secondary storage
+              must be pre-emptively drained to create active retention buffers and alleviate urban waterlogging.
             </p>
-
-            <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-3">
-              <div className="flex items-center justify-between text-xs font-mono">
-                <span className="text-slate-300">Target Facility:</span>
-                <span className="text-cyan-400 font-bold">Tiljala Depot & SSKM Cisterns</span>
-              </div>
-              <div className="flex items-center justify-between text-xs font-mono">
-                <span className="text-slate-300">Discharge Vector:</span>
-                <span className="text-blue-300 font-bold">Deep Infiltration Wells (Ward 93 & 57)</span>
-              </div>
-              <div className="flex items-center justify-between text-xs font-mono">
-                <span className="text-slate-300">Available Time Window:</span>
-                <span className="text-amber-400 font-bold">Next 90 Minutes</span>
-              </div>
-
-              <div className="pt-2">
-                <button
-                  onClick={handleExecuteDrawdown}
-                  disabled={isExecutingDrawdown || drawdownComplete}
-                  className={`w-full py-2.5 rounded-lg text-xs font-mono font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                    drawdownComplete
-                      ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
-                      : "bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow-md shadow-cyan-500/20"
-                  }`}
-                >
-                  {isExecutingDrawdown ? (
-                    <span>DRAINING INTO RECHARGE WELLS...</span>
-                  ) : drawdownComplete ? (
-                    <>
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                      <span>STORAGE HEADROOM PREPARED (100% READY)</span>
-                    </>
-                  ) : (
-                    <>
-                      <ArrowDownToLine className="w-4 h-4" />
-                      <span>EXECUTE PRE-EMPTIVE DRAWDOWN COMMAND</span>
-                    </>
-                  )}
-                </button>
-              </div>
+          </div>
+          <div className="flex flex-col items-end justify-center bg-slate-950/80 border border-rose-500/20 p-4 rounded-xl">
+            <div className="text-[11px] font-mono text-slate-400 uppercase tracking-widest">
+              Hooghly Lock Status
             </div>
-          </GlassCard>
-        </div>
-
-        {/* Right Column: Storm Checklist & Outfall Lockouts (5 cols) */}
-        <div className="lg:col-span-5 space-y-4">
-          <GlassCard tone="standard" className="p-5 space-y-3 font-mono text-xs">
-            <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2 border-b border-slate-800 pb-2">
-              <ShieldAlert className="w-4 h-4 text-rose-400" />
-              Storm Protection Directives
-            </h4>
-
-            <div className="space-y-2 text-[11px] text-slate-300">
-              <div className="p-2.5 rounded-lg bg-slate-950/60 border border-slate-800/80 flex items-start gap-2.5">
-                <span className="w-4 h-4 rounded-full bg-cyan-500/20 text-cyan-300 flex items-center justify-center text-[10px] font-bold shrink-0">
-                  1
-                </span>
-                <span>Rooftop first-flush diverters cleared of debris.</span>
-              </div>
-
-              <div className="p-2.5 rounded-lg bg-slate-950/60 border border-slate-800/80 flex items-start gap-2.5">
-                <span className="w-4 h-4 rounded-full bg-cyan-500/20 text-cyan-300 flex items-center justify-center text-[10px] font-bold shrink-0">
-                  2
-                </span>
-                <span>Outram Ghat Sluice Gate 01/04 interlocked at High Tide (+5.42m MSL).</span>
-              </div>
-
-              <div className="p-2.5 rounded-lg bg-slate-950/60 border border-slate-800/80 flex items-start gap-2.5">
-                <span className="w-4 h-4 rounded-full bg-cyan-500/20 text-cyan-300 flex items-center justify-center text-[10px] font-bold shrink-0">
-                  3
-                </span>
-                <span>Community retention sumps primed for overflow interception.</span>
-              </div>
+            <div className="text-lg font-bold text-rose-400 flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 animate-bounce" />
+              LOCKUP ACTIVE (5.12m)
             </div>
-          </GlassCard>
+            <div className="text-[10px] text-slate-500 font-mono mt-1">
+              Gates closed at Palmer&apos;s Bridge &amp; Dhapa
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Grid: Alert Trigger Matrix & Action Console */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Stage Selector */}
+        <Card className="bg-slate-900/60 border-slate-800">
+          <CardHeader>
+            <CardTitle className="text-base text-white flex items-center gap-2">
+              <Flame className="h-4 w-4 text-amber-400" />
+              Storm Alert Tier
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {stages.map((st) => (
+              <div
+                key={st.level}
+                onClick={() => {
+                  setActiveStage(st.level as 'WATCH' | 'WARNING' | 'EMERGENCY');
+                  setTankDepletionPercent(st.level === 'WATCH' ? 30 : st.level === 'WARNING' ? 65 : 100);
+                }}
+                className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                  activeStage === st.level
+                    ? `${st.color} shadow-lg shadow-rose-950/20 ring-1 ring-rose-500/50`
+                    : 'border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700'
+                }`}
+              >
+                <div className="flex items-center justify-between font-mono font-bold text-sm">
+                  <span>STAGE: {st.level}</span>
+                  <Badge variant="outline" className="text-[10px] uppercase">
+                    {st.threshold}
+                  </Badge>
+                </div>
+                <div className="text-xs mt-1 text-slate-300 font-medium">{st.action}</div>
+              </div>
+            ))}
+
+            <div className="pt-4 border-t border-slate-800/80">
+              <div className="text-xs text-slate-400 mb-2 flex justify-between">
+                <span>Active Pre-detention Target</span>
+                <span className="font-mono text-cyan-400 font-bold">{tankDepletionPercent}%</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={tankDepletionPercent}
+                onChange={(e) => setTankDepletionPercent(Number(e.target.value))}
+                className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-rose-500"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Real-Time Impact Projection */}
+        <Card className="bg-slate-900/60 border-slate-800 lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-base text-white flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <Zap className="h-4 w-4 text-cyan-400" />
+                Live Hydraulic Relief Metrics (Kolkata Core Catchments)
+              </span>
+              <Badge variant="outline" className="border-cyan-500/40 text-cyan-300 font-mono text-[11px]">
+                PROVENANCE: SIMULATED / CALIBRATED SURROGATE
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-slate-950/60 border border-slate-800 p-4 rounded-xl space-y-1">
+                <div className="text-xs text-slate-400 font-mono uppercase">Detention Volume Freed</div>
+                <div className="text-2xl font-bold text-cyan-400 font-mono">
+                  {((tankDepletionPercent / 100) * 16.4).toFixed(1)} ML
+                </div>
+                <div className="text-[11px] text-slate-500">Across 18 municipal RWH tanks</div>
+              </div>
+
+              <div className="bg-slate-950/60 border border-slate-800 p-4 rounded-xl space-y-1">
+                <div className="text-xs text-slate-400 font-mono uppercase">Peak Drainage Relieved</div>
+                <div className="text-2xl font-bold text-emerald-400 font-mono">
+                  {((tankDepletionPercent / 100) * 24.2).toFixed(1)}%
+                </div>
+                <div className="text-[11px] text-slate-500">Palmer&apos;s Bridge Outfall basin</div>
+              </div>
+
+              <div className="bg-slate-950/60 border border-slate-800 p-4 rounded-xl space-y-1">
+                <div className="text-xs text-slate-400 font-mono uppercase">Waterlogging Delay</div>
+                <div className="text-2xl font-bold text-amber-400 font-mono">
+                  +{Math.round((tankDepletionPercent / 100) * 140)} mins
+                </div>
+                <div className="text-[11px] text-slate-500">Buffer window for gravity discharge</div>
+              </div>
+            </div>
+
+            {/* Recommended Automated Dispatches */}
+            <div className="space-y-3">
+              <div className="text-xs font-mono uppercase tracking-wider text-slate-400">
+                Action Protocol Sequence
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-slate-950/40 border border-slate-800/80">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+                  <div className="text-xs space-y-0.5">
+                    <div className="font-semibold text-slate-200">
+                      Step 1: Divert existing secondary water to tertiary injection borewells
+                    </div>
+                    <div className="text-slate-400">
+                      Discharges 4.2 ML into deep sandy aquifer zones (Ward 66) without entering stormwater gullies.
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-slate-950/40 border border-slate-800/80">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+                  <div className="text-xs space-y-0.5">
+                    <div className="font-semibold text-slate-200">
+                      Step 2: Command SCADA motorized valves at College Street &amp; Maidan Cisterns
+                    </div>
+                    <div className="text-slate-400">
+                      Opens bottom drain sluices 3.5 hours prior to high-tide lock onset.
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-slate-950/40 border border-slate-800/80">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
+                  <div className="text-xs space-y-0.5">
+                    <div className="font-semibold text-slate-200">
+                      Step 3: Lock stormwater intake grates to capture first-flush sediment
+                    </div>
+                    <div className="text-slate-400">
+                      Bypasses initial 15mm sediment load directly to silt traps before main tank detention.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2">
+              <Button
+                variant="outline"
+                className="border-rose-500/50 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 font-mono text-xs flex items-center gap-2"
+              >
+                <span>EXECUTE SCADA PRE-DETENTION PROTOCOL</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </section>
   );
-};
+}
