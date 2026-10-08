@@ -1,136 +1,289 @@
-import assert from 'node:assert';
-import crypto from 'node:crypto';
-import { ingestObservationsWithAuth, getLatestObservations } from '../lib/services/telemetryService.js';
-import { calculateSecondaryDemand, matchDemand } from '../lib/domain/demandMatcher.js';
-import { generateScenarioHash, runScenarioCalculation } from '../lib/domain/scenarioCache.js';
-import { triageAlert } from '../lib/services/alertTriageService.js';
+import test from "node:test";
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import {
+  DEFAULT_INSTITUTIONAL_PROFILE,
+  HOSPITAL_CAMPUS_PROFILE,
+  matchNonPotableDemand,
+  validateDemandProfile,
+} from "../lib/domain/demandMatcher.ts";
+import { generateScenarioHash } from "../lib/domain/scenarioCache.ts";
 
-console.log('=== JALNETRA PHASE 12: RELEASE HARDENING VERIFICATION SUITE ===\n');
+const BASE_URL = process.env.TEST_APP_URL || "http://localhost:3000";
+const TELEMETRY_KEY = process.env.TELEMETRY_INGESTION_KEY || "jn_telemetry_edge_secure_2026";
+const INGEST_HEADERS = {
+  "Content-Type": "application/json",
+  "Authorization": `Bearer ${TELEMETRY_KEY}`,
+  "x-test-env": "true",
+};
 
-// -------------------------------------------------------------
-// Fix 1: Telemetry Ingest Security (Auth Header & HMAC Signature)
-// -------------------------------------------------------------
-console.log('Testing Fix 1: Telemetry Ingest Authentication & HMAC Security...');
+test("JALNETRA Phase 12 Hardening Verification Suite", async (t) => {
 
-const mockObservation = JSON.stringify({
-  stationId: 'kol-imd-alipore-01',
-  value: 42.5,
-  parameter: 'RAINFALL_RATE_MM_HR',
+  // =========================================================================
+  // REQUIREMENT 1: SENSOR INGESTION SECURITY (BEARER AUTHENTICATION & DEFENSE)
+  // =========================================================================
+  await t.test("1. Sensor Ingestion Security (Bearer Authentication & Outlier Protection)", async (t2) => {
+    
+    await t2.test("Rejects requests with missing Authorization token with HTTP 401", async () => {
+      const res = await fetch(`${BASE_URL}/api/v1/sensors/observations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-test-env": "true" },
+        body: JSON.stringify({ sensorId: "sn-rwh-09", metric: "waterLevelM", value: 3.2 }),
+      });
+      assert.strictEqual(res.status, 401);
+      const data = await res.json();
+      assert.ok(data.error.includes("Unauthorized") || data.error.includes("Bearer"));
+    });
+
+    await t2.test("Rejects requests with invalid Authorization token with HTTP 401", async () => {
+      const res = await fetch(`${BASE_URL}/api/v1/sensors/observations`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer totally_wrong_fake_token_12345",
+          "x-test-env": "true",
+        },
+        body: JSON.stringify({ sensorId: "sn-rwh-09", metric: "waterLevelM", value: 3.2 }),
+      });
+      assert.strictEqual(res.status, 401);
+      const data = await res.json();
+      assert.ok(data.error.includes("Unauthorized"));
+    });
+
+    await t2.test("Accepts valid Authorization token with correct Bearer header", async () => {
+      const res = await fetch(`${BASE_URL}/api/v1/sensors/observations`, {
+        method: "POST",
+        headers: INGEST_HEADERS,
+        body: JSON.stringify({
+          sensorId: "sn-rwh-09",
+          metric: "waterLevelM",
+          value: 2.85,
+          unit: "m",
+          batteryPct: 98,
+        }),
+      });
+      assert.strictEqual(res.status, 200);
+      const data = await res.json();
+      assert.strictEqual(data.status, "ingested");
+      assert.strictEqual(data.provenance, "MEASURED");
+      assert.strictEqual(data.qualityCheck, "PASSED_LEVEL_1_QC");
+      assert.ok(data.receiptId.startsWith("rcpt-tel-"));
+    });
+
+    await t2.test("Rejects malformed payload with HTTP 400 when authenticated", async () => {
+      const res = await fetch(`${BASE_URL}/api/v1/sensors/observations`, {
+        method: "POST",
+        headers: INGEST_HEADERS,
+        body: JSON.stringify({ value: 2.85 }), // Missing sensorId
+      });
+      assert.strictEqual(res.status, 400);
+      const data = await res.json();
+      assert.ok(data.error.includes("rejection") || data.error.includes("sensorId"));
+    });
+
+    await t2.test("Rejects outlier physical readings with HTTP 422 when authenticated", async () => {
+      // Impossible water level in Kolkata urban sump (> 25.0 meters)
+      const res = await fetch(`${BASE_URL}/api/v1/sensors/observations`, {
+        method: "POST",
+        headers: INGEST_HEADERS,
+        body: JSON.stringify({
+          sensorId: "sn-rwh-09",
+          metric: "waterLevelM",
+          value: 45.0,
+          unit: "m",
+        }),
+      });
+      assert.strictEqual(res.status, 422);
+      const data = await res.json();
+      assert.strictEqual(data.status, "REJECTED_QC");
+      assert.strictEqual(data.check, "OUT_OF_BOUNDS_WATER_LEVEL");
+    });
+  });
+
+  // =========================================================================
+  // REQUIREMENT 2: STORM MODE SAFETY FRAMING & PLANNING NON-ACTUATION
+  // =========================================================================
+  await t.test("2. Storm Mode Safety Framing & Planning Non-Actuation", async () => {
+    const stormComponentPath = path.resolve(process.cwd(), "components/sections/StormModeSection.tsx");
+    const content = fs.readFileSync(stormComponentPath, "utf-8");
+
+    // Must verify explicit non-actuation disclaimer exists in component source
+    assert.ok(
+      content.includes("ADVISORY") || content.includes("SIMULATION NOTICE") || content.includes("executive authority"),
+      "StormModeSection must contain explicit disclaimer that drawdown is a planning simulation, not direct actuation."
+    );
+    assert.ok(
+      content.includes("Sewerage & Drainage Directorate") || content.includes("KMC"),
+      "StormModeSection must reference KMC authority."
+    );
+  });
+
+  // =========================================================================
+  // REQUIREMENT 3: CIRCULARITY INDEX PROVENANCE LABELING
+  // =========================================================================
+  await t.test("3. Circularity Index Provenance Labeling", async () => {
+    const pageComponentPath = path.resolve(process.cwd(), "app/page.tsx");
+    const content = fs.readFileSync(pageComponentPath, "utf-8");
+
+    // Must verify provenance labeling in the hero card transition (42 -> 84)
+    assert.ok(
+      content.includes("BENCHMARK PROJECTION") || content.includes("PROJECTION"),
+      "app/page.tsx must explicitly label the 42 -> 84 Circularity Index transition as a BENCHMARK PROJECTION."
+    );
+  });
+
+  // =========================================================================
+  // REQUIREMENT 4: PARAMETERIZE DEMAND APPORTIONMENT & TYPOLOGICAL PROFILES
+  // =========================================================================
+  await t.test("4. Parameterize Demand Apportionment & Typological Profiles", async (t2) => {
+    const mockSite = {
+      id: "site-w071-sskm",
+      wardNumber: 71,
+      wardName: "Bhowanipore / SSKM",
+      borough: "Borough IX",
+      siteName: "SSKM Hospital Campus",
+      siteType: "HOSPITAL_CAMPUS" as any,
+      coordinates: [22.5398, 88.3426] as [number, number],
+      roofAreaSqM: 32500,
+      openGroundAreaSqM: 8600,
+      totalCatchmentAreaSqM: 41100,
+      runoffCoefficient: 0.9,
+      collectionEfficiency: 0.88,
+      existingTankCapacityL: 120000,
+      currentTankStorageL: 35000,
+      dailyNonPotableDemandL: 85000,
+      soilInfiltrationRateMmHr: 8.5,
+      depthToWaterTableM: 4.2,
+      rechargeSuitability: "GOOD" as any,
+      provenance: { area: "MEASURED" as any, runoffCoeff: "ASSUMED" as any, demand: "SIMULATED" as any },
+    };
+
+    await t2.test("Uses default profile when custom profile is not provided", () => {
+      const result = matchNonPotableDemand(mockSite, 50000);
+      assert.strictEqual(result.demandProfile.name, DEFAULT_INSTITUTIONAL_PROFILE.name);
+      assert.strictEqual(result.demandProfile.toiletFlushingPct, 45);
+      assert.strictEqual(result.provenance, "ASSUMED");
+      assert.strictEqual(result.waterSuppliedFromHarvestL, 50000);
+      assert.strictEqual(result.applications.toiletFlushingL, Math.round(50000 * 0.45));
+    });
+
+    await t2.test("Applies custom valid profile correctly (Hospital / Healthcare profile)", () => {
+      const result = matchNonPotableDemand(mockSite, 50000, HOSPITAL_CAMPUS_PROFILE);
+      assert.strictEqual(result.demandProfile.name, HOSPITAL_CAMPUS_PROFILE.name);
+      assert.strictEqual(result.demandProfile.toiletFlushingPct, 50);
+      assert.strictEqual(result.demandProfile.coolingHvacPct, 30);
+      assert.strictEqual(result.applications.toiletFlushingL, Math.round(50000 * 0.50));
+      assert.strictEqual(result.applications.coolingHvacL, Math.round(50000 * 0.30));
+    });
+
+    await t2.test("Rejects demand profile whose percentages do not sum to 100%", () => {
+      const invalidProfile = {
+        name: "Broken Sum Profile",
+        toiletFlushingPct: 30,
+        landscapeIrrigationPct: 30,
+        coolingHvacPct: 10,
+        streetCleaningPct: 10, // Sum = 80%, not 100%
+        provenance: "ASSUMED" as const,
+      };
+
+      const val = validateDemandProfile(invalidProfile);
+      assert.strictEqual(val.valid, false);
+      assert.ok(val.reason?.includes("must sum to 100%"));
+
+      assert.throws(() => {
+        matchNonPotableDemand(mockSite, 50000, invalidProfile);
+      }, /Invalid Demand Profile/);
+    });
+
+    await t2.test("Rejects negative percentage allocations", () => {
+      const invalidProfile = {
+        name: "Negative Allocation",
+        toiletFlushingPct: -10,
+        landscapeIrrigationPct: 60,
+        coolingHvacPct: 30,
+        streetCleaningPct: 20,
+        provenance: "ASSUMED" as const,
+      };
+      const val = validateDemandProfile(invalidProfile);
+      assert.strictEqual(val.valid, false);
+      assert.ok(val.reason?.includes("non-negative"));
+    });
+
+    await t2.test("Rejects percentage allocations exceeding 1.0 (100%)", () => {
+      const invalidProfile = {
+        name: "Oversized Allocation",
+        toiletFlushingPct: 120,
+        landscapeIrrigationPct: 0,
+        coolingHvacPct: 0,
+        streetCleaningPct: 0,
+        provenance: "ASSUMED" as const,
+      };
+      const val = validateDemandProfile(invalidProfile);
+      assert.strictEqual(val.valid, false);
+    });
+
+    await t2.test("Handles zero demand gracefully", () => {
+      const zeroDemandSite = { ...mockSite, dailyNonPotableDemandL: 0 };
+      const result = matchNonPotableDemand(zeroDemandSite, 50000);
+      assert.strictEqual(result.totalDailyDemandL, 0);
+      assert.strictEqual(result.waterSuppliedFromHarvestL, 0);
+      assert.strictEqual(result.demandFulfillmentPct, 100);
+    });
+
+    await t2.test("Correctly handles supply lower than demand", () => {
+      const result = matchNonPotableDemand(mockSite, 20000);
+      assert.strictEqual(result.waterSuppliedFromHarvestL, 20000);
+      assert.strictEqual(result.unmetDemandL, 65000);
+      assert.strictEqual(result.demandFulfillmentPct, Number(((20000 / 85000) * 100).toFixed(1)));
+    });
+
+    await t2.test("Correctly handles supply higher than demand (surplus)", () => {
+      const result = matchNonPotableDemand(mockSite, 100000);
+      assert.strictEqual(result.waterSuppliedFromHarvestL, 85000);
+      assert.strictEqual(result.unmetDemandL, 0);
+      assert.strictEqual(result.demandFulfillmentPct, 100);
+    });
+  });
+
+  // =========================================================================
+  // REQUIREMENT 5: SCENARIO CACHE VERSION INVALIDATION & IDENTITY KEY
+  // =========================================================================
+  await t.test("5. Scenario Cache Version Invalidation & Identity Key", async (t2) => {
+    const config = {
+      wardNumber: 66,
+      rainfallEventMm: 65,
+      addedStorageCapacityL: 80000,
+      permeablePavementFractionPct: 25,
+      activeRechargeWells: true,
+      captureEfficiencyBoostPct: 15,
+    };
+
+    await t2.test("Produces identical hash for identical configuration + identical versions", () => {
+      const hash1 = generateScenarioHash(config, "2.1.0", "1.4.0");
+      const hash2 = generateScenarioHash(config, "2.1.0", "1.4.0");
+      assert.strictEqual(hash1, hash2);
+      assert.strictEqual(hash1.length, 24);
+    });
+
+    await t2.test("Invalidates cache (produces different hash) when calculationVersion changes", () => {
+      const hashV1 = generateScenarioHash(config, "2.0.0", "1.4.0");
+      const hashV2 = generateScenarioHash(config, "2.1.0", "1.4.0");
+      assert.notStrictEqual(hashV1, hashV2);
+    });
+
+    await t2.test("Invalidates cache (produces different hash) when modelVersion changes", () => {
+      const hashM1 = generateScenarioHash(config, "2.1.0", "1.3.0");
+      const hashM2 = generateScenarioHash(config, "2.1.0", "1.4.0");
+      assert.notStrictEqual(hashM1, hashM2);
+    });
+
+    await t2.test("Produces different hash when scenario parameter changes", () => {
+      const hashBase = generateScenarioHash(config, "2.1.0", "1.4.0");
+      const hashDiffRain = generateScenarioHash({ ...config, rainfallEventMm: 70 }, "2.1.0", "1.4.0");
+      const hashDiffStorage = generateScenarioHash({ ...config, addedStorageCapacityL: 120000 }, "2.1.0", "1.4.0");
+      assert.notStrictEqual(hashBase, hashDiffRain);
+      assert.notStrictEqual(hashBase, hashDiffStorage);
+    });
+  });
 });
-
-// Case 1A: Reject missing credentials
-const resUnauth = ingestObservationsWithAuth(mockObservation, null, null);
-assert.strictEqual(resUnauth.success, false, 'Unauthenticated payload must be rejected');
-assert.strictEqual(resUnauth.status, 401, 'Status must be 401 Unauthorized');
-console.log('  ✔ Reject unauthenticated ingest (401)');
-
-// Case 1B: Accept valid Bearer API key
-const validApiKey = 'jalnetra-dev-telemetry-secret';
-const resBearer = ingestObservationsWithAuth(mockObservation, `Bearer ${validApiKey}`, null);
-assert.strictEqual(resBearer.success, true, 'Valid Bearer token must be accepted');
-assert.strictEqual(resBearer.status, 200, 'Status must be 200 OK');
-console.log('  ✔ Ingest with valid Bearer API key (200)');
-
-// Case 1C: Accept valid HMAC-SHA256 signature
-const hmacSecret = validApiKey;
-const validSignature = crypto.createHmac('sha256', hmacSecret).update(mockObservation).digest('hex');
-const resHmac = ingestObservationsWithAuth(mockObservation, null, validSignature);
-assert.strictEqual(resHmac.success, true, 'Valid HMAC signature must be accepted');
-assert.strictEqual(resHmac.status, 200, 'Status must be 200 OK');
-console.log('  ✔ Ingest with valid HMAC-SHA256 signature (200)');
-
-// Case 1D: Reject invalid HMAC signature
-const resInvalidHmac = ingestObservationsWithAuth(mockObservation, null, 'deadbeefbadsignature');
-assert.strictEqual(resInvalidHmac.success, false, 'Tampered HMAC signature must be rejected');
-assert.strictEqual(resInvalidHmac.status, 401, 'Status must be 401 Unauthorized');
-console.log('  ✔ Reject tampered HMAC signature (401)');
-
-
-// -------------------------------------------------------------
-// Fix 2: Storm-Mode Action Framing (Triage Protocol)
-// -------------------------------------------------------------
-console.log('\nTesting Fix 2: Storm-Mode Action Protocols & Triage Framing...');
-
-const criticalAlert = triageAlert({
-  id: 'ALT-CRITICAL-TEST',
-  wardId: 66,
-  severity: 'CRITICAL',
-  eventType: 'WATERLOGGING_PREDICTION',
-  predictedDepthCm: 45,
-  timestamp: new Date().toISOString(),
-});
-
-assert.strictEqual(criticalAlert.dispatchUrgency, 'IMMEDIATE');
-assert.strictEqual(criticalAlert.provenance, 'SIMULATED');
-assert(criticalAlert.mitigationSteps.some((s) => s.includes('Pre-deplete secondary storage')), 'Must include pre-depletion');
-assert(criticalAlert.mitigationSteps.some((s) => s.includes('Palmer Bridge')), 'Must include outfall gate protocol');
-console.log('  ✔ Storm triage returns concrete dispatch orders and outfall protocols');
-
-
-// -------------------------------------------------------------
-// Fix 3: Configurable Secondary Demand Assumptions
-// -------------------------------------------------------------
-console.log('\nTesting Fix 3: Configurable Demand Baseline Assumptions...');
-
-const site = {
-  id: 'park-circus-basin',
-  name: 'Park Circus Drainage Basin',
-  ward: 66,
-  areaHectares: 42.5,
-  runoffCoefficient: 0.88,
-  existingStorageML: 1.2,
-  plannedStorageML: 5.0,
-  landUse: 'COMMERCIAL',
-};
-
-// Default assumptions
-const defaultDemands = calculateSecondaryDemand(site);
-const defaultToilet = defaultDemands.find((d) => d.category === 'TOILET_FLUSHING');
-assert(defaultToilet, 'Toilet flushing demand must exist');
-assert.strictEqual(defaultToilet.provenance, 'ASSUMED', 'Must carry explicit ASSUMED provenance');
-
-// Custom assumptions
-const customAssumptions = {
-  toiletFlushingMLDPerHectare: 0.25,
-  coolingTowerHVACMLDPerHectare: 0.30,
-  horticultureParkMLDPerHectare: 0.05,
-  fireAndConstructionMLDPerHectare: 0.02,
-};
-const customDemands = calculateSecondaryDemand(site, customAssumptions);
-const customToilet = customDemands.find((d) => d.category === 'TOILET_FLUSHING');
-assert.strictEqual(customToilet.dailyDemandML, Number((42.5 * 0.25).toFixed(3)));
-assert(customToilet.dailyDemandML > defaultToilet.dailyDemandML, 'Custom demand must dynamically update');
-console.log('  ✔ Configurable baseline assumptions update demands dynamically with ASSUMED tags');
-
-
-// -------------------------------------------------------------
-// Fix 4: Versioned Scenario Cache Invalidation & Hash Collision Safety
-// -------------------------------------------------------------
-console.log('\nTesting Fix 4: Versioned Scenario Cache Invalidation...');
-
-const scenarioParams = {
-  rainfallMm: 60,
-  storageCapacityML: 15,
-  dailyDemandML: 0.6,
-  siteId: 'college-street-cistern',
-  wardId: 48,
-};
-
-const hashA = generateScenarioHash(scenarioParams);
-const run1 = runScenarioCalculation(scenarioParams);
-assert.strictEqual(run1.cached, false, 'First evaluation must not be cached');
-
-const run2 = runScenarioCalculation(scenarioParams);
-assert.strictEqual(run2.cached, true, 'Subsequent evaluation with same hash must hit cache');
-assert.strictEqual(run2.scenarioHash, hashA, 'Scenario hash must match');
-
-// Different rainfall must produce distinct hash
-const diffParams = { ...scenarioParams, rainfallMm: 60.5 };
-const hashB = generateScenarioHash(diffParams);
-assert.notStrictEqual(hashA, hashB, 'Different params must generate unique SHA256 hashes');
-console.log('  ✔ Versioned scenario hash generation and LRU cache invalidation verified');
-
-
-console.log('\n============================================================');
-console.log('✔ ALL PHASE 12 HARDENING PATCH VERIFICATIONS PASSED (100%)!');
-console.log('============================================================\n');
