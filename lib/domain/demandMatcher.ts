@@ -1,4 +1,4 @@
-import { CatchmentSite, DemandMatchResult, DemandProfile } from "./types";
+import type { CatchmentSite, DemandMatchResult, DemandProfile } from "./types";
 
 /**
  * Standard benchmark demand profiles based on typical municipal building typologies.

@@ -6,6 +6,7 @@ export type OperationalMode = "DATABASE_MODE" | "FALLBACK_MODE";
 
 export interface DatabaseHealthStatus {
   status: "HEALTHY" | "DEGRADED" | "OFFLINE";
+  connected: boolean;
   operationalMode: OperationalMode;
   latencyMs: number;
   postgisVersion?: string;
@@ -83,6 +84,14 @@ export function getPrismaClient(): PrismaClient | null {
   }
 }
 
+export function getPgPool(): pg.Pool | null {
+  if (!process.env.DATABASE_URL) return null;
+  if (!global.pgPoolGlobal) {
+    global.pgPoolGlobal = createPool() || undefined;
+  }
+  return global.pgPoolGlobal || null;
+}
+
 export const isDatabaseConnected = (): boolean => {
   return Boolean(process.env.DATABASE_URL && getPrismaClient() !== null);
 };
@@ -96,6 +105,7 @@ export async function checkDatabaseHealth(forceCheck = false): Promise<DatabaseH
   if (!process.env.DATABASE_URL) {
     const offlineStatus: DatabaseHealthStatus = {
       status: "OFFLINE",
+      connected: false,
       operationalMode: "FALLBACK_MODE",
       latencyMs: 0,
       error: "DATABASE_URL not configured",
@@ -109,6 +119,7 @@ export async function checkDatabaseHealth(forceCheck = false): Promise<DatabaseH
   if (!prisma) {
     const degradedStatus: DatabaseHealthStatus = {
       status: "DEGRADED",
+      connected: false,
       operationalMode: "FALLBACK_MODE",
       latencyMs: 0,
       error: "Prisma client could not connect to PostgreSQL",
@@ -127,6 +138,7 @@ export async function checkDatabaseHealth(forceCheck = false): Promise<DatabaseH
 
     const healthyStatus: DatabaseHealthStatus = {
       status: "HEALTHY",
+      connected: true,
       operationalMode: "DATABASE_MODE",
       latencyMs,
       postgisVersion: rows[0]?.postgis || "UNKNOWN",
@@ -139,6 +151,7 @@ export async function checkDatabaseHealth(forceCheck = false): Promise<DatabaseH
     const errMsg = err instanceof Error ? err.message : String(err);
     const failedStatus: DatabaseHealthStatus = {
       status: "DEGRADED",
+      connected: false,
       operationalMode: "FALLBACK_MODE",
       latencyMs: 0,
       error: errMsg,
