@@ -17,6 +17,14 @@ export async function GET(
 
   return NextResponse.json({
     status: "success",
+    cellId: evaluation.cell.id,
+    wardNumber: evaluation.cell.wardNumber,
+    riskScore: evaluation.compositeRiskScore,
+    treeShapAttributions: evaluation.shapFactors.map((f) => ({
+      featureName: f.name,
+      attributionValue: f.contribution,
+      direction: f.direction,
+    })),
     cell: evaluation.cell,
     explainability: {
       framework: "TreeSHAP Local Attribution Decomposition",

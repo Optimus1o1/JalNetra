@@ -3,16 +3,21 @@ import { getActiveSensorFleet } from "@/lib/services/telemetryService";
 import { getTidalHydrodynamics } from "@/lib/services/tidalHydroService";
 
 export async function GET() {
-  const [sensors, tidalState] = await Promise.all([
-    getActiveSensorFleet(),
-    getTidalHydrodynamics(),
-  ]);
+  const [sensors, tidalState] = await Promise.all([\n    getActiveSensorFleet(),\n    getTidalHydrodynamics(),\n  ]);
 
   return NextResponse.json({
     status: "success",
     timestamp: new Date().toISOString(),
     networkStatus: `${sensors.filter((s) => s.status === "online").length} / ${sensors.length} IoT Monitoring Nodes Online`,
     sensors,
+    hooghlyTide: {
+      stationName: tidalState.stationName,
+      stageMSL: tidalState.stageMMSL,
+      tideType: tidalState.tideType,
+      sluiceInterlockActive: tidalState.sluiceInterlockActive,
+      minutesToHighTide: tidalState.minutesToHighTide,
+      trend: tidalState.trend,
+    },
     tidalDynamics: {
       station: tidalState.stationName,
       currentStageMSL: tidalState.stageMMSL,
