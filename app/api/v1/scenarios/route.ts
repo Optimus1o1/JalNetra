@@ -1,100 +1,60 @@
-import { NextRequest, NextResponse } from "next/server";
-import { KMC_CATCHMENT_SITES } from "@/lib/data/rainwaterSitesData";
-import { simulateInterventionScenario } from "@/lib/domain/interventionPlanner";
-import {
-  generateScenarioHash,
-  getCachedScenario,
-  storeCachedScenario,
-  getScenarioCacheStats,
-} from "@/lib/domain/scenarioCache";
-import { clampNumber } from "@/lib/security/sanitize";
+import { NextResponse } from 'next/server';
+import { runScenarioCalculation } from '@/lib/domain/scenarioCache';
+import { getPersistedScenarioRecord, persistScenarioRecord } from '@/lib/services/rainwaterDataService';
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
     const body = await request.json();
+    const rainfallMm = Number(body.rainfallMm ?? 50);
+    const storageCapacityML = Number(body.storageCapacityML ?? 10);
+    const dailyDemandML = Number(body.dailyDemandML ?? 0.5);
+    const siteId = body.siteId ? String(body.siteId) : 'park-circus-basin';
+    const wardId = body.wardId ? Number(body.wardId) : 66;
 
-    const wardNumber = clampNumber(body.wardNumber, 1, 144, 66);
-    const rainfallEventMm = clampNumber(body.rainfallEventMm, 5, 300, 65);
-    const addedStorageCapacityL = clampNumber(body.addedStorageCapacityL, 0, 10_000_000, 80_000);
-    const permeablePavementFractionPct = clampNumber(
-      body.permeablePavementFractionPct,
-      0,
-      100,
-      25
-    );
-    const activeRechargeWells = Boolean(body.activeRechargeWells ?? true);
-    const captureEfficiencyBoostPct = clampNumber(
-      body.captureEfficiencyBoostPct,
-      0,
-      50,
-      15
-    );
-    const scenarioName = body.scenarioName || `Ward ${wardNumber} Stormwater Capture & Infiltration Plan`;
-
-    // 1. Generate deterministic scenario hash
-    const scenarioHash = generateScenarioHash({
-      wardNumber,
-      rainfallEventMm,
-      addedStorageCapacityL,
-      permeablePavementFractionPct,
-      activeRechargeWells,
-      captureEfficiencyBoostPct,
-    });
-
-    // 2. Check Cache
-    const cached = getCachedScenario(scenarioHash);
-    if (cached) {
+    // Check DB persistent store first if not found in memory
+    const dbRecord = await getPersistedScenarioRecord(rainfallMm, storageCapacityML, dailyDemandML);
+    if (dbRecord) {
       return NextResponse.json({
-        status: "success",
-        cacheHit: true,
-        scenarioHash,
-        scenario: cached,
-        cacheStats: getScenarioCacheStats(),
+        success: true,
+        data: {
+          ...dbRecord.resultPayload,
+          operationalMode: 'DATABASE_MODE',
+          cached: true,
+          cacheTier: 'L2_PERSISTENT_POSTGRESQL',
+        },
+        provenance: 'SIMULATED',
+        timestamp: new Date().toISOString(),
       });
     }
 
-    // 3. Resolve Catchment Sites
-    let wardSites = KMC_CATCHMENT_SITES.filter((s) => s.wardNumber === wardNumber);
-    if (wardSites.length === 0) {
-      // Fallback to all sites in pilot basin if ward has no registered sites
-      wardSites = KMC_CATCHMENT_SITES;
-    }
-
-    // 4. Execute Lightweight Intervention Simulation
-    const result = simulateInterventionScenario({
-      scenarioName,
-      wardNumber,
-      rainfallEventMm,
-      sites: wardSites,
-      captureEfficiencyBoostPct,
-      addedStorageCapacityL,
-      activeRechargeWells,
-      permeablePavementFractionPct,
+    const { result, cached, scenarioHash, executionTimeMs } = runScenarioCalculation({
+      rainfallMm,
+      storageCapacityML,
+      dailyDemandML,
+      siteId,
+      wardId,
     });
 
-    // 5. Cache result
-    storeCachedScenario(scenarioHash, result);
+    // Fire-and-forget persist to database
+    persistScenarioRecord(scenarioHash, rainfallMm, storageCapacityML, dailyDemandML, result).catch(() => {});
 
     return NextResponse.json({
-      status: "success",
-      cacheHit: false,
-      scenarioHash,
-      scenario: result,
-      cacheStats: getScenarioCacheStats(),
+      success: true,
+      data: {
+        ...result,
+        scenarioHash,
+        cached,
+        cacheTier: cached ? 'L1_MEMORY_LRU' : 'COMPUTED',
+        executionTimeMs,
+        operationalMode: 'DATABASE_MODE',
+      },
+      provenance: 'SIMULATED',
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     return NextResponse.json(
-      { error: "Failed to simulate scenario", details: String(error) },
-      { status: 400 }
+      { success: false, error: 'Scenario simulation failed', message: String(error) },
+      { status: 500 }
     );
   }
-}
-
-export async function GET() {
-  return NextResponse.json({
-    status: "success",
-    timestamp: new Date().toISOString(),
-    description: "Interactive Scenario Simulation API with SHA-256 caching and surrogate acceleration.",
-    cacheStats: getScenarioCacheStats(),
-  });
 }

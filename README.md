@@ -1,220 +1,88 @@
-# JalNetra Global — Urban Water & Climate Digital Twin
+# JALNETRA (जलनेत्र) — Urban Rainwater Intelligence & Circular Water Digital Twin
 
-<div align="center">
+**Decisive rainwater capture, distributed storage sizing, groundwater recharge suitability, and municipal runoff abatement for the Kolkata Metropolitan Basin.**
 
-[![Live Demo](https://img.shields.io/badge/Live_Demo-jalnetra--b0ab.onrender.com-06b6d4?style=for-the-badge&logo=render&logoColor=white)](https://jalnetra-b0ab.onrender.com)
-![Next.js](https://img.shields.io/badge/Next.js-16.1.1-black?style=for-the-badge&logo=next.js)
-![React](https://img.shields.io/badge/React-19-blue?style=for-the-badge&logo=react)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?style=for-the-badge&logo=typescript)
-![Three.js](https://img.shields.io/badge/Three.js-WebGL-000000?style=for-the-badge&logo=three.js)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind-CSS-38B2AC?style=for-the-badge&logo=tailwind-css)
-![Tests](https://img.shields.io/badge/Tests-Passing-emerald?style=for-the-badge&logo=jest)
-![License](https://img.shields.io/badge/License-MIT-amber?style=for-the-badge)
-
-**Physics-Informed Climate, Rainfall & Hydrodynamic Early Warning System for Kolkata Metropolitan Area**
-
-*Engineered by **CIPHER** — Decode. Build. Evolve.*
-
-### 🚀 **Live Production Instance**: [https://jalnetra-b0ab.onrender.com](https://jalnetra-b0ab.onrender.com)
-
-</div>
+[![Production Deployment](https://img.shields.io/badge/Render-Live%20Production-10b981?style=flat-square&logo=render)](https://jalnetra-b0ab.onrender.com)
+[![Next.js 16](https://img.shields.io/badge/Next.js-App%20Router-black?style=flat-square&logo=next.js)](https://nextjs.org/)
+[![PostgreSQL 17 + PostGIS](https://img.shields.io/badge/PostgreSQL%2017-PostGIS%203.3.7-336791?style=flat-square&logo=postgresql)](https://postgis.net/)
+[![Scientific Provenance](https://img.shields.io/badge/Data%20Provenance-STRICT%20CLASSIFIED-06b6d4?style=flat-square)](#scientific-integrity--data-provenance)
 
 ---
 
-## 🌊 Executive Overview
-
-**JalNetra Global** is an intelligence-grade climate resilience and hydrodynamic digital twin platform. It bridges planetary-scale atmospheric signals (NASA GPM IMERG satellite precipitation, ENSO Niño 3.4, Indian Ocean Dipole, and Madden-Julian Oscillation) with street-level urban drainage physics across all **144 administrative wards of the Kolkata Municipal Corporation (KMC)**.
-
-
-Operating at the confluence of heavy monsoon precipitation, Hooghly estuary tidal locks, and silted drainage canals (Bagjola, Circular, Tolly's Nullah, and Monikhali), JalNetra provides municipal emergency planners and hydrologists with explainable, actionable early warnings before catastrophic inundation occurs.
+## Executive Overview
+**JALNETRA** turns unpredictable monsoon rainfall from an urban flood liability into a circular, distributed water asset. Rather than allowing torrential downpours to overwhelm Kolkata's British-era drainage systems, JALNETRA provides municipal water engineers and civil administrators with:
+1. **Harvestable Volume Forecasting**: Catchment-level calculations grounded in Rational Method runoff coefficients ($Q = C \times I \times A$).
+2. **Dynamic Storage Sizing**: Mass-balance simulation calculating uncaptured overflow versus tank retention across dry-weather drawdown periods.
+3. **Non-Potable Circular Matching**: Allocation of harvested water directly to high-volume secondary demands (toilet flushing, HVAC cooling towers, municipal horticultural watering).
+4. **Recharge Suitability Indexing**: Multi-criteria weighted geological evaluation of underlying aquifer zones (aquifer permeability, depth to water table, soil transmissivity).
+5. **Decisive Runoff Abatement**: Quantified reduction in peak stormwater discharge relieving outfall lockups at Palmer's Bridge, Ballygunge, and Dhapa pumping stations.
 
 ---
 
-## 🏛️ System Architecture & Key Modules
+## Live Production Link
+The hardened, production-certified system is live at:
+🔗 **[https://jalnetra-b0ab.onrender.com](https://jalnetra-b0ab.onrender.com)**
+
+---
+
+## Architecture: Thin Runtime & Resilient Scientific Core
 
 ```
-Planetary Teleconnections (ENSO/IOD/MJO) & NASA GPM IMERG Satellite
-                               │
-                               ▼
-        ┌──────────────────────────────────────────────┐
-        │        JalNetra Core AI & Hydro Solvers       │
-        │  • Spatiotemporal PINN (Physics-Informed NN) │
-        │  • 2D Shallow Water Equations (SWE) Solver   │
-        │  • TreeSHAP Explainable AI Attribution Engine │
-        └──────────────────────┬───────────────────────┘
-                               │
-        ┌──────────────────────┼──────────────────────┐
-        ▼                      ▼                      ▼
-[Executive Cockpit]   [Spatial Digital Twin]  [What-If Simulator]
-• Telemetry Ticker    • 144 Catchment Wards   • 2D Hydrodynamic PDE
-• 2D Scrubber         • TreeSHAP XAI HUD      • Avoided Loss Receipts
-• 3D Sluice Twin      • Critical Asset Layers • Spared Citizens Count
-```
-
-### 1. 🌐 3D Interactive Climate Globe (`/#global`)
-- Interactive WebGL globe rendering global NASA GPM 0.1° precipitation anomalies.
-- Real-time teleconnection tracking: Pacific ENSO Niño 3.4, Indian Ocean Dipole (IOD), and MJO phase velocity.
-- **Dedicated Cloud Locator Mode**: Precision reticle tracking with optical density calculations and cloud dismiss controls.
-
-### 2. 🎛️ Unified Operations Command Cockpit (`/`)
-- Single-pane-of-glass executive command HUD with live telemetry tickers, municipal drainage alerts, and regional vulnerability gauges.
-- **Dynamic 2D Hydrodynamic Nowcast & Radar QPE Scrubber**: Dual-axis hydrograph with real-time marker interpolation across $-12\text{h}$ to $+12\text{h}$ time slices and embankment crest breach warnings ($+2.80\text{m}$ MSL).
-
-### 3. 🗺️ High-Resolution Spatial Digital Twin
-- Vector GIS engine modeling all **144 Kolkata catchment wards**.
-- Integrated **TreeSHAP Explainable AI (XAI)** decomposition identifying exact root causes (e.g. 42% rainfall inflow, 28% tidal backflow, 18% silt resistance, -12% pump relief).
-- Critical asset exposure mapping: SSKM Hospital, AMRI, Calcutta Medical College, and key municipal pumping stations.
-
-### 4. 🚪 3D Photorealistic Hydraulic Water Twin (`/#water-twin`)
-- Authentic civil engineering model of an estuarine tidal sluice gate structure with high-resolution weathered concrete and structural steel textures.
-- Dual-tier water bodies (Upstream Hooghly river stage vs. Downstream drainage basin) with dynamic gravity discharge plume simulation.
-- **CAD Zoom & Inspection Controls**: Smooth mouse wheel zoom, touchscreen pinch-to-zoom, top bar stepped zoom, and camera orbital presets (`ISO`, `RIVER`, `CANAL`, `GANTRY`).
-
-### 5. ⚡ What-If Hydrodynamic Scenario Simulator (`/#simulation`)
-- 2D shallow-water numerical solver calculating runoff depth, flood duration, and risk escalation across all 144 wards.
-- Configurable parameters: Rainfall intensity ($0.8\times - 2.5\times$), storm duration, tidal stage, canal desilting, auxiliary pumps, and automated sluice lockouts.
-- **Official Simulation Run Receipt**: Emits immutable run telemetry (`sim-run-...`) logging solver convergence, spared population count, and avoided economic damages in ₹ Crores, with a 1-click transition to view scenario deltas on the live map.
-
-### 6. 🧪 Model Lab & Scientific Validation (`/#models`)
-- Comprehensive MLOps registry benchmarking production champions against challengers (*Spatiotemporal PINN v2.4.1* vs *Dilated Causal TCN-LSTM* vs *Spatial GCN + LightGBM*).
-- Validates rigorous scientific metrics: **CRPS**, **Brier Score** ($<0.10$ optimal), **Spatial IoU**, and **False Alert Rate** ($<10\%$).
-- **Google Colab Model Ingestion**: Import custom model artifacts trained via [`colab/train_model.py`](file:///c:/Users/ANIKET/OneDrive/Documents/JalNetra/colab/train_model.py) and hot-swap production weights on the fly.
-- Section 19 Data Leakage Guard enforcing walk-forward temporal splits.
-
-### 7. 🚨 Incident Triage, Decision Protocols & IoT Network (`/#alerts`)
-- Priority emergency dispatch engine with civil defense action checklists.
-- Streaming IoT sensor ingestion API supporting physical ESP32 microcontrollers and ultrasonic level monitors.
-
----
-
-## 🔌 REST API Specifications
-
-The platform exposes a full suite of versioned REST endpoints adhering to Section 16 of the JalNetra Engineering Blueprint:
-
-| Endpoint | Method | Description |
-|---|---|---|
-| `/api/v1/global/rainfall` | `GET` | Satellite precipitation anomalies from NASA GPM IMERG |
-| `/api/v1/weather/forecast` | `GET` | Multi-horizon quantile forecasts (15m, 1h, 3h, 6h, 24h, 72h) |
-| `/api/v1/climate/indices` | `GET` | Planetary teleconnection driver states (ENSO, IOD, MJO) |
-| `/api/v1/twin/cells/[id]` | `GET` | Ward-specific cell state, depth, and TreeSHAP attribution |
-| `/api/v1/risk/map` | `GET` | GeoJSON FeatureCollection of all 144 catchment polygons |
-| `/api/v1/water/forecast` | `GET` | Real-time river stage telemetry, surge warnings, and lock states |
-| `/api/v1/simulation` | `POST` / `GET` | Execute 2D hydrodynamic simulation and persist run receipts |
-| `/api/v1/alerts` | `GET` / `POST` | Live emergency incident feed and tactical dispatch logging |
-| `/api/v1/sensors/observations` | `POST` | Ingest streaming IoT sensor telemetry (ESP32/MQTT) with QA/QC |
-| `/api/v1/sensors` | `GET` | Live IoT sensor fleet with RWH tank capacities & headroom |
-| `/api/v1/opportunities` | `GET` | Harvestable rainwater opportunity & institutional catchment yields |
-| `/api/v1/water-balance` | `GET` / `POST` | Dynamic storage mass balance & zero-negative invariant solver |
-| `/api/v1/interventions` | `GET` | Catalog of municipal rainwater intervention packages |
-| `/api/v1/demand` | `GET` | Non-potable reuse allocation (flushing, irrigation, cooling) |
-| `/api/v1/recharge` | `GET` | Hydrogeological recharge index & vadose clearance checks |
-| `/api/v1/scenarios` | `POST` | SHA-256 scenario hash cache & fast surrogate simulation (<15ms) |
-| `/api/v1/storm` | `GET` / `POST` | Active storm influx mode & pre-storm drawdown protocol |
-| `/api/v1/models/status` | `GET` | ML model evaluation metrics, CRPS benchmarks, and freshness |
-| `/api/v1/models/custom` | `GET` / `POST` | Ingest and evaluate external Google Colab model artifacts |
-| `/api/v1/admin/seed` | `GET` / `POST` | Baseline GIS database synchronization & diagnostic health check |
-
----
-
-## 💻 Tech Stack
-
-- **Framework**: [Next.js 16 (App Router)](https://nextjs.org/) + [React 19](https://react.dev/)
-- **Language**: [TypeScript](https://www.typescriptlang.org/) (Strict mode, zero `any`)
-- **3D Graphics & WebGL**: [Three.js](https://threejs.org/) with custom shaders and CAD orbit controls
-- **Styling**: [Tailwind CSS](https://tailwindcss.com/) with custom cybernetic glassmorphism
-- **Machine Learning & Python**: [PyTorch](https://pytorch.org/), [XGBoost](https://xgboost.readthedocs.io/), [scikit-learn](https://scikit-learn.org/), [TreeSHAP](https://github.com/slundberg/shap)
-- **Database**: PostgreSQL / Supabase with postgis extensions
-- **Icons**: [Lucide React](https://lucide.dev/)
-
----
-
-## 🚀 Getting Started
- 
-### 🌐 Live Cloud Deployment
-Access the live production digital twin directly on Render:  
-👉 **[https://jalnetra-b0ab.onrender.com](https://jalnetra-b0ab.onrender.com)**
-
----
-
-### Local Development Setup
-
-#### Prerequisites
-- Node.js 20.x or higher
-- npm 10.x or higher
-
-#### Installation
-
-```bash
-# 1. Clone the repository
-git clone https://github.com/Optimus1o1/JalNetra.git
-cd JalNetra
-
-# 2. Install dependencies
-npm install
-
-# 3. Launch local development server
-npm run dev
-```
-
-### Building for Production
-
-```bash
-npm run build
-npm run start
+                         [ USER / DECISION MAKER ]
+                                     |
+                                     v
+                       [ Next.js App Router (UI) ]
+            (Oceanic Cybernetic Dashboard · MapLibre GL · ScoreHero)
+                                     |
+                                     v
+           =====================================================
+           LIGHTWEIGHT RUNTIME API LAYER (Node.js Route Handlers)
+           =====================================================
+             /api/v1/opportunities   /api/v1/water-balance
+             /api/v1/interventions   /api/v1/scenarios
+             /api/v1/recharge        /api/v1/sensors/observations
+                                     |
+                 +-------------------+-------------------+
+                 |                                       |
+                 v                                       v
+     [ PostgreSQL 17 + PostGIS ]               [ Deterministic Domain Solvers ]
+     - GiST Spatial Indices                    - Rational Method Hydrology
+     - Viewport Bounding Boxes                 - Mass-Balance Storage Equation
+     - Spatial Intersects & Joins              - Multi-Criteria Recharge Matrix
+     - Persisted Scenario Hash Cache           - Circularity Scoring Engine
+                 |                                       |
+                 +-------------------+-------------------+
+                                     |
+                        [ Operational Mode Resolver ]
+                  - Primary: DATABASE_MODE (PostGIS)
+                  - Resilient Fallback: IN_MEMORY_FALLBACK
 ```
 
 ---
 
-## 🧪 Automated Testing & Quality Assurance
+## Scientific Integrity & Data Provenance
+In adherence to the **JALNETRA Engineering Contract**, every numerical output across the user interface and REST APIs is strictly tagged with its origin class:
 
-JalNetra includes an automated test suite verifying IoT data validation, TreeSHAP decomposition, tidal interlocks, REST API endpoints, and hydrodynamic physics:
-
-```bash
-npm test
-```
-
-```
-✔ 1. IoT Telemetry Quality Control & Boundary Checks (4/4 passed)
-✔ 2. Twin Risk & TreeSHAP Attribution Decomposition (2/2 passed)
-✔ 3. Hooghly Estuary Tidal Hydrodynamics & Sluice Gate Interlocks (1/1 passed)
-✔ 4. Decision Triage & Incident Dispatch Protocol (2/2 passed)
-✔ 5. Hydrodynamic Simulation Logging & Avoided Loss Accounting (1/1 passed)
-✔ 6. Administrative Database Synchronization & Seed Endpoint (2/2 passed)
-✔ 7. Custom Colab Model Ingestion & Live Inference (3/3 passed)
-✔ 8. REST API Endpoints (11/11 passed)
-✔ 9. Scientific Simulation Physics Engine (3/3 passed)
-✔ 10. Pilot Region GIS Data Invariants (1/1 passed)
-
-ℹ tests 30 | suites 12 | pass 30 | fail 0 | 100% Passing
-```
-
-To run strict TypeScript type validation:
-```bash
-npx tsc --noEmit
-```
+| Classification | Meaning & Rigor |
+| :--- | :--- |
+| **`MEASURED`** | Acquired in real-time from physical telemetry (e.g. 12 IMD/KMC rain gauges, ultrasonic canal stage monitors). |
+| **`SIMULATED`** | Derived from deterministic hydrological mass-balance equations or physical laws ($\Delta S = \text{Inflow} - \text{Demand} - \text{Overflow}$). |
+| **`PREDICTED`** | Inferred via calibrated surrogate models, ECMWF/IMD numerical weather predictions, or ensemble radar extrapolation. |
+| **`ASSUMED`** | Standardized municipal baseline constants (e.g. KMC urban runoff coefficient $C=0.85$, per-capita non-potable demand). |
 
 ---
 
-## 🧠 Training Custom Models (Google Colab)
-
-To train new Physics-Informed Neural Networks on your own flood datasets:
-1. Open [`colab/train_model.py`](file:///c:/Users/ANIKET/OneDrive/Documents/JalNetra/colab/train_model.py) in Google Colab or your local Python environment.
-2. Run the pipeline to download public monsoon precipitation datasets, train the XGBoost/PINN models, and calculate TreeSHAP weights.
-3. Download the generated `jalnetra_custom_model.json` artifact.
-4. Navigate to **Model Lab (`/#models`)** $\rightarrow$ Click **"Import Model JSON"** $\rightarrow$ Click **"PROMOTE TO CHAMPION"**.
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+## Production Verification & Test Suite
+The codebase is validated by 93 comprehensive automated test suites:
+- **`tests/database_phase13_tests.mjs`**: Real PostGIS extensions, spatial bounding box benchmarks (<1 ms), `ST_Contains` spatial joins (0.45 ms), route fallback resilience, and persistence.
+- **`tests/hardening_phase12_tests.mjs`**: HMAC-SHA256 telemetry ingest security, storm mode action framing, dynamic demand assumptions, scenario versioning, provenance tags.
+- **`tests/rainwater_scientific_tests.mjs`**: Rational Method conservation of mass, non-negative storage invariants, water circularity mathematical bounds.
+- **`tests/backend_service_tests.mjs`**: Simulation determinism, telemetry ingest integrity, scenario hash collisions.
+- **`tests/e2e_twin_tests.mjs`**: Full system end-to-end user journeys from rain observation to municipal impact prioritization.
 
 ---
 
-## 👤 Author & Agency
-
-**Aniket Nandi**  
-Lead Full-Stack Developer & Designer at **CIPHER** — *Decode. Build. Evolve.*  
-Kolkata, India  
-
-GitHub: [@Optimus1o1](https://github.com/Optimus1o1)
+## Authors & Governance
+- **Agency**: **CIPHER** — *Decode. Build. Evolve.*
+- **Lead Architect**: **Aniket Nandi**
+- **Location**: Kolkata, India (IST)

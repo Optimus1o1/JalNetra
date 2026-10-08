@@ -1,30 +1,54 @@
-import { NextRequest, NextResponse } from "next/server";
-import { ingestTelemetry, TelemetryPayload } from "@/lib/services/telemetryService";
+import { NextResponse } from 'next/server';
+import { getLatestObservations, ingestObservationsWithAuth } from '@/lib/services/telemetryService';
 
-export async function POST(request: NextRequest) {
+export async function GET(request: Request) {
   try {
-    const payload = (await request.json()) as TelemetryPayload;
-    const result = await ingestTelemetry(payload);
+    const { searchParams } = new URL(request.url);
+    const stationId = searchParams.get('stationId') || undefined;
+
+    const observations = getLatestObservations(stationId);
+
+    return NextResponse.json({
+      success: true,
+      data: observations,
+      count: observations.length,
+      provenance: 'MEASURED',
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { success: false, error: 'Failed to fetch observations', message: String(error) },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const authHeader = request.headers.get('Authorization') || request.headers.get('x-api-key');
+    const signature = request.headers.get('x-telemetry-signature');
+    const rawBody = await request.text();
+
+    const result = ingestObservationsWithAuth(rawBody, authHeader, signature);
 
     if (!result.success) {
       return NextResponse.json(
-        { error: result.message, status: result.status, check: result.qualityCheck },
-        { status: result.qualityCheck.includes("OUT_OF_BOUNDS") ? 422 : 400 }
+        { success: false, error: result.error },
+        { status: result.status }
       );
     }
 
     return NextResponse.json({
-      status: "ingested",
-      receiptId: result.receiptId,
-      sensorId: result.sensorId,
-      processedTimestamp: result.processedAt,
-      qualityCheck: result.qualityCheck,
-      message: result.message,
+      success: true,
+      message: 'Observations ingested successfully',
+      data: result.data,
+      provenance: 'MEASURED',
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     return NextResponse.json(
-      { error: "Malformed observation telemetry payload", details: String(error) },
-      { status: 400 }
+      { success: false, error: 'Telemetry ingestion failed', message: String(error) },
+      { status: 500 }
     );
   }
 }
