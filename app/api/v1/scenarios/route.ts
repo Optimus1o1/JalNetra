@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchCatchmentSites, getPersistedScenarioRecord, persistScenarioRecord } from "@/lib/services/rainwaterDataService";
+import { findByHash, saveScenario } from "@/lib/repositories/scenarioRepository";
+import { getSitesByWard, getAllSites } from "@/lib/repositories/catchmentSiteRepository";
 import { simulateInterventionScenario } from "@/lib/domain/interventionPlanner";
 import {
   generateScenarioHash,
@@ -8,7 +9,6 @@ import {
   getScenarioCacheStats,
 } from "@/lib/domain/scenarioCache";
 import { clampNumber } from "@/lib/security/sanitize";
-
 import { getOperationalMode } from "@/lib/db";
 
 export async function POST(request: NextRequest) {
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
 
     const currentOperationalMode = await getOperationalMode();
 
-    // 2. Check in-memory LRU Cache
+    // 2. Check in-memory LRU Cache (L1)
     const inMemoryCached = getCachedScenario(scenarioHash);
     if (inMemoryCached) {
       return NextResponse.json({
@@ -59,27 +59,27 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 3. Check Database Persistence
-    const dbPersisted = await getPersistedScenarioRecord(scenarioHash);
+    // 3. Check Database Persistence (L2)
+    const dbPersisted = await findByHash(scenarioHash);
     if (dbPersisted) {
       // Warm in-memory cache
-      storeCachedScenario(scenarioHash, dbPersisted);
+      storeCachedScenario(scenarioHash, dbPersisted.results as any);
       return NextResponse.json({
         status: "success",
         cacheHit: true,
         operationalMode: currentOperationalMode,
         source: "POSTGRESQL_PERSISTED",
         scenarioHash,
-        scenario: dbPersisted,
+        scenario: dbPersisted.results,
         cacheStats: getScenarioCacheStats(),
       });
     }
 
-    // 4. Resolve Catchment Sites from Database / Fallback
-    const { sites: fetchedSites, operationalMode, fromDb } = await fetchCatchmentSites(wardNumber);
+    // 4. Resolve Catchment Sites from Repository (PostgreSQL / Fallback)
+    const { sites: fetchedSites, operationalMode, fromDb } = await getSitesByWard(wardNumber);
     let wardSites = fetchedSites;
     if (wardSites.length === 0) {
-      const { sites: allSites } = await fetchCatchmentSites(null);
+      const { sites: allSites } = await getAllSites();
       wardSites = allSites;
     }
 
@@ -95,12 +95,12 @@ export async function POST(request: NextRequest) {
       permeablePavementFractionPct,
     });
 
-    // 6. Cache in-memory
+    // 6. Warm in-memory L1 cache
     storeCachedScenario(scenarioHash, result);
 
-    // 7. Persist to PostgreSQL
+    // 7. Persist to PostgreSQL (L2) with conflict safety
     try {
-      await persistScenarioRecord({
+      await saveScenario({
         scenarioHash,
         scenarioName,
         wardNumber,

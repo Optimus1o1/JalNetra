@@ -181,9 +181,14 @@ async function persistObservationToDatabase(params: {
   }
 }
 
+import { getActiveSensorFleet as getRepoSensorFleet } from "../repositories/sensorRepository";
+
 export async function fetchLiveSensors(): Promise<SensorNode[]> {
-  // Merge 12-sensor fleet with any live observations
-  return IOT_SENSOR_NODES.map((sensor) => {
+  const repoResult = await getRepoSensorFleet();
+  const baseFleet = repoResult.sensors;
+
+  // Merge fleet with any live in-memory observations
+  return baseFleet.map((sensor) => {
     const cached = inMemoryLatestObservations[sensor.id];
     if (cached) {
       return {
@@ -200,3 +205,4 @@ export async function fetchLiveSensors(): Promise<SensorNode[]> {
 }
 
 export const getActiveSensorFleet = fetchLiveSensors;
+

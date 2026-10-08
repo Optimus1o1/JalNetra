@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchCatchmentSites } from "@/lib/services/rainwaterDataService";
+import {
+  getAllSites,
+  getSitesByWard,
+  getSitesByViewport,
+  CatchmentSitesRepoResult,
+} from "@/lib/repositories/catchmentSiteRepository";
 import { calculateHarvestableVolume, calculateWardHarvestableOpportunity } from "@/lib/domain/rainwaterEngine";
 import { clampNumber } from "@/lib/security/sanitize";
 
@@ -7,14 +12,45 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const wardParam = searchParams.get("ward");
   const rainfallParam = searchParams.get("rainfall");
+  const bboxParam = searchParams.get("bbox");
+  const minLatParam = searchParams.get("minLat");
+  const minLngParam = searchParams.get("minLng");
+  const maxLatParam = searchParams.get("maxLat");
+  const maxLngParam = searchParams.get("maxLng");
 
   const rainfallMm = clampNumber(rainfallParam ? parseFloat(rainfallParam) : 45.0, 0, 500, 45.0);
   const targetWard = wardParam ? parseInt(wardParam, 10) : null;
 
-  const { sites: filteredSites, operationalMode, fromDb } = await fetchCatchmentSites(targetWard);
+  let queryResult: CatchmentSitesRepoResult;
+
+  if (bboxParam) {
+    const parts = bboxParam.split(",").map((p) => parseFloat(p.trim()));
+    if (parts.length === 4 && parts.every((p) => !isNaN(p))) {
+      const [minLng, minLat, maxLng, maxLat] = parts;
+      queryResult = await getSitesByViewport(minLat, minLng, maxLat, maxLng);
+    } else {
+      queryResult = await getAllSites();
+    }
+  } else if (minLatParam && minLngParam && maxLatParam && maxLngParam) {
+    const minLat = parseFloat(minLatParam);
+    const minLng = parseFloat(minLngParam);
+    const maxLat = parseFloat(maxLatParam);
+    const maxLng = parseFloat(maxLngParam);
+    if (!isNaN(minLat) && !isNaN(minLng) && !isNaN(maxLat) && !isNaN(maxLng)) {
+      queryResult = await getSitesByViewport(minLat, minLng, maxLat, maxLng);
+    } else {
+      queryResult = await getAllSites();
+    }
+  } else if (targetWard !== null && !isNaN(targetWard)) {
+    queryResult = await getSitesByWard(targetWard);
+  } else {
+    queryResult = await getAllSites();
+  }
+
+  const { sites: filteredSites, operationalMode, fromDb } = queryResult;
 
   if (filteredSites.length === 0) {
-    const { sites: allSites } = await fetchCatchmentSites(null);
+    const { sites: allSites } = await getAllSites();
     return NextResponse.json(
       {
         error: `No registered catchment sites found for ward ${targetWard}`,

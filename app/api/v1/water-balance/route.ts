@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchCatchmentSites } from "@/lib/services/rainwaterDataService";
+import { getAllSites, getSitesByWard } from "@/lib/repositories/catchmentSiteRepository";
 import { calculateHarvestableVolume } from "@/lib/domain/rainwaterEngine";
 import { computeStorageMassBalance } from "@/lib/domain/storageBalance";
 import { matchNonPotableDemand } from "@/lib/domain/demandMatcher";
@@ -10,9 +10,14 @@ import { clampNumber } from "@/lib/security/sanitize";
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const rainfallParam = searchParams.get("rainfall");
+  const wardParam = searchParams.get("ward");
   const rainfallMm = clampNumber(rainfallParam ? parseFloat(rainfallParam) : 55.0, 0, 500, 55.0);
+  const wardNum = wardParam ? parseInt(wardParam, 10) : null;
 
-  const { sites, operationalMode, fromDb } = await fetchCatchmentSites(null);
+  const { sites, operationalMode, fromDb } = wardNum !== null && !isNaN(wardNum)
+    ? await getSitesByWard(wardNum)
+    : await getAllSites();
+
 
   let totalGrossRainL = 0;
   let totalCapturedL = 0;

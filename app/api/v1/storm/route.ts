@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { KMC_CATCHMENT_SITES } from "@/lib/data/rainwaterSitesData";
+import { getAllSites, getSitesByWard } from "@/lib/repositories/catchmentSiteRepository";
 import { MULTI_HORIZON_FORECASTS } from "@/lib/data/climateIndicesData";
 import { calculateHarvestableVolume } from "@/lib/domain/rainwaterEngine";
 
 export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const wardParam = searchParams.get("ward");
+
   // Use the 3-hour storm window forecast (64mm median)
   const stormForecast = MULTI_HORIZON_FORECASTS[2] || {
     horizon: "3-Hour Storm Window",
@@ -14,12 +17,17 @@ export async function GET(request: NextRequest) {
 
   const stormRainfallMm = stormForecast.p50;
 
+  const wardNum = wardParam ? parseInt(wardParam, 10) : null;
+  const { sites, operationalMode, fromDb } = wardNum !== null && !isNaN(wardNum)
+    ? await getSitesByWard(wardNum)
+    : await getAllSites();
+
   // Compute basin-wide tank capacity and current storage
   let totalBasinCapacityL = 0;
   let totalCurrentStorageL = 0;
   let totalPotentialHarvestL = 0;
 
-  const siteActions = KMC_CATCHMENT_SITES.map((site) => {
+  const siteActions = sites.map((site) => {
     totalBasinCapacityL += site.existingTankCapacityL;
     totalCurrentStorageL += site.currentTankStorageL;
 
@@ -58,6 +66,8 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     status: "success",
     timestamp: new Date().toISOString(),
+    operationalMode,
+    dataSource: fromDb ? "POSTGRESQL_POSTGIS" : "IN_MEMORY_CALIBRATED_FALLBACK",
     stormAlert: {
       leadTimeHours: 3.0,
       forecastProduct: stormForecast.horizon,
