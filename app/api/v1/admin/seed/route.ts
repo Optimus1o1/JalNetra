@@ -81,6 +81,7 @@ export async function POST(request: NextRequest) {
   try {
     // 1. Seed Wards
     let wardsCreated = 0;
+    const p = prisma as any;
     for (const cell of PILOT_GRID_CELLS) {
       const population = Math.round(cell.populationDensity * 2.4);
       const criticalInfra = [
@@ -89,126 +90,141 @@ export async function POST(request: NextRequest) {
         ...cell.criticalAssets.transitCorridors,
       ];
 
-      await prisma.ward.upsert({
-        where: { wardNumber: cell.wardNumber },
-        update: {
-          wardName: cell.wardName,
-          borough: cell.borough,
-          elevationBaselineM: cell.elevation,
-          imperviousnessPct: cell.imperviousness,
-          population,
-          criticalInfrastructure: criticalInfra,
-        },
-        create: {
-          wardNumber: cell.wardNumber,
-          wardName: cell.wardName,
-          borough: cell.borough,
-          areaSqKm: 2.4,
-          population,
-          elevationBaselineM: cell.elevation,
-          imperviousnessPct: cell.imperviousness,
-          baseDrainageCapacityCumec: cell.drainageCapacity,
-          criticalInfrastructure: criticalInfra,
-        },
-      });
+      const wardModel = p.wards || p.ward;
+      if (wardModel) {
+        await wardModel.upsert({
+          where: { wardNumber: cell.wardNumber },
+          update: {
+            wardName: cell.wardName,
+            borough: cell.borough,
+            elevationBaselineM: cell.elevation,
+            imperviousnessPct: cell.imperviousness,
+            population,
+            criticalInfrastructure: criticalInfra,
+          },
+          create: {
+            wardNumber: cell.wardNumber,
+            wardName: cell.wardName,
+            borough: cell.borough,
+            areaSqKm: 2.4,
+            population,
+            elevationBaselineM: cell.elevation,
+            imperviousnessPct: cell.imperviousness,
+            baseDrainageCapacityCumec: cell.drainageCapacity,
+            criticalInfrastructure: criticalInfra,
+          },
+        });
+      }
       wardsCreated++;
     }
 
     // 2. Seed Sensor Nodes
     let sensorsCreated = 0;
+    const sensorModel = p.sensor_nodes || p.sensorNode;
     for (const node of IOT_SENSOR_NODES) {
       const dischargeCumec = Number((node.dischargeCusecs * 0.0283168).toFixed(2));
-      await prisma.sensorNode.upsert({
-        where: { nodeKey: node.id },
-        update: {
-          name: node.name,
-          type: node.type,
-          latitude: node.coordinates[0],
-          longitude: node.coordinates[1],
-          status: node.status === "online" ? "ONLINE" : node.status === "warning" ? "WARN" : "OFFLINE",
-          batteryPct: node.batteryPct,
-          lastWaterLevelM: node.waterLevelM,
-          lastDischargeCumec: dischargeCumec,
-        },
-        create: {
-          nodeKey: node.id,
-          name: node.name,
-          type: node.type,
-          latitude: node.coordinates[0],
-          longitude: node.coordinates[1],
-          elevationM: 3.4,
-          status: node.status === "online" ? "ONLINE" : node.status === "warning" ? "WARN" : "OFFLINE",
-          batteryPct: node.batteryPct,
-          lastWaterLevelM: node.waterLevelM,
-          lastDischargeCumec: dischargeCumec,
-        },
-      });
+      if (sensorModel) {
+        await sensorModel.upsert({
+          where: { nodeKey: node.id },
+          update: {
+            name: node.name,
+            type: node.type,
+            latitude: node.coordinates[0],
+            longitude: node.coordinates[1],
+            status: node.status === "online" ? "ONLINE" : node.status === "warning" ? "WARN" : "OFFLINE",
+            batteryPct: node.batteryPct,
+            lastWaterLevelM: node.waterLevelM,
+            lastDischargeCumec: dischargeCumec,
+          },
+          create: {
+            nodeKey: node.id,
+            name: node.name,
+            type: node.type,
+            latitude: node.coordinates[0],
+            longitude: node.coordinates[1],
+            elevationM: 3.4,
+            status: node.status === "online" ? "ONLINE" : node.status === "warning" ? "WARN" : "OFFLINE",
+            batteryPct: node.batteryPct,
+            lastWaterLevelM: node.waterLevelM,
+            lastDischargeCumec: dischargeCumec,
+          },
+        });
+      }
       sensorsCreated++;
     }
 
     // 3. Seed Tide Record
-    await prisma.hooghlyTideRecord.create({
-      data: {
-        stationName: "Outram Ghat (Hooghly Estuary)",
-        stageMmsl: 5.42,
-        tideType: "SPRING",
-        sluiceInterlockActive: true,
-        minutesToHighTide: 160,
-        surgeAnomalyM: 0.45,
-      },
-    });
+    const tideModel = p.hooghly_tide_records || p.hooghlyTideRecord;
+    if (tideModel) {
+      await tideModel.create({
+        data: {
+          stationName: "Outram Ghat (Hooghly Estuary)",
+          stageMmsl: 5.42,
+          tideType: "SPRING",
+          sluiceInterlockActive: true,
+          minutesToHighTide: 160,
+          surgeAnomalyM: 0.45,
+        },
+      });
+    }
 
     // 4. Seed Incident Alerts
     let alertsCreated = 0;
+    const alertModel = p.incident_alerts || p.incidentAlert;
     for (const alert of INITIAL_ALERTS) {
-      await prisma.incidentAlert.upsert({
-        where: { alertCode: alert.alertCode },
-        update: {
-          title: alert.title,
-          severity: alert.severity.toUpperCase(),
-          description: alert.primaryCause,
-          status: alert.status.toUpperCase(),
-        },
-        create: {
-          alertCode: alert.alertCode,
-          severity: alert.severity.toUpperCase(),
-          title: alert.title,
-          description: alert.primaryCause,
-          triggerMechanism: "Compound Surge & Rainfall Confluence",
-          confidenceScore: alert.confidenceScore,
-          affectedInfrastructure: alert.affectedInfrastructure,
-          recommendedActions: alert.recommendedCivilActions,
-          status: alert.status.toUpperCase(),
-        },
-      });
+      if (alertModel) {
+        await alertModel.upsert({
+          where: { alertCode: alert.alertCode },
+          update: {
+            title: alert.title,
+            severity: alert.severity.toUpperCase(),
+            description: alert.primaryCause,
+            status: alert.status.toUpperCase(),
+          },
+          create: {
+            alertCode: alert.alertCode,
+            severity: alert.severity.toUpperCase(),
+            title: alert.title,
+            description: alert.primaryCause,
+            triggerMechanism: "Compound Surge & Rainfall Confluence",
+            confidenceScore: alert.confidenceScore,
+            affectedInfrastructure: alert.affectedInfrastructure,
+            recommendedActions: alert.recommendedCivilActions,
+            status: alert.status.toUpperCase(),
+          },
+        });
+      }
       alertsCreated++;
     }
 
     // 5. Seed Model Registry
     let modelsCreated = 0;
+    const modelRegistryModel = p.model_records || p.modelRecord;
     for (const m of MODEL_REGISTRY) {
-      await prisma.modelRecord.upsert({
-        where: { modelKey: m.id },
-        update: {
-          modelName: m.name,
-          version: m.version,
-          brierScore: m.metrics.brierScore,
-          crps: m.metrics.crpsScore,
-          spatialIou: m.metrics.spatialIoU,
-        },
-        create: {
-          modelKey: m.id,
-          modelName: m.name,
-          version: m.version,
-          architecture: m.type,
-          brierScore: m.metrics.brierScore,
-          crps: m.metrics.crpsScore,
-          spatialIou: m.metrics.spatialIoU,
-          freshnessMin: 15,
-          parameters: "14.2M",
-          inferenceLatencyMs: m.metrics.latencyMs,
-        },
-      });
+      if (modelRegistryModel) {
+        await modelRegistryModel.upsert({
+          where: { modelKey: m.id },
+          update: {
+            modelName: m.name,
+            version: m.version,
+            brierScore: m.metrics.brierScore,
+            crps: m.metrics.crpsScore,
+            spatialIou: m.metrics.spatialIoU,
+          },
+          create: {
+            modelKey: m.id,
+            modelName: m.name,
+            version: m.version,
+            architecture: m.type,
+            brierScore: m.metrics.brierScore,
+            crps: m.metrics.crpsScore,
+            spatialIou: m.metrics.spatialIoU,
+            freshnessMin: 15,
+            parameters: "14.2M",
+            inferenceLatencyMs: m.metrics.latencyMs,
+          },
+        });
+      }
       modelsCreated++;
     }
 
@@ -322,10 +338,12 @@ export async function POST(request: NextRequest) {
 export async function GET() {
   const health = await checkDatabaseHealth();
   return NextResponse.json({
-    status: "ready",
+    status: health.connected ? "healthy" : "fallback",
+    ready: true,
     databaseConnected: isDatabaseConnected(),
     operationalMode: health.operationalMode,
     health,
+    dbHealth: health,
     endpoint: "POST /api/v1/admin/seed to populate or sync PostgreSQL schema with Kolkata delta baseline.",
   });
 }

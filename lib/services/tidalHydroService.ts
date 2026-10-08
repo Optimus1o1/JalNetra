@@ -22,13 +22,14 @@ export async function getTidalHydrodynamics(): Promise<TidalHydroState> {
 
   if (isDatabaseConnected() && prisma) {
     try {
-      const latestRecord = await prisma.hooghlyTideRecord.findFirst({
-        orderBy: { recordedAt: "desc" },
+      const tideModel = (prisma as any).hooghly_tide_records || (prisma as any).hooghlyTideRecord;
+      const latestRecord = await tideModel?.findFirst({
+        orderBy: { recorded_at: "desc" },
       });
       if (latestRecord) {
-        baseStage = latestRecord.stageMmsl;
-        surgeAnomaly = latestRecord.surgeAnomalyM;
-        minutesToHighTide = latestRecord.minutesToHighTide;
+        baseStage = latestRecord.stage_m_msl ?? latestRecord.stageMmsl ?? baseStage;
+        surgeAnomaly = latestRecord.surge_anomaly_m ?? latestRecord.surgeAnomalyM ?? surgeAnomaly;
+        minutesToHighTide = latestRecord.minutes_to_high_tide ?? latestRecord.minutesToHighTide ?? minutesToHighTide;
       }
     } catch (err) {
       console.warn("[TidalHydroService] Database lookup failed, using calibrated hydrodynamics.", err);

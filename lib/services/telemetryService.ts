@@ -1,4 +1,4 @@
-import { getPrismaClient, isDatabaseConnected } from "@/lib/db";
+import { getPrismaClient, isDatabaseConnected, getPgPool } from "@/lib/db";
 import { IOT_SENSOR_NODES } from "@/lib/data/sensorNodesData";
 import { SensorNode } from "@/lib/types";
 
@@ -33,7 +33,7 @@ export interface IngestionResult {
 // In-memory operational ring buffer for ultra-low latency edge lookups
 const inMemoryLatestObservations: Record<
   string,
-  {
+  Record<string, any> & {
     waterLevelM?: number;
     dischargeCumec?: number;
     tankLevelM?: number;
@@ -82,7 +82,7 @@ export async function ingestTelemetry(payload: TelemetryPayload): Promise<Ingest
   if (isPhysicalAnomaly) {
     return {
       success: false,
-      status: "FLAGGED_ANOMALY",
+      status: "REJECTED_QC",
       receiptId,
       sensorId,
       processedAt,
@@ -137,39 +137,44 @@ async function persistObservationToDatabase(params: {
   rawPayload?: Record<string, unknown>;
   processedAt: string;
 }): Promise<void> {
-  const prisma = getPrismaClient();
-  if (!prisma) return;
+  const pool = getPgPool();
+  if (!pool) return;
 
   try {
-    const node = await prisma.sensorNode.findUnique({
-      where: { nodeKey: params.sensorId },
-      select: { id: true },
-    });
+    const nodeRes = await pool.query(
+      "SELECT id FROM sensor_nodes WHERE node_key = $1 LIMIT 1",
+      [params.sensorId]
+    );
+    const nodeId = nodeRes.rows[0]?.id;
 
-    if (node) {
-      await prisma.sensorObservation.create({
-        data: {
-          sensorId: node.id,
-          parameter: params.metric,
-          value: params.value,
-          unit: params.metric.endsWith("M") ? "m" : params.metric.endsWith("L") ? "L" : "cumec",
-          qualityFlag: params.qualityFlag,
-          timestamp: new Date(params.processedAt),
-          rawTelemetry: (params.rawPayload as any) || undefined,
-        },
-      });
+    if (nodeId) {
+      const waterLevel = params.metric === "waterLevelM" ? params.value : null;
+      const discharge = params.metric === "dischargeCumec" ? params.value : null;
 
-      const updateData: Record<string, unknown> = {
-        lastPingAt: new Date(params.processedAt),
-      };
-      if (params.metric === "waterLevelM") updateData.lastWaterLevelM = params.value;
-      if (params.metric === "dischargeCumec") updateData.lastDischargeCumec = params.value;
-      if (params.batteryPct !== undefined) updateData.batteryPct = params.batteryPct;
+      await pool.query(
+        `INSERT INTO sensor_observations (sensor_id, recorded_at, water_level_m, discharge_rate_cumec, quality_flag, raw_payload)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [
+          nodeId,
+          params.processedAt,
+          waterLevel,
+          discharge,
+          params.qualityFlag,
+          JSON.stringify(params.rawPayload || {}),
+        ]
+      );
 
-      await prisma.sensorNode.update({
-        where: { id: node.id },
-        data: updateData,
-      });
+      if (params.metric === "waterLevelM") {
+        await pool.query(
+          "UPDATE sensor_nodes SET last_water_level_m = $1, last_ping_at = $2 WHERE id = $3",
+          [params.value, params.processedAt, nodeId]
+        );
+      } else if (params.metric === "dischargeCumec") {
+        await pool.query(
+          "UPDATE sensor_nodes SET last_discharge_cumec = $1, last_ping_at = $2 WHERE id = $3",
+          [params.value, params.processedAt, nodeId]
+        );
+      }
     }
   } catch (err) {
     console.warn("[JalNetra Telemetry] Error writing observation to database:", err);
@@ -177,55 +182,21 @@ async function persistObservationToDatabase(params: {
 }
 
 export async function fetchLiveSensors(): Promise<SensorNode[]> {
-  const prisma = getPrismaClient();
-
-  if (prisma) {
-    try {
-      const dbNodes = await prisma.sensorNode.findMany({
-        include: { ward: true },
-        orderBy: { name: "asc" },
-      });
-
-      if (dbNodes && dbNodes.length > 0) {
-        return dbNodes.map((node) => {
-          const cached = inMemoryLatestObservations[node.nodeKey];
-          return {
-            id: node.nodeKey,
-            name: node.name,
-            type: node.type as any,
-            wardNumber: node.ward?.wardNumber || 66,
-            coordinates: [node.latitude, node.longitude],
-            elevation: node.elevationM,
-            status: node.status.toLowerCase() as any,
-            batteryPct: node.batteryPct,
-            lastWaterLevel: cached?.waterLevelM ?? node.lastWaterLevelM ?? 1.2,
-            lastDischarge: cached?.dischargeCumec ?? node.lastDischargeCumec ?? 4.5,
-            tankLevelM: cached?.tankLevelM,
-            availableCapacityL: cached?.availableCapacityL,
-            lastPing: cached?.lastUpdated || node.lastPingAt.toISOString(),
-            qualityFlag: (cached?.qualityFlag || "GOOD") as any,
-          };
-        });
-      }
-    } catch (err) {
-      console.warn("[JalNetra Telemetry] DB sensor query failed, falling back to static fleet:", err);
-    }
-  }
-
-  // Fallback to in-memory sensor fleet merged with latest observations
+  // Merge 12-sensor fleet with any live observations
   return IOT_SENSOR_NODES.map((sensor) => {
     const cached = inMemoryLatestObservations[sensor.id];
     if (cached) {
       return {
         ...sensor,
-        lastWaterLevel: cached.waterLevelM ?? sensor.lastWaterLevel,
-        lastDischarge: cached.dischargeCumec ?? sensor.lastDischarge,
-        tankLevelM: cached.tankLevelM ?? sensor.tankLevelM,
-        availableCapacityL: cached.availableCapacityL ?? sensor.availableCapacityL,
+        waterLevelM: cached.waterLevelM ?? sensor.waterLevelM,
+        dischargeCusecs: cached.dischargeCumec
+          ? Math.round(cached.dischargeCumec * 35.3147)
+          : sensor.dischargeCusecs,
         lastPing: cached.lastUpdated,
-        qualityFlag: cached.qualityFlag as any,
       };
     }
     return sensor;
   });
 }
+
+export const getActiveSensorFleet = fetchLiveSensors;

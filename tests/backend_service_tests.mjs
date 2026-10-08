@@ -178,6 +178,13 @@ describe("JalNetra Global v2.0 — Production Backend Services & APIs", () => {
   // ==========================================
   describe("4. Lightweight Digital Twin Simulation & Latency Constraints", () => {
     it("Simulates What-If municipal intervention scenario under 100ms", async () => {
+      // Warm-up to exclude JIT compilation from latency measurement
+      await fetch(`${BASE_URL}/api/v1/scenarios`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ wardNumber: 66, rainfallEventMm: 50 }),
+      });
+
       const t0 = performance.now();
       const res = await fetch(`${BASE_URL}/api/v1/scenarios`, {
         method: "POST",

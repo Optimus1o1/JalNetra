@@ -128,6 +128,10 @@ export interface SimulationScenarioRequest {
   permeablePavementScenario: boolean;
   temporaryBundsDeployed: boolean;
   targetWardNumber?: number | null;
+  emergencyPumpingCusec?: number;
+  desiltingFactor?: number;
+  upstreamRetentionPct?: number;
+  tidalStageM?: number;
 }
 
 export interface SimulationScenarioResult {
@@ -154,6 +158,7 @@ export interface SimulationScenarioResult {
     delta: number;
     inundationDepthCm: number;
     status: "mitigated" | "escalated" | "unchanged";
+    interventionBenefit?: number;
   }[];
 }
 

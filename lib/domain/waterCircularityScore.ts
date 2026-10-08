@@ -67,6 +67,7 @@ export function calculateWaterCircularityScore(
   ];
 
   return {
+    score: composite,
     compositeScore: composite,
     rating,
     dimensions: {

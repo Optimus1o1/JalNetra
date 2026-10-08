@@ -12,10 +12,16 @@ export async function POST(request: NextRequest) {
       durationHours: Math.round(clampNumber(body.durationHours, 1, 72, 6)),
       drainageEfficiencyPct: clampNumber(body.drainageEfficiencyPct, -100, 100, -15),
       tidalSurgeMeters: clampNumber(body.tidalSurgeMeters, -2.0, 10.0, 0.8),
-      emergencyPumpsActive: Boolean(body.emergencyPumpsActive),
+      emergencyPumpsActive: Boolean(
+        body.emergencyPumpsActive || (body.emergencyPumpingCusec !== undefined && body.emergencyPumpingCusec > 0)
+      ),
       sluiceGatesAutomated: Boolean(body.sluiceGatesAutomated ?? true),
       permeablePavementScenario: Boolean(body.permeablePavementScenario),
       temporaryBundsDeployed: Boolean(body.temporaryBundsDeployed),
+      emergencyPumpingCusec: body.emergencyPumpingCusec,
+      desiltingFactor: body.desiltingFactor,
+      upstreamRetentionPct: body.upstreamRetentionPct,
+      tidalStageM: body.tidalStageM,
     };
 
     const { result, runId } = await executeAndLogSimulation(
@@ -23,9 +29,19 @@ export async function POST(request: NextRequest) {
       body.temporaryBundsDeployed ? "Emergency Civil Defense Deployment" : "Standard Nowcast Simulation"
     );
 
+    const criticalWardsCount = result.summary.criticalWardsCount;
+    const mitigatedWardsCount = result.wardDeltas.filter(
+      (w) => w.status === "mitigated" || w.delta < 0 || (w.interventionBenefit !== undefined && w.interventionBenefit > 0)
+    ).length;
+
     return NextResponse.json({
       status: "success",
       runId,
+      scenarioName: result.scenarioName,
+      updatedCells: result.updatedCells,
+      averageRiskScore: result.summary.scenarioAvgRisk,
+      criticalWardsCount,
+      mitigatedWardsCount,
       simulation: {
         ...result,
         sparedPopulation: result.summary.sparedPopulationEst,

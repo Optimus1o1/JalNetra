@@ -7,9 +7,32 @@ export interface DataProvenance {
   confidence?: number;
 }
 
-export type SiteType = "COMMERCIAL_DEPOT" | "HOSPITAL_CAMPUS" | "UNIVERSITY_CAMPUS" | "MUNICIPAL_PARK" | "RESIDENTIAL_CLUSTER";
-export type RechargeSuitabilityClass = "EXCELLENT" | "GOOD" | "MODERATE" | "POOR" | "UNSUITABLE";
-export type InterventionType = "ROOFTOP_CISTERN" | "BIO_RETENTION_BIOSWALE" | "PERMEABLE_PAVEMENT_RETROFIT" | "INFILTRATION_RECHARGE_SHAFT" | "COMMUNITY_STORAGE_SUMP";
+export type SiteType =
+  | "COMMERCIAL_DEPOT"
+  | "HOSPITAL_CAMPUS"
+  | "UNIVERSITY_CAMPUS"
+  | "MUNICIPAL_PARK"
+  | "RESIDENTIAL_CLUSTER"
+  | "PUBLIC_INSTITUTION"
+  | "COMMUNITY_PLAZA";
+
+export type RechargeSuitabilityClass =
+  | "EXCELLENT"
+  | "GOOD"
+  | "MODERATE"
+  | "POOR"
+  | "UNSUITABLE"
+  | "HIGH"
+  | "MEDIUM"
+  | "LOW";
+
+export type InterventionType =
+  | "ROOFTOP_CISTERN"
+  | "BIO_RETENTION_BIOSWALE"
+  | "PERMEABLE_PAVEMENT_RETROFIT"
+  | "INFILTRATION_RECHARGE_SHAFT"
+  | "COMMUNITY_STORAGE_SUMP";
+
 export type InterventionStatus = "PROPOSED" | "APPROVED" | "IN_PROGRESS" | "OPERATIONAL" | "ASSESSED";
 
 export interface DemandProfile {
@@ -41,9 +64,14 @@ export interface CatchmentSite {
   depthToWaterTableM: number;
   rechargeSuitability: RechargeSuitabilityClass;
   provenance: {
-    area: ProvenanceType;
-    runoffCoeff: ProvenanceType;
-    demand: ProvenanceType;
+    area?: ProvenanceType;
+    roofArea?: ProvenanceType;
+    runoffCoeff?: ProvenanceType;
+    runoffCoefficient?: ProvenanceType;
+    demand?: ProvenanceType;
+    existingTankCapacity?: ProvenanceType;
+    soilInfiltrationRate?: ProvenanceType;
+    [key: string]: ProvenanceType | undefined;
   };
 }
 
@@ -52,11 +80,18 @@ export interface RainwaterOpportunity {
   siteName: string;
   wardNumber: number;
   rainfallMm: number;
-  grossPrecipitationL: number;
+  roofAreaSqM?: number;
+  runoffCoefficient?: number;
+  collectionEfficiency?: number;
+  grossPrecipitationL?: number;
   harvestableVolumeL: number;
-  unmitigatedRunoffL: number;
-  collectionEfficiencyPct: number;
-  firstFlushDivertedL: number;
+  harvestableVolumeML?: number;
+  recommendedStorageL?: number;
+  potentialRunoffAvoidedL?: number;
+  drainageContributionReliefPct?: number;
+  unmitigatedRunoffL?: number;
+  collectionEfficiencyPct?: number;
+  firstFlushDivertedL?: number;
   provenance: "SIMULATED";
 }
 
@@ -68,10 +103,15 @@ export interface StorageMassBalance {
   currentStorageL: number;
   tankCapacityL: number;
   overflowL: number;
-  storageUtilizationPct: number;
-  remainingHeadroomL: number;
+  lossesL?: number;
+  fillPercentage?: number;
+  storageHeadroomL?: number;
+  storageUtilizationPct?: number;
+  remainingHeadroomL?: number;
   provenance: "SIMULATED";
 }
+
+export type StorageBalanceResult = StorageMassBalance;
 
 export interface DemandMatchResult {
   totalDailyDemandL: number;
@@ -91,23 +131,49 @@ export interface DemandMatchResult {
 export interface RechargeAssessment {
   siteId: string;
   suitabilityClass: RechargeSuitabilityClass;
-  soilInfiltrationRateMmHr: number;
-  depthToWaterTableM: number;
+  rechargeScore?: number;
+  soilInfiltrationRateMmHr?: number;
+  percolationRateMmHr?: number;
+  depthToWaterTableM?: number;
   maxDailyRechargeCapacityL: number;
-  recommendedInfiltrationStructure: string;
-  vadoseZoneClearanceM: number;
+  recommendedInfiltrationStructure?: string;
+  recommendedMethod?: string;
+  limitingFactors?: string[];
+  vadoseZoneClearanceM?: number;
   provenance: "SIMULATED";
 }
 
 export interface WaterCircularityScore {
-  score: number; // 0 - 100
-  rating: "LINEAR_DRAINAGE" | "TRANSITIONAL" | "CIRCULAR_ADEQUATE" | "CIRCULAR_EXEMPLARY";
-  components: {
+  score?: number; // 0 - 100
+  compositeScore?: number; // 0 - 100
+  rating:
+    | "LINEAR_DRAINAGE"
+    | "TRANSITIONAL"
+    | "CIRCULAR_ADEQUATE"
+    | "CIRCULAR_EXEMPLARY"
+    | "OPTIMAL"
+    | "BALANCED"
+    | "DEVELOPING"
+    | "CRITICAL_DEFICIT";
+  components?: {
     harvestEfficiencyScore: number; // 0 - 100
     demandOffsetScore: number; // 0 - 100
     rechargeContributionScore: number; // 0 - 100
     runoffMitigationScore: number; // 0 - 100
   };
+  dimensions?: {
+    capturePotential: number;
+    reuseFulfillment: number;
+    rechargeEffectiveness: number;
+    floodRunoffRelief: number;
+  };
+  factorWeights?: Record<string, number>;
+  explanations?: Array<{
+    name: string;
+    impact: number;
+    direction: "positive" | "negative";
+    narrative: string;
+  }>;
   provenance: "SIMULATED";
 }
 
@@ -126,29 +192,59 @@ export interface InterventionOption {
   owner: string;
 }
 
+export interface InterventionBaselineMetrics {
+  totalRainfallVolumeML: number;
+  uncontrolledRunoffML: number;
+  capturedVolumeML: number;
+  reusedVolumeML: number;
+  rechargedVolumeML: number;
+  canalDrainageLoadCumec: number;
+  inundationExposureIndex: number;
+  totalRunoffL?: number;
+  totalHarvestedL?: number;
+  rechargedL?: number;
+  demandMetPct?: number;
+  inundationDepthCm?: number;
+}
+
+export interface InterventionMetrics {
+  totalRainfallVolumeML: number;
+  uncontrolledRunoffML: number;
+  capturedVolumeML: number;
+  reusedVolumeML: number;
+  rechargedVolumeML: number;
+  canalDrainageLoadCumec: number;
+  inundationExposureIndex: number;
+}
+
+export interface InterventionDeltas {
+  runoffAvoidedML: number;
+  runoffReductionPct: number;
+  capturedIncreaseML: number;
+  reusedIncreaseML: number;
+  rechargeIncreaseML: number;
+  drainageReliefCumec: number;
+  avoidedLossCroresINR: number;
+  runoffReductionL?: number;
+  harvestGainL?: number;
+  rechargeGainL?: number;
+  inundationReductionCm?: number;
+}
+
 export interface InterventionScenarioComparison {
+  scenarioId?: string;
   scenarioName: string;
   wardNumber: number;
-  baseline: {
-    totalRunoffL: number;
-    totalHarvestedL: number;
-    rechargedL: number;
-    demandMetPct: number;
-    inundationDepthCm: number;
+  rainfallEventMm?: number;
+  baseline: InterventionBaselineMetrics;
+  intervention: InterventionMetrics;
+  simulated?: {
+    totalRunoffL?: number;
+    totalHarvestedL?: number;
+    rechargedL?: number;
+    demandMetPct?: number;
+    inundationDepthCm?: number;
   };
-  simulated: {
-    totalRunoffL: number;
-    totalHarvestedL: number;
-    rechargedL: number;
-    demandMetPct: number;
-    inundationDepthCm: number;
-  };
-  deltas: {
-    runoffReductionL: number;
-    runoffReductionPct: number;
-    harvestGainL: number;
-    rechargeGainL: number;
-    inundationReductionCm: number;
-  };
+  deltas: InterventionDeltas;
   provenance: "SIMULATED";
 }

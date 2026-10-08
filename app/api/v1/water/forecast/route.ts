@@ -13,6 +13,14 @@ export async function GET() {
     timestamp: new Date().toISOString(),
     networkStatus: `${sensors.filter((s) => s.status === "online").length} / ${sensors.length} IoT Monitoring Nodes Online`,
     sensors,
+    hooghlyTide: {
+      stationName: tidalState.stationName,
+      stageMSL: tidalState.stageMMSL,
+      tideType: tidalState.tideType,
+      sluiceInterlockActive: tidalState.sluiceInterlockActive,
+      minutesToHighTide: tidalState.minutesToHighTide,
+      trend: tidalState.trend,
+    },
     tidalDynamics: {
       station: tidalState.stationName,
       currentStageMSL: tidalState.stageMMSL,

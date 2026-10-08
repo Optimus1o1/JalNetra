@@ -24,12 +24,20 @@ export function runSimulationScenario(
   const wardDeltas = PILOT_GRID_CELLS.map((cell) => {
     // Baseline hazard factors
     const baseRainfall = cell.forecastRainfall24h;
-    const adjustedRainfall = baseRainfall * rainfallMultiplier;
+    // Upstream retention reduces effective rainfall volume reaching urban catchments
+    const retentionReduction = inputs.upstreamRetentionPct ? Math.min(0.6, inputs.upstreamRetentionPct / 100) : 0;
+    const adjustedRainfall = baseRainfall * rainfallMultiplier * (1 - retentionReduction);
 
-    // Effective drainage capacity: modified by efficiency % and emergency interventions
-    let effectiveDrainage = cell.drainageCapacity * (1 + drainageEfficiencyPct / 100);
-    if (emergencyPumpsActive) {
-      effectiveDrainage += 12; // Adds 12 mm/h pumping extraction
+    // Effective drainage capacity: modified by efficiency %, desilting, and emergency interventions
+    let drainageModPct = drainageEfficiencyPct;
+    if (inputs.desiltingFactor !== undefined && inputs.desiltingFactor > 1.0) {
+      drainageModPct += (inputs.desiltingFactor - 1.0) * 40;
+    }
+    let effectiveDrainage = cell.drainageCapacity * (1 + drainageModPct / 100);
+    const pumpingCusec = inputs.emergencyPumpingCusec || 0;
+    if (emergencyPumpsActive || pumpingCusec > 0) {
+      const pumpExtractionMmHr = pumpingCusec > 0 ? (pumpingCusec / 50) * 12 : 12;
+      effectiveDrainage += pumpExtractionMmHr; // Adds pumping extraction
     }
     if (sluiceGatesAutomated) {
       effectiveDrainage += 6; // Prevents 6 mm/h tidal lock loss
@@ -45,9 +53,13 @@ export function runSimulationScenario(
     }
 
     // Tidal surge effect on low elevation wards (< 5.0m MSL)
+    let effectiveTidalSurgeMeters = tidalSurgeMeters;
+    if (inputs.tidalStageM !== undefined) {
+      effectiveTidalSurgeMeters = Math.max(0, (inputs.tidalStageM - 4.0) * 1.0);
+    }
     const elevationVulnerability = Math.max(0, 7.5 - cell.elevation) / 7.5;
     const tidalPenetrationFactor =
-      cell.elevation < 5.0 ? (tidalSurgeMeters / 2.5) * 0.35 : 0;
+      cell.elevation < 5.0 ? (effectiveTidalSurgeMeters / 2.5) * 0.35 : 0;
 
     // Recalculate runoff accumulation
     const runoffCoefficient = (effectiveImperviousness / 100) * 0.9 + 0.1;
@@ -81,7 +93,7 @@ export function runSimulationScenario(
     const delta = Number((newScenarioRisk - cell.riskScore).toFixed(2));
     const newInundationDepthCm = Math.max(
       0,
-      Math.round(rainExcessMm * 0.65 + (tidalSurgeMeters > 0 && cell.elevation < 4.5 ? tidalSurgeMeters * 18 : 0))
+      Math.round(rainExcessMm * 0.65 + (effectiveTidalSurgeMeters > 0 && cell.elevation < 4.5 ? effectiveTidalSurgeMeters * 18 : 0))
     );
 
     totalBaselineRisk += cell.riskScore;
@@ -95,11 +107,12 @@ export function runSimulationScenario(
       totalInundatedAreaSqKm += 1.8; // Average ward footprint
     }
 
-    // Counterfactual unmitigated risk (without emergency interventions)
+    // Counterfactual unmitigated risk (without emergency interventions, desilting, retention)
+    const rawAdjustedRainfall = baseRainfall * rainfallMultiplier;
     const unmitigatedDrainage = cell.drainageCapacity * (1 + drainageEfficiencyPct / 100);
     const unmitigatedRainExcessMm = Math.max(
       0,
-      adjustedRainfall * (durationHours / 24) * runoffCoefficient -
+      rawAdjustedRainfall * (durationHours / 24) * ((cell.imperviousness / 100) * 0.9 + 0.1) -
         unmitigatedDrainage * (durationHours / 24)
     );
     const unmitigatedHazardScore = Math.min(
@@ -113,13 +126,13 @@ export function runSimulationScenario(
       Math.min(1.0, Math.max(0.05, unmitigatedHazardScore * cell.exposureScore * cell.vulnerabilityScore * 1.35)).toFixed(2)
     );
 
-    const interventionBenefit = unmitigatedRisk - newScenarioRisk;
+    const interventionBenefit = Number((unmitigatedRisk - newScenarioRisk).toFixed(2));
     if (interventionBenefit > 0.01 || delta < -0.05) {
       sparedPopulation += Math.round(cell.populationDensity * Math.max(interventionBenefit, 0.05) * 1.25);
     }
 
     let status: "mitigated" | "escalated" | "unchanged" = "unchanged";
-    if (delta < -0.04 || interventionBenefit > 0.05) status = "mitigated";
+    if (delta < -0.04 || interventionBenefit > 0.02) status = "mitigated";
     else if (delta > 0.04) status = "escalated";
 
     return {
@@ -131,6 +144,7 @@ export function runSimulationScenario(
       delta,
       inundationDepthCm: newInundationDepthCm,
       status,
+      interventionBenefit,
     };
   });
 

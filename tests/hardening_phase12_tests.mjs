@@ -143,8 +143,8 @@ test("JALNETRA Phase 12 Hardening Verification Suite", async (t) => {
       wardName: "Bhowanipore / SSKM",
       borough: "Borough IX",
       siteName: "SSKM Hospital Campus",
-      siteType: "HOSPITAL_CAMPUS" as any,
-      coordinates: [22.5398, 88.3426] as [number, number],
+      siteType: "HOSPITAL_CAMPUS",
+      coordinates: [22.5398, 88.3426],
       roofAreaSqM: 32500,
       openGroundAreaSqM: 8600,
       totalCatchmentAreaSqM: 41100,
@@ -155,8 +155,8 @@ test("JALNETRA Phase 12 Hardening Verification Suite", async (t) => {
       dailyNonPotableDemandL: 85000,
       soilInfiltrationRateMmHr: 8.5,
       depthToWaterTableM: 4.2,
-      rechargeSuitability: "GOOD" as any,
-      provenance: { area: "MEASURED" as any, runoffCoeff: "ASSUMED" as any, demand: "SIMULATED" as any },
+      rechargeSuitability: "GOOD",
+      provenance: { area: "MEASURED", runoffCoeff: "ASSUMED", demand: "SIMULATED" },
     };
 
     await t2.test("Uses default profile when custom profile is not provided", () => {
@@ -184,7 +184,7 @@ test("JALNETRA Phase 12 Hardening Verification Suite", async (t) => {
         landscapeIrrigationPct: 30,
         coolingHvacPct: 10,
         streetCleaningPct: 10, // Sum = 80%, not 100%
-        provenance: "ASSUMED" as const,
+        provenance: "ASSUMED",
       };
 
       const val = validateDemandProfile(invalidProfile);
@@ -203,7 +203,7 @@ test("JALNETRA Phase 12 Hardening Verification Suite", async (t) => {
         landscapeIrrigationPct: 60,
         coolingHvacPct: 30,
         streetCleaningPct: 20,
-        provenance: "ASSUMED" as const,
+        provenance: "ASSUMED",
       };
       const val = validateDemandProfile(invalidProfile);
       assert.strictEqual(val.valid, false);
@@ -217,7 +217,7 @@ test("JALNETRA Phase 12 Hardening Verification Suite", async (t) => {
         landscapeIrrigationPct: 0,
         coolingHvacPct: 0,
         streetCleaningPct: 0,
-        provenance: "ASSUMED" as const,
+        provenance: "ASSUMED",
       };
       const val = validateDemandProfile(invalidProfile);
       assert.strictEqual(val.valid, false);

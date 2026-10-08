@@ -14,15 +14,9 @@ export function calculateHarvestableVolume(
   const safeRunoffCoeff = Math.min(1.0, Math.max(0.1, site.runoffCoefficient));
   const safeEfficiency = Math.min(1.0, Math.max(0.5, site.collectionEfficiency));
 
-  // Rooftop harvest
+  // Rooftop harvest (Canonical Formula: V = Rainfall * Area * C * eta)
   const roofHarvestL = safeRainfall * safeRoofArea * safeRunoffCoeff * safeEfficiency;
-
-  // Additional open ground harvest (bioswales / unsealed grounds if applicable)
-  const groundRunoffCoeff = 0.25; // standard unpaved urban soil
-  const groundHarvestL =
-    safeRainfall * site.openGroundAreaSqM * groundRunoffCoeff * 0.7; // lower efficiency for ground capture
-
-  const totalHarvestL = Math.round(roofHarvestL + groundHarvestL);
+  const totalHarvestL = Math.round(roofHarvestL);
   const totalHarvestML = Number((totalHarvestL / 1_000_000).toFixed(4));
 
   // Recommended tank storage based on 3-day dry spell buffer or single severe downpour (50mm)
@@ -42,6 +36,9 @@ export function calculateHarvestableVolume(
     siteName: site.siteName,
     wardNumber: site.wardNumber,
     rainfallMm: safeRainfall,
+    roofAreaSqM: safeRoofArea,
+    runoffCoefficient: safeRunoffCoeff,
+    collectionEfficiency: safeEfficiency,
     harvestableVolumeL: totalHarvestL,
     harvestableVolumeML: totalHarvestML,
     recommendedStorageL,
@@ -85,3 +82,6 @@ export function calculateWardHarvestableOpportunity(
     demandFulfillmentPotentialPct: fulfillmentPct,
   };
 }
+
+export const calculateOpportunity = calculateHarvestableVolume;
+

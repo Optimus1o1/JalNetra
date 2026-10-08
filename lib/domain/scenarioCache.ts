@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { InterventionScenarioComparison } from "./types";
+import type { InterventionScenarioComparison } from "./types";
 
 export const SCENARIO_CALCULATION_VERSION = "2.1.0";
 export const SCENARIO_MODEL_VERSION = "1.4.0";

@@ -9,6 +9,8 @@ import {
 } from "@/lib/domain/scenarioCache";
 import { clampNumber } from "@/lib/security/sanitize";
 
+import { getOperationalMode } from "@/lib/db";
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -41,12 +43,15 @@ export async function POST(request: NextRequest) {
       captureEfficiencyBoostPct,
     });
 
+    const currentOperationalMode = await getOperationalMode();
+
     // 2. Check in-memory LRU Cache
     const inMemoryCached = getCachedScenario(scenarioHash);
     if (inMemoryCached) {
       return NextResponse.json({
         status: "success",
         cacheHit: true,
+        operationalMode: currentOperationalMode,
         source: "IN_MEMORY_CACHE",
         scenarioHash,
         scenario: inMemoryCached,
@@ -62,6 +67,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         status: "success",
         cacheHit: true,
+        operationalMode: currentOperationalMode,
         source: "POSTGRESQL_PERSISTED",
         scenarioHash,
         scenario: dbPersisted,
@@ -92,27 +98,29 @@ export async function POST(request: NextRequest) {
     // 6. Cache in-memory
     storeCachedScenario(scenarioHash, result);
 
-    // 7. Asynchronously Persist to PostgreSQL
-    persistScenarioRecord({
-      scenarioHash,
-      scenarioName,
-      wardNumber,
-      rainfallEventMm,
-      calculationVersion: "2.4.0",
-      modelVersion: "JalNetra-MassBalance-v1",
-      inputs: {
+    // 7. Persist to PostgreSQL
+    try {
+      await persistScenarioRecord({
+        scenarioHash,
+        scenarioName,
         wardNumber,
         rainfallEventMm,
-        addedStorageCapacityL,
-        permeablePavementFractionPct,
-        activeRechargeWells,
-        captureEfficiencyBoostPct,
-      },
-      results: result,
-      provenance: "SIMULATED",
-    }).catch((err) => {
-      console.warn("[JalNetra Scenario] Background persistence notice:", err);
-    });
+        calculationVersion: "2.4.0",
+        modelVersion: "JalNetra-MassBalance-v1",
+        inputs: {
+          wardNumber,
+          rainfallEventMm,
+          addedStorageCapacityL,
+          permeablePavementFractionPct,
+          activeRechargeWells,
+          captureEfficiencyBoostPct,
+        },
+        results: result,
+        provenance: "SIMULATED",
+      });
+    } catch (err) {
+      console.warn("[JalNetra Scenario] Persistence notice:", err);
+    }
 
     return NextResponse.json({
       status: "success",

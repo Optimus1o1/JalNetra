@@ -1,196 +1,241 @@
-datasource db {
-  provider = "postgresql"
-}
-
 generator client {
   provider = "prisma-client-js"
 }
 
-model Ward {
-  id                        String             @id @default(uuid())
-  wardNumber                Int                @unique @map("ward_number")
-  wardName                  String             @map("ward_name")
-  borough                   String
-  areaSqKm                  Float              @map("area_sq_km")
-  population                Int
-  elevationBaselineM        Float              @map("elevation_baseline_m")
-  imperviousnessPct         Float              @map("imperviousness_pct")
-  baseDrainageCapacityCumec Float              @map("base_drainage_capacity_cumec")
-  criticalInfrastructure    Json               @default("[]") @map("critical_infrastructure")
-  geometry                  Json?
-  sensors                   SensorNode[]
-  riskSnapshots             RiskSnapshot[]
-  incidents                 IncidentAlert[]
-  createdAt                 DateTime           @default(now()) @map("created_at")
-  updatedAt                 DateTime           @updatedAt @map("updated_at")
-
-  @@map("wards")
+datasource db {
+  provider = "postgresql"
 }
 
-model SensorNode {
-  id                 String              @id @default(uuid())
-  nodeKey            String              @unique @map("node_key")
-  name               String
-  type               String              // "SUMP", "CANAL_STAGE", "RIVER_GAUGE", "DOPPLER_RADAR", "SLUICE_GATE"
-  wardId             String?             @map("ward_id")
-  ward               Ward?               @relation(fields: [wardId], references: [id], onDelete: SetNull)
-  latitude           Float
-  longitude          Float
-  elevationM         Float               @map("elevation_m")
-  hardwareSpec       String              @default("ESP32-S3") @map("hardware_spec")
-  firmwareVersion    String              @default("v2.4.1-rc3") @map("firmware_version")
-  status             String              @default("ONLINE") // "ONLINE", "WARN", "CRITICAL", "OFFLINE"
-  batteryPct         Int                 @default(100) @map("battery_pct")
-  lastWaterLevelM    Float?              @map("last_water_level_m")
-  lastDischargeCumec Float?              @map("last_discharge_cumec")
-  lastPingAt         DateTime            @default(now()) @map("last_ping_at")
-  observations       SensorObservation[]
-  createdAt          DateTime            @default(now()) @map("created_at")
-  updatedAt          DateTime            @updatedAt @map("updated_at")
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model catchment_sites {
+  id                           String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  site_key                     String                   @unique
+  ward_number                  Int
+  ward_name                    String
+  borough                      String
+  site_name                    String
+  site_type                    String
+  latitude                     Float
+  longitude                    Float
+  roof_area_sq_m               Float
+  open_ground_area_sq_m        Float
+  total_catchment_area_sq_m    Float
+  runoff_coefficient           Float
+  collection_efficiency        Float
+  existing_tank_capacity_l     Float
+  current_tank_storage_l       Float
+  daily_non_potable_demand_l   Float
+  soil_infiltration_rate_mm_hr Float
+  depth_to_water_table_m       Float
+  recharge_suitability         String                   @default("MEDIUM")
+  provenance                   Json?                    @default("{}")
+  geom                         Unsupported("geometry")?
+  created_at                   DateTime?                @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  updated_at                   DateTime?                @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  intervention_options         intervention_options[]
 
-  @@map("sensor_nodes")
+  @@index([geom], map: "catchment_sites_geom_gist_idx", type: Gist)
+  @@index([recharge_suitability], map: "catchment_sites_recharge_idx")
+  @@index([ward_number], map: "catchment_sites_ward_idx")
 }
 
-model SensorObservation {
-  id           String     @id @default(uuid())
-  sensorId     String     @map("sensor_id")
-  sensor       SensorNode @relation(fields: [sensorId], references: [id], onDelete: Cascade)
-  parameter    String     // "WATER_LEVEL", "DISCHARGE", "RAINFALL", "SILT_DEPTH"
-  value        Float
-  unit         String
-  qualityFlag  String     @default("GOOD") @map("quality_flag")
-  timestamp    DateTime   @default(now())
-  rawTelemetry Json?      @map("raw_telemetry")
-
-  @@index([sensorId, timestamp])
-  @@map("sensor_observations")
+model hooghly_tide_records {
+  id                      String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  station_name            String    @default("Outram Ghat")
+  recorded_at             DateTime? @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  stage_m_msl             Float
+  tide_type               String    @default("SPRING")
+  sluice_interlock_active Boolean   @default(false)
+  minutes_to_high_tide    Int       @default(0)
+  surge_anomaly_m         Float     @default(0.0)
 }
 
-model RiskSnapshot {
-  id                 String   @id @default(uuid())
-  wardId             String   @map("ward_id")
-  ward               Ward     @relation(fields: [wardId], references: [id], onDelete: Cascade)
-  snapshotTimestamp  DateTime @default(now()) @map("snapshot_timestamp")
-  forecastWindowHrs  Int      @map("forecast_window_hrs")
-  riskScore          Float    @map("risk_score")
-  inundationProbPct  Float    @map("inundation_prob_pct")
-  predictedDepthCm   Float    @map("predicted_depth_cm")
-  treeShapFeatures   Json     @map("tree_shap_features")
-  pinnPhysicsLoss    Float?   @map("pinn_physics_loss")
-  outfallLockRiskPct Float?   @map("outfall_lock_risk_pct")
-
-  @@index([wardId, snapshotTimestamp])
-  @@map("risk_snapshots")
-}
-
-model IncidentAlert {
-  id                      String    @id @default(uuid())
-  alertCode               String    @unique @map("alert_code")
-  wardId                  String?   @map("ward_id")
-  ward                    Ward?     @relation(fields: [wardId], references: [id], onDelete: SetNull)
-  severity                String    // "CRITICAL", "WARNING", "WATCH"
+model incident_alerts {
+  id                      String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  alert_code              String    @unique
+  ward_id                 String?   @db.Uuid
+  severity                String
   title                   String
-  message                 String
-  affectedInfrastructure  Json      @default("[]") @map("affected_infrastructure")
-  confidenceScore         Float     @map("confidence_score")
-  issuedAt                DateTime  @default(now()) @map("issued_at")
-  acknowledged            Boolean   @default(false)
-  acknowledgedBy          String?   @map("acknowledged_by")
-  acknowledgedAt          DateTime? @map("acknowledged_at")
-  actionProtocolDispatched String?  @map("action_protocol_dispatched")
-
-  @@map("incident_alerts")
+  description             String
+  trigger_mechanism       String
+  confidence_score        Float     @default(0.85)
+  affected_infrastructure Json?     @default("[]")
+  recommended_actions     Json?     @default("[]")
+  status                  String    @default("ACTIVE")
+  acknowledged_by         String?
+  acknowledged_at         DateTime? @db.Timestamptz(6)
+  issued_at               DateTime? @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  wards                   wards?    @relation(fields: [ward_id], references: [id], onUpdate: NoAction)
 }
 
-model SluiceGateState {
-  id                String   @id @default(uuid())
-  gateKey           String   @unique @map("gate_key")
-  name              String
-  outfallBasin      String   @map("outfall_basin") // "PALMER_BRIDGE", "BALLYGUNGE", "DHAPA"
-  hooghlyStageM     Float    @map("hooghly_stage_m")
-  lockupThresholdM  Float    @map("lockup_threshold_m")
-  flapGateStatus    String   @map("flap_gate_status") // "OPEN", "SEALED", "LOCKED_BACKFLOW"
-  lastActuationAt   DateTime @default(now()) @map("last_actuation_at")
-  actuationMode     String   @default("AUTOMATIC_SCADA") @map("actuation_mode")
+model intervention_options {
+  id                            String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  intervention_key              String           @unique
+  site_id                       String?          @db.Uuid
+  name                          String
+  type                          String
+  design_capacity_l             Float
+  estimated_cost_inr            Float
+  annual_harvest_potential_ml   Float
+  annual_runoff_avoided_ml      Float
+  priority_score                Float
+  implementation_timeline_weeks Int
+  status                        String           @default("PROPOSED")
+  owner                         String
+  provenance                    String           @default("SIMULATED")
+  created_at                    DateTime?        @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  updated_at                    DateTime?        @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  catchment_sites               catchment_sites? @relation(fields: [site_id], references: [id], onUpdate: NoAction)
 
-  @@map("sluice_gate_states")
+  @@index([status], map: "interventions_status_idx")
+  @@index([type], map: "interventions_type_idx")
 }
 
-model ModelRegistry {
-  id              String   @id @default(uuid())
-  modelName       String   @unique @map("model_name")
-  architecture    String   // "PINN_SHALLOW_WATER", "LIGHTGBM_SURROGATE", "ECMWF_ENSEMBLE"
-  versionTag      String   @map("version_tag")
-  crpsBenchmark   Float    @map("crps_benchmark")
-  inferenceP95Ms  Float    @map("inference_p95_ms")
-  offlineTrainedAt DateTime @map("offline_trained_at")
-  isActive        Boolean  @default(true) @map("is_active")
-
-  @@map("model_registries")
+model model_records {
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  model_key            String    @unique
+  model_name           String
+  version              String
+  architecture         String
+  brier_score          Float
+  crps                 Float
+  spatial_iou          Float
+  freshness_min        Int
+  parameters           String    @default("14.2M")
+  inference_latency_ms Int       @default(45)
+  status               String    @default("PRODUCTION_ACTIVE")
+  last_trained_at      DateTime? @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
 }
 
-model CatchmentSite {
-  id                       String   @id @default(uuid())
-  siteKey                  String   @unique @map("site_key")
-  wardNumber               Int      @map("ward_number")
-  wardName                 String   @map("ward_name")
-  borough                  String
-  siteName                 String   @map("site_name")
-  siteType                 String   @map("site_type")
-  latitude                 Float
-  longitude                Float
-  roofAreaSqM              Float    @map("roof_area_sq_m")
-  openGroundAreaSqM        Float    @map("open_ground_area_sq_m")
-  totalCatchmentAreaSqM    Float    @map("total_catchment_area_sq_m")
-  runoffCoefficient        Float    @map("runoff_coefficient")
-  collectionEfficiency     Float    @map("collection_efficiency")
-  existingTankCapacityL    Float    @map("existing_tank_capacity_l")
-  currentTankStorageL      Float    @map("current_tank_storage_l")
-  dailyNonPotableDemandL   Float    @map("daily_non_potable_demand_l")
-  soilInfiltrationRateMmHr Float    @map("soil_infiltration_rate_mm_hr")
-  depthToWaterTableM       Float    @map("depth_to_water_table_m")
-  rechargeSuitability      String   @map("recharge_suitability")
-  provenance               Json?    @map("provenance")
-  geometry                 Json?    @map("geometry")
-  createdAt                DateTime @default(now()) @map("created_at")
-  updatedAt                DateTime @updatedAt @map("updated_at")
+model persisted_scenarios {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  scenario_hash       String    @unique
+  scenario_name       String
+  ward_number         Int
+  rainfall_event_mm   Float
+  calculation_version String
+  model_version       String
+  inputs              Json
+  results             Json
+  provenance          String    @default("SIMULATED")
+  created_at          DateTime? @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
 
-  @@map("catchment_sites")
+  @@index([scenario_hash], map: "persisted_scenarios_hash_idx")
+  @@index([calculation_version, model_version], map: "persisted_scenarios_version_idx")
+  @@index([ward_number], map: "persisted_scenarios_ward_idx")
 }
 
-model InterventionOption {
-  id                          String   @id @default(uuid())
-  interventionKey             String   @unique @map("intervention_key")
-  siteId                      String?  @map("site_id")
-  name                        String
-  type                        String
-  designCapacityL             Float    @map("design_capacity_l")
-  estimatedCostInr            Float    @map("estimated_cost_inr")
-  annualHarvestPotentialMl    Float    @map("annual_harvest_potential_ml")
-  annualRunoffAvoidedMl       Float    @map("annual_runoff_avoided_ml")
-  priorityScore               Int      @map("priority_score")
-  implementationTimelineWeeks Int      @map("implementation_timeline_weeks")
-  status                      String   @default("PROPOSED")
-  owner                       String
-  createdAt                   DateTime @default(now()) @map("created_at")
-  updatedAt                   DateTime @updatedAt @map("updated_at")
-
-  @@map("intervention_options")
+model rainfall_forecasts {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  model_name          String    @default("TCN_Spatiotemporal_Ensemble")
+  forecast_run_at     DateTime? @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  horizon             String
+  p10_mm              Float
+  p50_mm              Float
+  p90_mm              Float
+  pop_heavy_pct       Float
+  intensity_category  String
+  return_period_years Float     @default(1.0)
 }
 
-model PersistedScenario {
-  id                 String   @id @default(uuid())
-  scenarioHash       String   @unique @map("scenario_hash")
-  scenarioName       String   @map("scenario_name")
-  wardNumber         Int      @map("ward_number")
-  rainfallEventMm    Float    @map("rainfall_event_mm")
-  calculationVersion String   @default("2.1.0") @map("calculation_version")
-  modelVersion       String   @default("1.4.0") @map("model_version")
-  inputs             Json
-  results            Json
-  provenance         String   @default("SIMULATED")
-  createdAt          DateTime @default(now()) @map("created_at")
-  updatedAt          DateTime @updatedAt @map("updated_at")
+model risk_snapshots {
+  id                     String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ward_id                String?   @db.Uuid
+  computed_at            DateTime? @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  hazard_index           Float
+  exposure_index         Float
+  vulnerability_index    Float
+  composite_risk_score   Float
+  ponding_depth_cm       Float
+  treeshap_decomposition Json?     @default("[]")
+  flood_status           String    @default("NORMAL")
+  wards                  wards?    @relation(fields: [ward_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
 
-  @@map("persisted_scenarios")
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model sensor_nodes {
+  id                   String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  node_key             String                   @unique
+  name                 String
+  type                 String
+  ward_id              String?                  @db.Uuid
+  latitude             Float
+  longitude            Float
+  elevation_m          Float                    @default(3.0)
+  hardware_spec        String                   @default("ESP32-S3")
+  firmware_version     String                   @default("v2.4.1-rc3")
+  status               String                   @default("ONLINE")
+  battery_pct          Int                      @default(100)
+  last_water_level_m   Float?
+  last_discharge_cumec Float?
+  last_ping_at         DateTime?                @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  geom                 Unsupported("geometry")?
+  created_at           DateTime?                @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  updated_at           DateTime?                @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  wards                wards?                   @relation(fields: [ward_id], references: [id], onUpdate: NoAction)
+  sensor_observations  sensor_observations[]
+
+  @@index([geom], map: "sensor_nodes_geom_gist_idx", type: Gist)
+  @@index([status])
+  @@index([type])
+}
+
+model sensor_observations {
+  id                      String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sensor_id               String?       @db.Uuid
+  recorded_at             DateTime?     @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  water_level_m           Float?
+  discharge_rate_cumec    Float?
+  siltation_depth_cm      Float?
+  pump_operating_rate_pct Float?
+  salinity_ppt            Float?
+  quality_flag            String        @default("QC_PASSED")
+  raw_payload             Json?
+  provenance              String        @default("MEASURED")
+  sensor_nodes            sensor_nodes? @relation(fields: [sensor_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([quality_flag], map: "sensor_obs_quality_idx")
+  @@index([sensor_id, recorded_at(sort: Desc)], map: "sensor_obs_sensor_recorded_idx")
+}
+
+model simulation_runs {
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  scenario_name        String
+  created_by           String    @default("OPERATOR_CONSOLE")
+  inputs               Json
+  outcomes             Json
+  dispatched_resources Json?
+  created_at           DateTime? @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model spatial_ref_sys {
+  srid      Int     @id
+  auth_name String? @db.VarChar(256)
+  auth_srid Int?
+  srtext    String? @db.VarChar(2048)
+  proj4text String? @db.VarChar(2048)
+}
+
+model wards {
+  id                           String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ward_number                  Int                      @unique
+  ward_name                    String
+  borough                      String
+  area_sq_km                   Float
+  population                   Int
+  elevation_baseline_m         Float
+  imperviousness_pct           Float
+  base_drainage_capacity_cumec Float
+  critical_infrastructure      Json?                    @default("[]")
+  geometry                     Json?
+  geom                         Unsupported("geometry")?
+  created_at                   DateTime?                @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  updated_at                   DateTime?                @default(dbgenerated("clock_timestamp()")) @db.Timestamptz(6)
+  incident_alerts              incident_alerts[]
+  risk_snapshots               risk_snapshots[]
+  sensor_nodes                 sensor_nodes[]
+
+  @@index([geom], map: "wards_geom_gist_idx", type: Gist)
+  @@index([ward_number])
 }
