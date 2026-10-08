@@ -68,6 +68,6 @@ export async function GET(request: NextRequest) {
       },
     },
     sites: siteMatches,
-    provenance: "SIMULATED",
+    provenance: "ASSUMED",
   });
 }

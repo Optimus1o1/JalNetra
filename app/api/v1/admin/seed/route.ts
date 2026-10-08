@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPrismaClient, isDatabaseConnected } from "@/lib/db";
+import { getPrismaClient, isDatabaseConnected, checkDatabaseHealth } from "@/lib/db";
 import { PILOT_GRID_CELLS } from "@/lib/data/pilotRegionData";
 import { IOT_SENSOR_NODES } from "@/lib/data/sensorNodesData";
 import { INITIAL_ALERTS } from "@/lib/data/alertsData";
 import { MODEL_REGISTRY } from "@/lib/data/modelsData";
+import { KMC_CATCHMENT_SITES } from "@/lib/data/rainwaterSitesData";
+import { MUNICIPAL_INTERVENTIONS } from "@/app/api/v1/interventions/route";
 import {
   SESSION_COOKIE_NAME,
   verifySessionToken,
@@ -210,11 +212,100 @@ export async function POST(request: NextRequest) {
       modelsCreated++;
     }
 
+    // 6. Seed Catchment Sites
+    let sitesCreated = 0;
+    for (const site of KMC_CATCHMENT_SITES) {
+      await (prisma as any).catchmentSite.upsert({
+        where: { siteKey: site.id },
+        update: {
+          siteName: site.siteName,
+          wardNumber: site.wardNumber,
+          wardName: site.wardName,
+          borough: site.borough,
+          siteType: site.siteType,
+          latitude: site.coordinates[0],
+          longitude: site.coordinates[1],
+          roofAreaSqM: site.roofAreaSqM,
+          openGroundAreaSqM: site.openGroundAreaSqM,
+          totalCatchmentAreaSqM: site.totalCatchmentAreaSqM,
+          runoffCoefficient: site.runoffCoefficient,
+          collectionEfficiency: site.collectionEfficiency,
+          existingTankCapacityL: site.existingTankCapacityL,
+          currentTankStorageL: site.currentTankStorageL,
+          dailyNonPotableDemandL: site.dailyNonPotableDemandL,
+          soilInfiltrationRateMmHr: site.soilInfiltrationRateMmHr,
+          depthToWaterTableM: site.depthToWaterTableM,
+          rechargeSuitability: site.rechargeSuitability,
+          provenance: site.provenance as any,
+        },
+        create: {
+          siteKey: site.id,
+          siteName: site.siteName,
+          wardNumber: site.wardNumber,
+          wardName: site.wardName,
+          borough: site.borough,
+          siteType: site.siteType,
+          latitude: site.coordinates[0],
+          longitude: site.coordinates[1],
+          roofAreaSqM: site.roofAreaSqM,
+          openGroundAreaSqM: site.openGroundAreaSqM,
+          totalCatchmentAreaSqM: site.totalCatchmentAreaSqM,
+          runoffCoefficient: site.runoffCoefficient,
+          collectionEfficiency: site.collectionEfficiency,
+          existingTankCapacityL: site.existingTankCapacityL,
+          currentTankStorageL: site.currentTankStorageL,
+          dailyNonPotableDemandL: site.dailyNonPotableDemandL,
+          soilInfiltrationRateMmHr: site.soilInfiltrationRateMmHr,
+          depthToWaterTableM: site.depthToWaterTableM,
+          rechargeSuitability: site.rechargeSuitability,
+          provenance: site.provenance as any,
+        },
+      });
+      sitesCreated++;
+    }
+
+    // 7. Seed Municipal Interventions
+    let interventionsCreated = 0;
+    for (const intv of MUNICIPAL_INTERVENTIONS) {
+      await (prisma as any).interventionOption.upsert({
+        where: { interventionKey: intv.id },
+        update: {
+          name: intv.name,
+          type: intv.type,
+          designCapacityL: intv.designCapacityL,
+          estimatedCostInr: intv.estimatedCostINR,
+          annualHarvestPotentialMl: intv.annualHarvestPotentialML,
+          annualRunoffAvoidedMl: intv.annualRunoffAvoidedML,
+          priorityScore: intv.priorityScore,
+          implementationTimelineWeeks: intv.implementationTimelineWeeks,
+          status: intv.status,
+          owner: intv.owner,
+        },
+        create: {
+          interventionKey: intv.id,
+          name: intv.name,
+          type: intv.type,
+          designCapacityL: intv.designCapacityL,
+          estimatedCostInr: intv.estimatedCostINR,
+          annualHarvestPotentialMl: intv.annualHarvestPotentialML,
+          annualRunoffAvoidedMl: intv.annualRunoffAvoidedML,
+          priorityScore: intv.priorityScore,
+          implementationTimelineWeeks: intv.implementationTimelineWeeks,
+          status: intv.status,
+          owner: intv.owner,
+          provenance: "SIMULATED",
+        },
+      });
+      interventionsCreated++;
+    }
+
     return NextResponse.json({
       status: "success",
       message: "JalNetra PostgreSQL database successfully synchronized and seeded.",
       recordsCreated: {
         wards: wardsCreated,
+        sites: sitesCreated,
+        interventions: interventionsCreated,
         sensors: sensorsCreated,
         alerts: alertsCreated,
         models: modelsCreated,
@@ -229,9 +320,12 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
+  const health = await checkDatabaseHealth();
   return NextResponse.json({
     status: "ready",
     databaseConnected: isDatabaseConnected(),
+    operationalMode: health.operationalMode,
+    health,
     endpoint: "POST /api/v1/admin/seed to populate or sync PostgreSQL schema with Kolkata delta baseline.",
   });
 }

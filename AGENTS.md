@@ -23,9 +23,10 @@ RAIN → OBSERVE → PREDICT → CAPTURE OPPORTUNITY → STORAGE → REUSE / REC
 
 ## ARCHITECTURE
 - **Frontend**: Next.js App Router, React, TypeScript, Tailwind CSS, MapLibre GL JS, Three.js (selectively), Recharts, TanStack Query, Zod.
-- **Backend / API**: Next.js Route Handlers / Lightweight Service Layer, strict Pydantic/Zod schemas.
+- **Backend / API**: Next.js Route Handlers / Lightweight Service Layer (Node.js runtime), strict Zod schemas. No synchronous Python API in production request path.
 - **Data**: PostgreSQL, PostGIS, in-memory resilient operational fallback.
 - **Scientific**: Deterministic mass-balance hydrological solvers, offline PINN/PDE teachers, lightweight online surrogates.
+- **Spatial Scope**: 24 focal pilot catchments/wards with high-resolution telemetry, geometry, and intervention targets; 144-ward macro basin model via precomputed benchmarks.
 
 ---
 
@@ -79,4 +80,3 @@ The primary UI communicates:
 - Intervention priority
 
 Advanced scientific diagnostics (ENSO/IOD/MJO, PINN manifolds, 3D radar clouds) belong in the **Science Lab**.
-
