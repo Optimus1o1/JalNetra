@@ -1,139 +1,185 @@
-import { prisma } from '../db';
-import { rainwaterSites } from '../data/rainwaterSitesData';
-import { municipalInterventions } from '../domain/interventionPlanner';
-import { CatchmentSite, InterventionSite } from '../domain/types';
+import { getPrismaClient, checkDatabaseHealth, OperationalMode } from "@/lib/db";
+import { CatchmentSite, InterventionOption, SiteType, RechargeSuitabilityClass } from "@/lib/domain/types";
+import { KMC_CATCHMENT_SITES } from "@/lib/data/rainwaterSitesData";
+import { MUNICIPAL_INTERVENTIONS } from "@/app/api/v1/interventions/route";
 
-/**
- * Resiliently fetches catchment sites from PostgreSQL/PostGIS.
- * Falls back transparently to in-memory GeoJSON dataset if DB connection is unavailable.
- */
-export async function fetchCatchmentSites(): Promise<{
+export interface CatchmentSitesResult {
   sites: CatchmentSite[];
-  fromDatabase: boolean;
-}> {
-  try {
-    const dbSites = await prisma.catchmentSite.findMany({
-      orderBy: { ward: 'asc' },
-    });
-
-    if (dbSites && dbSites.length > 0) {
-      const sites: CatchmentSite[] = dbSites.map((s) => ({
-        id: s.id,
-        name: s.name,
-        ward: s.ward,
-        areaHectares: s.areaHectares,
-        runoffCoefficient: s.runoffCoefficient,
-        existingStorageML: s.existingStorageML,
-        plannedStorageML: s.plannedStorageML,
-        landUse: s.landUse as 'RESIDENTIAL' | 'COMMERCIAL' | 'OPEN_SPACE' | 'INDUSTRIAL',
-        geometry: s.geometry ?? undefined,
-      }));
-      return { sites, fromDatabase: true };
-    }
-  } catch (err) {
-    console.warn('PostgreSQL CatchmentSite query failed, falling back to local dataset:', err);
-  }
-
-  return { sites: rainwaterSites, fromDatabase: false };
+  operationalMode: OperationalMode;
+  fromDb: boolean;
 }
 
-/**
- * Resiliently fetches municipal intervention options from PostgreSQL.
- * Falls back transparently to in-memory dataset if DB connection is unavailable.
- */
-export async function fetchInterventions(wardId?: number): Promise<{
-  interventions: InterventionSite[];
-  fromDatabase: boolean;
-}> {
-  try {
-    const whereClause = wardId ? { ward: wardId } : {};
-    const dbInterventions = await prisma.interventionOption.findMany({
-      where: whereClause,
-      orderBy: { costEffectivenessRatio: 'desc' },
-    });
-
-    if (dbInterventions && dbInterventions.length > 0) {
-      const interventions: InterventionSite[] = dbInterventions.map((item) => ({
-        id: item.id,
-        siteId: item.siteId,
-        ward: item.ward,
-        interventionType: item.interventionType as any,
-        estimatedCostLakhs: item.estimatedCostLakhs,
-        capturePotentialML: item.capturePotentialML,
-        drainageReliefPct: item.drainageReliefPct,
-        costEffectivenessRatio: item.costEffectivenessRatio,
-        implementationMonths: item.implementationMonths,
-        spatialSuitability: item.spatialSuitability,
-      }));
-      return { interventions, fromDatabase: true };
-    }
-  } catch (err) {
-    console.warn('PostgreSQL InterventionOption query failed, falling back to local dataset:', err);
-  }
-
-  const filtered = wardId
-    ? municipalInterventions.filter((i) => i.ward === wardId)
-    : municipalInterventions;
-  return { interventions: filtered, fromDatabase: false };
+export interface InterventionsResult {
+  interventions: InterventionOption[];
+  operationalMode: OperationalMode;
+  fromDb: boolean;
 }
 
-/**
- * Persists an evaluated scenario result to PostgreSQL for L2 persistence caching.
- */
-export async function persistScenarioRecord(
-  scenarioHash: string,
-  rainfallMm: number,
-  storageCapacityML: number,
-  dailyDemandML: number,
-  resultPayload: any
-): Promise<void> {
+export async function fetchCatchmentSites(wardNumber?: number | null): Promise<CatchmentSitesResult> {
+  const prisma = getPrismaClient();
+
+  if (prisma) {
+    try {
+      const dbSites = await prisma.catchmentSite.findMany({
+        where: wardNumber ? { wardNumber } : undefined,
+        orderBy: [{ wardNumber: "asc" }, { siteName: "asc" }],
+      });
+
+      if (dbSites && dbSites.length > 0) {
+        const sites: CatchmentSite[] = dbSites.map((row) => ({
+          id: row.siteKey,
+          wardNumber: row.wardNumber,
+          wardName: row.wardName,
+          borough: row.borough,
+          siteName: row.siteName,
+          siteType: row.siteType as SiteType,
+          coordinates: [row.latitude, row.longitude],
+          roofAreaSqM: row.roofAreaSqM,
+          openGroundAreaSqM: row.openGroundAreaSqM,
+          totalCatchmentAreaSqM: row.totalCatchmentAreaSqM,
+          runoffCoefficient: row.runoffCoefficient,
+          collectionEfficiency: row.collectionEfficiency,
+          existingTankCapacityL: row.existingTankCapacityL,
+          currentTankStorageL: row.currentTankStorageL,
+          dailyNonPotableDemandL: row.dailyNonPotableDemandL,
+          soilInfiltrationRateMmHr: row.soilInfiltrationRateMmHr,
+          depthToWaterTableM: row.depthToWaterTableM,
+          rechargeSuitability: row.rechargeSuitability as RechargeSuitabilityClass,
+          provenance: (row.provenance as any) || {
+            area: "MEASURED",
+            runoffCoeff: "ASSUMED",
+            demand: "SIMULATED",
+          },
+        }));
+
+        return {
+          sites,
+          operationalMode: "DATABASE_MODE",
+          fromDb: true,
+        };
+      }
+    } catch (err) {
+      console.warn("[JalNetra Data] CatchmentSite DB query failed, falling back to calibrated in-memory twin store:", err);
+    }
+  }
+
+  // Resilient fallback
+  const fallback = wardNumber
+    ? KMC_CATCHMENT_SITES.filter((s) => s.wardNumber === wardNumber)
+    : KMC_CATCHMENT_SITES;
+
+  return {
+    sites: fallback,
+    operationalMode: "FALLBACK_MODE",
+    fromDb: false,
+  };
+}
+
+export async function fetchInterventions(statusFilter?: string | null): Promise<InterventionsResult> {
+  const prisma = getPrismaClient();
+
+  if (prisma) {
+    try {
+      const dbInterventions = await prisma.interventionOption.findMany({
+        where: statusFilter
+          ? { status: { equals: statusFilter.toUpperCase() } }
+          : undefined,
+        orderBy: [{ priorityScore: "desc" }],
+      });
+
+      if (dbInterventions && dbInterventions.length > 0) {
+        const interventions: InterventionOption[] = dbInterventions.map((row) => ({
+          id: row.interventionKey,
+          siteId: row.siteId || "",
+          name: row.name,
+          type: row.type as any,
+          designCapacityL: row.designCapacityL,
+          estimatedCostINR: row.estimatedCostInr,
+          annualHarvestPotentialML: row.annualHarvestPotentialMl,
+          annualRunoffAvoidedML: row.annualRunoffAvoidedMl,
+          priorityScore: row.priorityScore,
+          implementationTimelineWeeks: row.implementationTimelineWeeks,
+          status: row.status as any,
+          owner: row.owner,
+        }));
+
+        return {
+          interventions,
+          operationalMode: "DATABASE_MODE",
+          fromDb: true,
+        };
+      }
+    } catch (err) {
+      console.warn("[JalNetra Data] InterventionOption DB query failed, falling back to in-memory store:", err);
+    }
+  }
+
+  // Resilient fallback
+  let fallback = MUNICIPAL_INTERVENTIONS;
+  if (statusFilter) {
+    fallback = fallback.filter((i) => i.status.toLowerCase() === statusFilter.toLowerCase());
+  }
+
+  return {
+    interventions: fallback,
+    operationalMode: "FALLBACK_MODE",
+    fromDb: false,
+  };
+}
+
+export async function getPersistedScenarioRecord(scenarioHash: string): Promise<any | null> {
+  const prisma = getPrismaClient();
+  if (!prisma) return null;
+
   try {
-    await prisma.persistedScenario.upsert({
+    const record = await prisma.persistedScenario.findUnique({
       where: { scenarioHash },
-      update: {
-        accessCount: { increment: 1 },
-        updatedAt: new Date(),
-      },
-      create: {
-        scenarioHash,
-        rainfallMm,
-        storageCapacityML,
-        dailyDemandML,
-        resultPayload,
-        accessCount: 1,
-      },
     });
+    return record?.results || null;
   } catch (err) {
-    // Non-blocking: database scenario write is supplementary to L1 memory cache
-    console.warn('Failed to persist scenario hash to PostgreSQL:', scenarioHash, err);
-  }
-}
-
-/**
- * Retrieves a persisted scenario result from PostgreSQL by parameter values.
- */
-export async function getPersistedScenarioRecord(
-  rainfallMm: number,
-  storageCapacityML: number,
-  dailyDemandML: number
-): Promise<{ resultPayload: any; scenarioHash: string } | null> {
-  try {
-    const record = await prisma.persistedScenario.findFirst({
-      where: {
-        rainfallMm,
-        storageCapacityML,
-        dailyDemandML,
-      },
-      orderBy: { updatedAt: 'desc' },
-    });
-    if (record) {
-      return {
-        resultPayload: record.resultPayload,
-        scenarioHash: record.scenarioHash,
-      };
-    }
-  } catch (err) {
-    console.warn('PostgreSQL PersistedScenario lookup failed:', err);
+    console.warn("[JalNetra Data] PersistedScenario query failed:", err);
   }
   return null;
+}
+
+export async function persistScenarioRecord(data: {
+  scenarioHash: string;
+  scenarioName: string;
+  wardNumber: number;
+  rainfallEventMm: number;
+  calculationVersion: string;
+  modelVersion: string;
+  inputs: any;
+  results: any;
+  provenance?: string;
+}): Promise<boolean> {
+  const prisma = getPrismaClient();
+  if (!prisma) return false;
+
+  try {
+    await prisma.persistedScenario.upsert({
+      where: { scenarioHash: data.scenarioHash },
+      update: {
+        scenarioName: data.scenarioName,
+        rainfallEventMm: data.rainfallEventMm,
+        results: data.results,
+        inputs: data.inputs,
+      },
+      create: {
+        scenarioHash: data.scenarioHash,
+        scenarioName: data.scenarioName,
+        wardNumber: data.wardNumber,
+        rainfallEventMm: data.rainfallEventMm,
+        calculationVersion: data.calculationVersion,
+        modelVersion: data.modelVersion,
+        inputs: data.inputs,
+        results: data.results,
+        provenance: data.provenance || "SIMULATED",
+      },
+    });
+    return true;
+  } catch (err) {
+    console.warn("[JalNetra Data] PersistedScenario upsert failed:", err);
+    return false;
+  }
 }

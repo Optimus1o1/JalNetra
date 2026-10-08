@@ -1,106 +1,127 @@
-import { CatchmentSite, DemandCategory, DemandMatchResult } from './types';
+import { CatchmentSite, DemandMatchResult, DemandProfile } from "./types";
 
-// Standard per-hectare/per-capita non-potable secondary demand baseline assumptions (ML/day)
-// Tagged explicitly as ASSUMED parameters in compliance with scientific integrity rules
-export interface DemandBaselineAssumptions {
-  toiletFlushingMLDPerHectare: number;
-  coolingTowerHVACMLDPerHectare: number;
-  horticultureParkMLDPerHectare: number;
-  fireAndConstructionMLDPerHectare: number;
-}
+/**
+ * Standard benchmark demand profiles based on typical municipal building typologies.
+ * All profiles are explicitly classified as ASSUMED engineering defaults.
+ */
+export const DEFAULT_INSTITUTIONAL_PROFILE: DemandProfile = {
+  name: "General Institutional Baseline",
+  toiletFlushingPct: 45,
+  landscapeIrrigationPct: 25,
+  coolingHvacPct: 15,
+  streetCleaningPct: 15,
+  provenance: "ASSUMED",
+};
 
-export const DEFAULT_DEMAND_ASSUMPTIONS: DemandBaselineAssumptions = {
-  toiletFlushingMLDPerHectare: 0.12,
-  coolingTowerHVACMLDPerHectare: 0.18,
-  horticultureParkMLDPerHectare: 0.08,
-  fireAndConstructionMLDPerHectare: 0.05,
+export const HOSPITAL_CAMPUS_PROFILE: DemandProfile = {
+  name: "Healthcare & Hospital Complex (e.g. SSKM)",
+  toiletFlushingPct: 50,
+  landscapeIrrigationPct: 10,
+  coolingHvacPct: 30,
+  streetCleaningPct: 10,
+  provenance: "ASSUMED",
+};
+
+export const TRANSIT_FACILITY_PROFILE: DemandProfile = {
+  name: "Transit Hub & Bus Maintenance Shed (e.g. Tiljala Depot)",
+  toiletFlushingPct: 20,
+  landscapeIrrigationPct: 10,
+  coolingHvacPct: 10,
+  streetCleaningPct: 60,
+  provenance: "ASSUMED",
+};
+
+export const EDUCATIONAL_CAMPUS_PROFILE: DemandProfile = {
+  name: "University & Educational Institute",
+  toiletFlushingPct: 45,
+  landscapeIrrigationPct: 35,
+  coolingHvacPct: 10,
+  streetCleaningPct: 10,
+  provenance: "ASSUMED",
+};
+
+export const MUNICIPAL_OFFICE_PROFILE: DemandProfile = {
+  name: "Municipal Administrative Building",
+  toiletFlushingPct: 55,
+  landscapeIrrigationPct: 20,
+  coolingHvacPct: 15,
+  streetCleaningPct: 10,
+  provenance: "ASSUMED",
 };
 
 /**
- * Calculates secondary non-potable demand across municipal categories.
- * All assumptions are explicitly tagged and adjustable.
+ * Validates that demand profile percentages are non-negative and sum to 100% (within 0.5% tolerance).
  */
-export function calculateSecondaryDemand(
-  site: CatchmentSite,
-  assumptions: DemandBaselineAssumptions = DEFAULT_DEMAND_ASSUMPTIONS
-): DemandCategory[] {
-  const area = site.areaHectares;
+export function validateDemandProfile(profile: DemandProfile): { valid: boolean; reason?: string } {
+  const { toiletFlushingPct, landscapeIrrigationPct, coolingHvacPct, streetCleaningPct } = profile;
 
-  const categories: DemandCategory[] = [
-    {
-      category: 'TOILET_FLUSHING',
-      dailyDemandML: Number((area * assumptions.toiletFlushingMLDPerHectare).toFixed(3)),
-      priority: 1,
-      qualityRequired: 'SECONDARY_FILTERED',
-      description: 'Institutional & commercial gravity-fed toilet flushing',
-      provenance: 'ASSUMED',
-    },
-    {
-      category: 'COOLING_TOWERS',
-      dailyDemandML: Number((area * assumptions.coolingTowerHVACMLDPerHectare).toFixed(3)),
-      priority: 2,
-      qualityRequired: 'TERTIARY_TREATED',
-      description: 'Commercial HVAC cooling tower makeup water',
-      provenance: 'ASSUMED',
-    },
-    {
-      category: 'URBAN_HORTICULTURE',
-      dailyDemandML: Number((area * assumptions.horticultureParkMLDPerHectare).toFixed(3)),
-      priority: 3,
-      qualityRequired: 'RAW_RAINWATER',
-      description: 'Municipal medians, eco-parks & Maidan tree-line watering',
-      provenance: 'ASSUMED',
-    },
-    {
-      category: 'FIRE_AND_ROAD_WASHING',
-      dailyDemandML: Number((area * assumptions.fireAndConstructionMLDPerHectare).toFixed(3)),
-      priority: 4,
-      qualityRequired: 'RAW_RAINWATER',
-      description: 'Emergency hydrants, dust-suppression mist canons',
-      provenance: 'ASSUMED',
-    },
-  ];
+  if (
+    toiletFlushingPct < 0 ||
+    landscapeIrrigationPct < 0 ||
+    coolingHvacPct < 0 ||
+    streetCleaningPct < 0 ||
+    toiletFlushingPct > 100 ||
+    landscapeIrrigationPct > 100 ||
+    coolingHvacPct > 100 ||
+    streetCleaningPct > 100
+  ) {
+    return { valid: false, reason: "Demand percentages must be non-negative and cannot exceed 100%." };
+  }
 
-  return categories;
+  const total = toiletFlushingPct + landscapeIrrigationPct + coolingHvacPct + streetCleaningPct;
+  if (Math.abs(total - 100) > 0.5) {
+    return {
+      valid: false,
+      reason: `Demand percentages must sum to 100% (current sum: ${total.toFixed(1)}%).`,
+    };
+  }
+
+  return { valid: true };
 }
 
 /**
- * Allocates harvestable rainwater to secondary demands in order of priority.
- * Invariant: allocatedDemandML <= harvestableSupplyML.
+ * Non-potable reuse demand allocation model.
+ * Matches harvested rainwater strictly to approved urban non-potable uses.
+ * Configurable via custom DemandProfile with explicit ASSUMED provenance.
  */
-export function matchDemand(
-  harvestableSupplyML: number,
-  categories: DemandCategory[]
+export function matchNonPotableDemand(
+  site: CatchmentSite,
+  availableStoredWaterL: number,
+  customProfile?: DemandProfile
 ): DemandMatchResult {
-  let remainingSupply = harvestableSupplyML;
-  let totalAllocated = 0;
-  const totalDemand = categories.reduce((acc, cat) => acc + cat.dailyDemandML, 0);
+  const profile = customProfile || DEFAULT_INSTITUTIONAL_PROFILE;
+  const validation = validateDemandProfile(profile);
 
-  const matchedBreakdown = categories.map((cat) => {
-    const allocated = Math.min(remainingSupply, cat.dailyDemandML);
-    remainingSupply = Math.max(0, remainingSupply - allocated);
-    totalAllocated += allocated;
-    const satisfactionRate = cat.dailyDemandML > 0 ? (allocated / cat.dailyDemandML) * 100 : 100;
+  if (!validation.valid) {
+    throw new Error(`Invalid Demand Profile configuration: ${validation.reason}`);
+  }
 
-    return {
-      category: cat.category,
-      demandML: cat.dailyDemandML,
-      allocatedML: Number(allocated.toFixed(3)),
-      satisfactionRate: Number(satisfactionRate.toFixed(1)),
-      priority: cat.priority,
-    };
-  });
+  const totalDemand = Math.max(0, site.dailyNonPotableDemandL);
+  const availableWater = Math.max(0, availableStoredWaterL);
 
-  const overallSatisfactionRate =
-    totalDemand > 0 ? Number(((totalAllocated / totalDemand) * 100).toFixed(1)) : 100;
+  // Actual water supplied from harvest is min(available, totalDemand)
+  const supplied = Math.min(availableWater, totalDemand);
+  const unmet = Math.max(0, totalDemand - supplied);
+  const fulfillmentPct = totalDemand > 0 ? Number(((supplied / totalDemand) * 100).toFixed(1)) : 100;
+
+  // Breakdown dynamically calculated using the validated demand profile
+  const toiletFlushing = Math.round((supplied * profile.toiletFlushingPct) / 100);
+  const landscapeIrrigation = Math.round((supplied * profile.landscapeIrrigationPct) / 100);
+  const coolingHvac = Math.round((supplied * profile.coolingHvacPct) / 100);
+  const streetCleaning = Math.max(0, supplied - (toiletFlushing + landscapeIrrigation + coolingHvac));
 
   return {
-    totalSupplyML: Number(harvestableSupplyML.toFixed(3)),
-    totalDemandML: Number(totalDemand.toFixed(3)),
-    totalAllocatedML: Number(totalAllocated.toFixed(3)),
-    unmetDemandML: Number(Math.max(0, totalDemand - totalAllocated).toFixed(3)),
-    surplusWaterML: Number(remainingSupply.toFixed(3)),
-    overallSatisfactionRate,
-    breakdown: matchedBreakdown,
+    totalDailyDemandL: totalDemand,
+    waterSuppliedFromHarvestL: supplied,
+    unmetDemandL: unmet,
+    demandFulfillmentPct: fulfillmentPct,
+    demandProfile: profile,
+    applications: {
+      toiletFlushingL: toiletFlushing,
+      landscapeIrrigationL: landscapeIrrigation,
+      coolingHvacL: coolingHvac,
+      streetCleaningL: streetCleaning,
+    },
+    provenance: "ASSUMED",
   };
 }

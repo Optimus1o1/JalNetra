@@ -1,95 +1,104 @@
-import crypto from 'node:crypto';
-import { calculateStorageBalance } from './storageBalance';
-import { calculateOpportunity } from './rainwaterEngine';
-import { rainwaterSites } from '../data/rainwaterSitesData';
-import { ScenarioParams, ScenarioResult } from './types';
+import crypto from "crypto";
+import { InterventionScenarioComparison } from "./types";
 
-// In-memory bounded LRU cache for scenario evaluations (max 50 scenarios)
-const SCENARIO_CACHE_MAX_SIZE = 50;
-const scenarioCache = new Map<string, ScenarioResult>();
+export const SCENARIO_CALCULATION_VERSION = "2.1.0";
+export const SCENARIO_MODEL_VERSION = "1.4.0";
 
-// Current algorithmic version hash to ensure cache invalidation on logic revisions
-export const SCENARIO_ALGORITHM_VERSION = 'v1.2.0-massbalance-hardened';
+interface CacheEntry {
+  hash: string;
+  result: InterventionScenarioComparison;
+  createdAt: number;
+  calculationVersion: string;
+  modelVersion: string;
+}
+
+const MAX_CACHE_SIZE = 100;
+const scenarioCache = new Map<string, CacheEntry>();
 
 /**
- * Generates a deterministic SHA-256 scenario hash with algorithm versioning.
- * Format: SHA256(`${SCENARIO_ALGORITHM_VERSION}|${siteId}|${wardId}|${rainfallMm}|${storageCapacityML}|${dailyDemandML}`)
+ * Generates a deterministic SHA-256 hash string for an intervention scenario configuration.
+ * Binds calculationVersion and modelVersion into the cache key to guarantee zero stale result leakage.
  */
-export function generateScenarioHash(params: ScenarioParams): string {
-  const payload = [
-    SCENARIO_ALGORITHM_VERSION,
-    params.siteId,
-    params.wardId,
-    params.rainfallMm.toFixed(2),
-    params.storageCapacityML.toFixed(2),
-    params.dailyDemandML.toFixed(2),
-  ].join('|');
+export function generateScenarioHash(
+  config: {
+    wardNumber: number;
+    rainfallEventMm: number;
+    addedStorageCapacityL: number;
+    permeablePavementFractionPct: number;
+    activeRechargeWells: boolean;
+    captureEfficiencyBoostPct: number;
+  },
+  calculationVersion: string = SCENARIO_CALCULATION_VERSION,
+  modelVersion: string = SCENARIO_MODEL_VERSION
+): string {
+  const normalizedKey = [
+    `v:${calculationVersion}`,
+    `m:${modelVersion}`,
+    `w:${config.wardNumber}`,
+    `r:${config.rainfallEventMm.toFixed(1)}`,
+    `s:${Math.round(config.addedStorageCapacityL)}`,
+    `p:${Math.round(config.permeablePavementFractionPct)}`,
+    `rw:${config.activeRechargeWells ? 1 : 0}`,
+    `eff:${Math.round(config.captureEfficiencyBoostPct)}`,
+  ].join("|");
 
-  return crypto.createHash('sha256').update(payload).digest('hex').substring(0, 16);
+  return crypto.createHash("sha256").update(normalizedKey).digest("hex").substring(0, 24);
 }
 
 /**
- * Runs a deterministic scenario simulation with LRU cache lookup.
- * Evaluates in <15ms guaranteed.
+ * Retrieves a cached scenario result if present.
  */
-export function runScenarioCalculation(params: ScenarioParams): {
-  result: ScenarioResult;
-  cached: boolean;
-  scenarioHash: string;
-  executionTimeMs: number;
-} {
-  const startTime = performance.now();
-  const scenarioHash = generateScenarioHash(params);
+export function getCachedScenario(hash: string): InterventionScenarioComparison | null {
+  const entry = scenarioCache.get(hash);
+  if (!entry) return null;
+  return entry.result;
+}
 
-  // Cache hit
-  if (scenarioCache.has(scenarioHash)) {
-    const cachedResult = scenarioCache.get(scenarioHash)!;
-    // Re-insert to refresh LRU order
-    scenarioCache.delete(scenarioHash);
-    scenarioCache.set(scenarioHash, cachedResult);
-    const executionTimeMs = Number((performance.now() - startTime).toFixed(3));
-    return {
-      result: cachedResult,
-      cached: true,
-      scenarioHash,
-      executionTimeMs,
-    };
-  }
-
-  // Cache miss: deterministic evaluation
-  const site = rainwaterSites.find((s) => s.id === params.siteId) || rainwaterSites[0];
-  const opportunity = calculateOpportunity(site, params.rainfallMm);
-  const balance = calculateStorageBalance(
-    opportunity.harvestablePotentialML,
-    params.storageCapacityML,
-    params.dailyDemandML,
-    site.existingStorageML
-  );
-
-  const result: ScenarioResult = {
-    ...params,
-    ...balance,
-    harvestablePotentialML: opportunity.harvestablePotentialML,
-    runDate: new Date().toISOString(),
-  };
-
-  // Enforce bounded cache size
-  if (scenarioCache.size >= SCENARIO_CACHE_MAX_SIZE) {
+/**
+ * Stores a scenario result into the bounded scenario cache.
+ */
+export function storeCachedScenario(
+  hash: string,
+  result: InterventionScenarioComparison,
+  calculationVersion: string = SCENARIO_CALCULATION_VERSION,
+  modelVersion: string = SCENARIO_MODEL_VERSION
+): void {
+  if (scenarioCache.size >= MAX_CACHE_SIZE) {
+    // Evict oldest entry (FIFO)
     const oldestKey = scenarioCache.keys().next().value;
-    if (oldestKey) scenarioCache.delete(oldestKey);
+    if (oldestKey) {
+      scenarioCache.delete(oldestKey);
+    }
   }
-
-  scenarioCache.set(scenarioHash, result);
-  const executionTimeMs = Number((performance.now() - startTime).toFixed(3));
-
-  return {
+  scenarioCache.set(hash, {
+    hash,
     result,
-    cached: false,
-    scenarioHash,
-    executionTimeMs,
+    createdAt: Date.now(),
+    calculationVersion,
+    modelVersion,
+  });
+}
+
+/**
+ * Returns cache diagnostics including versioning tags.
+ */
+export function getScenarioCacheStats(): {
+  size: number;
+  maxSize: number;
+  calculationVersion: string;
+  modelVersion: string;
+} {
+  return {
+    size: scenarioCache.size,
+    maxSize: MAX_CACHE_SIZE,
+    calculationVersion: SCENARIO_CALCULATION_VERSION,
+    modelVersion: SCENARIO_MODEL_VERSION,
   };
 }
 
+/**
+ * Clears the cache (for testing and manual invalidation).
+ */
 export function clearScenarioCache(): void {
   scenarioCache.clear();
 }
