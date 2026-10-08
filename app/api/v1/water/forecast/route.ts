@@ -3,7 +3,10 @@ import { getActiveSensorFleet } from "@/lib/services/telemetryService";
 import { getTidalHydrodynamics } from "@/lib/services/tidalHydroService";
 
 export async function GET() {
-  const [sensors, tidalState] = await Promise.all([\n    getActiveSensorFleet(),\n    getTidalHydrodynamics(),\n  ]);
+  const [sensors, tidalState] = await Promise.all([
+    getActiveSensorFleet(),
+    getTidalHydrodynamics(),
+  ]);
 
   return NextResponse.json({
     status: "success",
