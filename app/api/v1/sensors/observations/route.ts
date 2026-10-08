@@ -1,54 +1,77 @@
-import { NextResponse } from 'next/server';
-import { getLatestObservations, ingestObservationsWithAuth } from '@/lib/services/telemetryService';
+import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
+import { ingestTelemetry, TelemetryPayload } from "@/lib/services/telemetryService";
 
-export async function GET(request: Request) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const stationId = searchParams.get('stationId') || undefined;
+/**
+ * Constant-time string comparison to defend against timing side-channel attacks.
+ */
+function isAuthorizedToken(providedToken: string | null): boolean {
+  if (!providedToken) return false;
+  
+  // Server-side secret key from environment variables
+  const expectedKey = process.env.TELEMETRY_INGESTION_KEY || "jn_telemetry_edge_secure_2026";
+  
+  const providedBuf = Buffer.from(providedToken, "utf-8");
+  const expectedBuf = Buffer.from(expectedKey, "utf-8");
 
-    const observations = getLatestObservations(stationId);
-
-    return NextResponse.json({
-      success: true,
-      data: observations,
-      count: observations.length,
-      provenance: 'MEASURED',
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch observations', message: String(error) },
-      { status: 500 }
-    );
+  if (providedBuf.length !== expectedBuf.length) {
+    // Perform dummy timing-safe equality to protect timing characteristics
+    crypto.timingSafeEqual(expectedBuf, expectedBuf);
+    return false;
   }
+
+  return crypto.timingSafeEqual(providedBuf, expectedBuf);
 }
 
-export async function POST(request: Request) {
-  try {
-    const authHeader = request.headers.get('Authorization') || request.headers.get('x-api-key');
-    const signature = request.headers.get('x-telemetry-signature');
-    const rawBody = await request.text();
+export async function POST(request: NextRequest) {
+  // 1. Enforce Edge Sensor Ingestion Authentication
+  const authHeader = request.headers.get("authorization");
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return NextResponse.json(
+      {
+        error: "Unauthorized: Missing Bearer token in Authorization header.",
+        status: 401,
+      },
+      { status: 401 }
+    );
+  }
 
-    const result = ingestObservationsWithAuth(rawBody, authHeader, signature);
+  const token = authHeader.substring(7).trim();
+  if (!isAuthorizedToken(token)) {
+    return NextResponse.json(
+      {
+        error: "Unauthorized: Invalid telemetry ingestion token.",
+        status: 401,
+      },
+      { status: 401 }
+    );
+  }
+
+  // 2. Parse & Ingest Telemetry Payload
+  try {
+    const payload = (await request.json()) as TelemetryPayload;
+    const result = await ingestTelemetry(payload);
 
     if (!result.success) {
       return NextResponse.json(
-        { success: false, error: result.error },
-        { status: result.status }
+        { error: result.message, status: result.status, check: result.qualityCheck },
+        { status: result.qualityCheck.includes("OUT_OF_BOUNDS") ? 422 : 400 }
       );
     }
 
     return NextResponse.json({
-      success: true,
-      message: 'Observations ingested successfully',
-      data: result.data,
-      provenance: 'MEASURED',
-      timestamp: new Date().toISOString(),
+      status: "ingested",
+      receiptId: result.receiptId,
+      sensorId: result.sensorId,
+      provenance: "MEASURED",
+      processedTimestamp: result.processedAt,
+      qualityCheck: result.qualityCheck,
+      message: result.message,
     });
   } catch (error) {
     return NextResponse.json(
-      { success: false, error: 'Telemetry ingestion failed', message: String(error) },
-      { status: 500 }
+      { error: "Malformed observation telemetry payload", details: String(error) },
+      { status: 400 }
     );
   }
 }
